@@ -4,19 +4,15 @@ import os
 DB_PATH = os.path.join("data", "events.db")
 
 async def init_db():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
-            CREATE TABLE IF NOT EXISTS events (
-                id TEXT PRIMARY KEY,
-                title TEXT,
-                description TEXT,
-                start_time REAL,
-                recurrence_rule TEXT,
-                creator_id INTEGER,
-                image_url TEXT,
+            CREATE TABLE IF NOT EXISTS active_events (
+                event_id TEXT PRIMARY KEY,
+                config_name TEXT,
                 message_id INTEGER,
                 channel_id INTEGER,
-                guild_id INTEGER,
+                start_time REAL,
                 status TEXT DEFAULT 'active'
             )
         """)
@@ -31,27 +27,39 @@ async def init_db():
         """)
         await db.commit()
 
-async def create_event(event_id, title, description, start_time, recurrence_rule, creator_id, image_url, channel_id, guild_id):
+async def create_active_event(event_id, config_name, channel_id, start_time):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
-            INSERT INTO events (id, title, description, start_time, recurrence_rule, creator_id, image_url, channel_id, guild_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (event_id, title, description, start_time, recurrence_rule, creator_id, image_url, channel_id, guild_id))
+            INSERT INTO active_events (event_id, config_name, channel_id, start_time)
+            VALUES (?, ?, ?, ?)
+        """, (event_id, config_name, channel_id, start_time))
         await db.commit()
 
 async def set_event_message(event_id, message_id):
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE events SET message_id = ? WHERE id = ?", (message_id, event_id))
+        await db.execute("UPDATE active_events SET message_id = ? WHERE event_id = ?", (message_id, event_id))
         await db.commit()
 
-async def get_event(event_id):
+async def get_active_event(event_id):
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT * FROM events WHERE id = ?", (event_id,)) as cursor:
+        async with db.execute("SELECT * FROM active_events WHERE event_id = ?", (event_id,)) as cursor:
             row = await cursor.fetchone()
             if row:
                 columns = [desc[0] for desc in cursor.description]
                 return dict(zip(columns, row))
             return None
+
+async def set_event_status(event_id, status):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE active_events SET status = ? WHERE event_id = ?", (status, event_id))
+        await db.commit()
+
+async def get_all_active_events():
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT * FROM active_events WHERE status = 'active'") as cursor:
+            rows = await cursor.fetchall()
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in rows]
 
 async def update_rsvp(event_id, user_id, status):
     async with aiosqlite.connect(DB_PATH) as db:
@@ -67,28 +75,8 @@ async def get_rsvps(event_id):
         async with db.execute("SELECT user_id, status FROM rsvps WHERE event_id = ?", (event_id,)) as cursor:
             return await cursor.fetchall()
 
-async def get_active_events():
+async def delete_active_event(event_id):
     async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT * FROM events WHERE status = 'active'") as cursor:
-            rows = await cursor.fetchall()
-            columns = [desc[0] for desc in cursor.description]
-            return [dict(zip(columns, row)) for row in rows]
-
-async def set_event_status(event_id, status):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("UPDATE events SET status = ? WHERE id = ?", (status, event_id))
-        await db.commit()
-
-async def get_past_recurring_events(current_time):
-    # status='active' AND start_time < current_time AND recurrence_rule != 'none'
-    async with aiosqlite.connect(DB_PATH) as db:
-        async with db.execute("SELECT * FROM events WHERE status = 'active' AND start_time <= ? AND recurrence_rule != 'none'", (current_time,)) as cursor:
-            rows = await cursor.fetchall()
-            columns = [desc[0] for desc in cursor.description]
-            return [dict(zip(columns, row)) for row in rows]
-
-async def delete_event(event_id):
-    async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("DELETE FROM events WHERE id = ?", (event_id,))
+        await db.execute("DELETE FROM active_events WHERE event_id = ?", (event_id,))
         await db.execute("DELETE FROM rsvps WHERE event_id = ?", (event_id,))
         await db.commit()

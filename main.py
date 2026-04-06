@@ -16,9 +16,9 @@ class EventBot(commands.Bot):
         intents.message_content = True
         
         try:
-            with open('config.json', 'r', encoding='utf-8') as f:
-                config_data = json.load(f)
-                prefix = config_data.get("command_prefix", "!")
+            from utils.jsonc import load_jsonc
+            config_data = load_jsonc('config.json')
+            prefix = config_data.get("command_prefix", "!")
         except Exception:
             prefix = "!"
             
@@ -31,15 +31,17 @@ class EventBot(commands.Bot):
         await self.load_extension("cogs.event_commands")
         await self.load_extension("cogs.scheduler_task")
         
-        # Load persistent views
-        active_events = await database.get_active_events()
+        # Load persistent views for existing active events
+        from cogs.event_ui import get_event_conf
+        active_events = await database.get_all_active_events()
         for event in active_events:
-            self.add_view(DynamicEventView(self, event['id']))
+            conf = get_event_conf(event['config_name'])
+            self.add_view(DynamicEventView(self, event['event_id'], conf))
             
         # Sync slash commands
         try:
-            with open('config.json', 'r', encoding='utf-8') as f:
-                config = json.load(f)
+            from utils.jsonc import load_jsonc
+            config = load_jsonc('config.json')
             guild_id = config.get("guild_id")
             if guild_id:
                 guild = discord.Object(id=guild_id)

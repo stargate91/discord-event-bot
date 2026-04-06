@@ -3,9 +3,9 @@ import os
 
 LANG = "hu"
 try:
-    with open('config.json', 'r', encoding='utf-8') as f:
-        config_data = json.load(f)
-        LANG = config_data.get("language", "hu")
+    from utils.jsonc import load_jsonc
+    config_data = load_jsonc('config.json')
+    LANG = config_data.get("language", "hu")
 except Exception:
     pass
 
