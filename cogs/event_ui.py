@@ -24,21 +24,17 @@ class DynamicEventView(discord.ui.View):
         self.event_conf = event_conf
 
         # Setup buttons
-        accept_btn = discord.ui.Button(label=t("BTN_ACCEPT"), style=discord.ButtonStyle.success, emoji="✅", custom_id=f"accept_{event_id}")
+        accept_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="✅", custom_id=f"accept_{event_id}")
         accept_btn.callback = self.accept_callback
         self.add_item(accept_btn)
 
-        decline_btn = discord.ui.Button(label=t("BTN_DECLINE"), style=discord.ButtonStyle.danger, emoji="❌", custom_id=f"decline_{event_id}")
+        decline_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="❌", custom_id=f"decline_{event_id}")
         decline_btn.callback = self.decline_callback
         self.add_item(decline_btn)
 
-        tentative_btn = discord.ui.Button(label=t("BTN_TENTATIVE"), style=discord.ButtonStyle.secondary, emoji="❔", custom_id=f"tentative_{event_id}")
+        tentative_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="❔", custom_id=f"tentative_{event_id}")
         tentative_btn.callback = self.tentative_callback
         self.add_item(tentative_btn)
-
-        delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, emoji="🗑️", custom_id=f"delete_{event_id}", row=1)
-        delete_btn.callback = self.delete_callback
-        self.add_item(delete_btn)
 
     async def accept_callback(self, interaction: discord.Interaction):
         await self.handle_rsvp(interaction, "accepted")
