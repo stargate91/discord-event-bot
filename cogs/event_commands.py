@@ -16,15 +16,28 @@ try:
     config_data = load_jsonc('config.json')
     SUFFIX = config_data.get("command_suffix", "")
     EVENTS_CONFIG = config_data.get("events_config", [])
+    ADMIN_CHANNEL_ID = config_data.get("admin_channel_id")
+    ADMIN_ROLE_ID = config_data.get("admin_role_id")
 except Exception:
     SUFFIX = ""
     EVENTS_CONFIG = []
+    ADMIN_CHANNEL_ID = None
+    ADMIN_ROLE_ID = None
 
 def get_event_dict(name):
     for e in EVENTS_CONFIG:
         if e.get("name") == name:
             return e
     return None
+
+def is_admin(ctx_or_interaction):
+    """Check if user is server admin or has the configured admin role."""
+    user = ctx_or_interaction.author if hasattr(ctx_or_interaction, 'author') else ctx_or_interaction.user
+    if user.guild_permissions.administrator:
+        return True
+    if ADMIN_ROLE_ID and discord.utils.get(user.roles, id=ADMIN_ROLE_ID):
+        return True
+    return False
 
 class EventCommands(commands.Cog):
     def __init__(self, bot):
@@ -33,6 +46,9 @@ class EventCommands(commands.Cog):
     @app_commands.command(name="event_publish", description="Publish a specific configured event")
     @app_commands.describe(name="Event configuration name")
     async def event_publish(self, interaction: discord.Interaction, name: str):
+        if not is_admin(interaction):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
         event_conf = get_event_dict(name)
         if not event_conf:
             await interaction.response.send_message("Event not found in config.", ephemeral=True)
@@ -92,8 +108,11 @@ class EventCommands(commands.Cog):
 
     @commands.command(name=f"sync{SUFFIX}")
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
+        if not is_admin(ctx):
+            return
+        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
+            return
         if spec == "global":
             synced = await self.bot.tree.sync()
             await ctx.send(t("SYNC_GL_COUNT", count=len(synced)))
@@ -107,8 +126,11 @@ class EventCommands(commands.Cog):
 
     @commands.command(name=f"clear_commands{SUFFIX}")
     @commands.guild_only()
-    @commands.has_permissions(administrator=True)
     async def clear_commands_prefix(self, ctx: commands.Context):
+        if not is_admin(ctx):
+            return
+        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
+            return
         self.bot.tree.clear_commands(guild=None)
         await self.bot.tree.sync(guild=None)
         
