@@ -116,8 +116,13 @@ class DynamicEventView(discord.ui.View):
         embed.add_field(name=t("EMBED_DEC", count=len(declined)), value="\n".join(declined) or t("EMBED_NONE"), inline=True)
         embed.add_field(name=t("EMBED_TEN", count=len(tentative)), value="\n".join(tentative) or t("EMBED_NONE"), inline=True)
 
-        if self.event_conf.get("image_url"):
-            embed.set_image(url=self.event_conf["image_url"])
+        image_url = self.event_conf.get("image_url")
+        if image_url:
+            if isinstance(image_url, list):
+                import random
+                embed.set_image(url=random.choice(image_url))
+            else:
+                embed.set_image(url=image_url)
             
         embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id="System"))
         return embed
