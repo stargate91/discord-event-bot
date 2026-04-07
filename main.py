@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import database
 import json
+from utils.logger import log
 
 from cogs.event_ui import DynamicEventView
 
@@ -50,15 +51,15 @@ class EventBot(commands.Bot):
             else:
                 await self.tree.sync()
         except Exception as e:
-            print(f"Failed to sync commands: {e}")
+            log.error(f"Failed to sync commands: {e}")
 
     async def on_ready(self):
-        print(f"Logged in as {self.user} (ID: {self.user.id})")
-        print("------")
+        log.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        log.info("------")
 
 if __name__ == "__main__":
     if not TOKEN:
-        print("Error: BOT_TOKEN is not set in .env")
+        log.error("BOT_TOKEN is not set in .env")
         exit(1)
         
     bot = EventBot()

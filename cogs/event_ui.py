@@ -3,6 +3,7 @@ from discord.ext import commands
 import database
 from utils.i18n import t
 import json
+from utils.logger import log
 
 def get_event_conf(name):
     try:
@@ -62,6 +63,7 @@ class DynamicEventView(discord.ui.View):
             child.disabled = True
             
         await interaction.message.edit(embed=embed, view=self)
+        log.info(f"Event {self.event_id} deleted by {interaction.user}")
 
     async def generate_embed(self, db_event=None):
         if not db_event:
@@ -155,6 +157,7 @@ class DynamicEventView(discord.ui.View):
         
         embed = await self.generate_embed(db_event)
         await interaction.message.edit(embed=embed, view=self)
+        log.info(f"User {interaction.user} (ID: {interaction.user.id}) RSVP'd {status} for event {self.event_id}")
 
 async def setup(bot):
     pass

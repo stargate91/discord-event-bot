@@ -10,6 +10,7 @@ from cogs.event_ui import DynamicEventView
 from utils.i18n import t
 from dateutil import parser
 from dateutil import tz
+from utils.logger import log
 
 try:
     from utils.jsonc import load_jsonc
@@ -43,7 +44,7 @@ class EventCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="event_publish", description="Publish a specific configured event")
+    @app_commands.command(name="event-publish", description="Publish a specific configured event")
     @app_commands.describe(name="Event configuration name")
     async def event_publish(self, interaction: discord.Interaction, name: str):
         if not is_admin(interaction):
@@ -98,6 +99,7 @@ class EventCommands(commands.Cog):
         
         await database.set_event_message(event_id, msg.id)
         self.bot.add_view(view)
+        log.info(f"Published event '{name}' (ID: {event_id}) in channel {channel_id}")
 
     @event_publish.autocomplete("name")
     async def publish_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -105,6 +107,53 @@ class EventCommands(commands.Cog):
             app_commands.Choice(name=e["name"], value=e["name"])
             for e in EVENTS_CONFIG if current.lower() in e["name"].lower() and e.get("enabled", True)
         ][:25]
+
+    @app_commands.command(name="remove-event", description="Remove an active event from the database and disable its buttons")
+    @app_commands.describe(event_id="Select the active event to remove")
+    async def remove_event(self, interaction: discord.Interaction, event_id: str):
+        if not is_admin(interaction):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
+
+        db_event = await database.get_active_event(event_id)
+        if not db_event:
+            await interaction.response.send_message(f"Event `{event_id}` not found or already removed.", ephemeral=True)
+            return
+
+        # Try to disable buttons on the Discord message
+        try:
+            channel = self.bot.get_channel(db_event["channel_id"])
+            if channel and db_event.get("message_id"):
+                old_msg = await channel.fetch_message(db_event["message_id"])
+                if old_msg:
+                    view = discord.ui.View.from_message(old_msg)
+                    for child in view.children:
+                        child.disabled = True
+                    embed = old_msg.embeds[0] if old_msg.embeds else None
+                    if embed:
+                        embed.title = f"{t('TAG_PAST')} {embed.title}"
+                        await old_msg.edit(embed=embed, view=view)
+                    else:
+                        await old_msg.edit(view=view)
+        except Exception as e:
+            log.warning(f"Could not update old message for event {event_id}: {e}")
+
+        # Delete from database
+        await database.delete_active_event(event_id)
+
+        config_name = db_event.get('config_name', 'Unknown')
+        await interaction.response.send_message(f"✅ Event `{config_name}` (`{event_id}`) removed.", ephemeral=True)
+        log.info(f"Removed event '{config_name}' (ID: {event_id}) by {interaction.user}")
+
+    @remove_event.autocomplete("event_id")
+    async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        active_events = await database.get_all_active_events()
+        choices = []
+        for ev in active_events:
+            label = f"{ev['config_name']} ({ev['event_id']})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+        return choices[:25]
 
     @commands.command(name=f"sync{SUFFIX}")
     @commands.guild_only()
@@ -123,6 +172,7 @@ class EventCommands(commands.Cog):
         else:
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await ctx.send(t("SYNC_GU_COUNT", count=len(synced)))
+        log.info(f"Commands synced by {ctx.author} (Spec: {spec})")
 
     @commands.command(name=f"clear_commands{SUFFIX}")
     @commands.guild_only()

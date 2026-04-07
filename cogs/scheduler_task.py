@@ -11,6 +11,7 @@ from utils.i18n import t
 from dateutil import parser as dtparser
 from dateutil import tz as dttz
 from dateutil.relativedelta import relativedelta
+from utils.logger import log
 
 def parse_offset(offset_str):
     """Parse offset like '5m', '3h', '6d' into timedelta."""
@@ -69,6 +70,12 @@ class SchedulerTask(commands.Cog):
             if not event_conf:
                 continue
 
+            # Skip disabled events — close them so they don't keep looping
+            if not event_conf.get("enabled", True):
+                await database.set_event_status(db_event["event_id"], "disabled")
+                log.info(f"[Scheduler] Event '{config_name}' is disabled in config, skipping repost.")
+                continue
+
             rec_type = event_conf.get("recurrence_type", "once")
             if rec_type == "once":
                 continue
@@ -116,7 +123,7 @@ class SchedulerTask(commands.Cog):
                         embed.title = f"{t('TAG_PAST')} {embed.title}"
                         await old_msg.edit(embed=embed, view=view)
             except Exception as e:
-                print(f"[Scheduler] Could not update old message for {old_event_id}: {e}")
+                log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}")
 
             # Calculate next start
             next_start = calc_next_start(start_ts, event_conf)
