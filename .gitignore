@@ -18,8 +18,6 @@ ENV/
 data/*.db
 data/*.sqlite3
 
-# Configuration
-config.json
 
 # VS Code / IDEs
 .vscode/

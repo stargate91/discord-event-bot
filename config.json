@@ -1,0 +1,30 @@
+{
+  "guild_id": 1083433370815582240, // Discord Server ID
+  "language": "hu", // "hu" or "en"
+  "command_suffix": "_nexus", // Prefix commands: !sync_ev, !clear_commands_ev
+  "command_prefix": "!", // Bot prefix for text commands
+  "admin_channel_id": 1486516075905417216, // Only channel where !sync and !clear work (null = any)
+  "admin_role_id": 1283594037802176546, // Role ID that can use admin commands (+ server admins always can)
+  "events_config": [
+    {
+      "name": "dota_battle_cup", // Internal ID (used in /event_publish autocomplete)
+      "enabled": true, // false = hidden from publish list
+      "channel_id": 1353268279078293504, // Discord Channel ID where event is posted (null = current channel)
+      "title": "Dota 2 | Weekly Battle Cup (Saturday)",
+      "description": "Five players. One draft. No second chances.\nBring your A-game or get sent home early. ;)",
+      "image_url": [
+        "https://w.wallhaven.cc/full/w8/wallhaven-w8wj76.jpg"
+      ], // Direct image URL(s) for the embed. String or Array — array picks randomly each post
+      "timezone": "Europe/Budapest", // IANA timezone (e.g. "UTC", "Europe/Budapest", "US/Eastern")
+      "color": "0xff0000", // Embed color in hex (e.g. "0x3498db", "0xff0000")
+      "max_accepted": 0, // Max RSVP accepts (0 = unlimited)
+      "ping_role": "1472479458471706767", // Discord Role ID to ping (leave empty for no ping)
+      "start": "2026-04-11 19:00", // Format: YYYY-MM-DD HH:MM
+      "end": "2026-04-11 22:00", // Format: YYYY-MM-DD HH:MM (leave empty for no end time)
+      "recurrence_type": "weekly", // "once", "daily", "weekly", "weekdays", "monthly"
+      "recurrence_custom": "", // Reserved for future custom recurrence
+      "repost_trigger": "before_start", // "before_start", "after_start", "after_end"
+      "repost_offset": "4h" // Offset from trigger: "5m", "3h", "6d"
+    }
+  ]
+}
