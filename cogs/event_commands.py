@@ -159,35 +159,43 @@ class EventCommands(commands.Cog):
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         if not is_admin(ctx):
+            await ctx.send(t("ERR_ADMIN_ONLY"))
             return
         if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
+            await ctx.send(t("ERR_CHANNEL_ONLY"))
             return
+        
+        status_msg = await ctx.send(t("SYNC_START"))
+        
         if spec == "global":
             synced = await self.bot.tree.sync()
-            await ctx.send(t("SYNC_GL_COUNT", count=len(synced)))
+            await status_msg.edit(content=t("SYNC_GL_COUNT", count=len(synced)))
         elif spec == "copy":
             self.bot.tree.copy_global_to(guild=ctx.guild)
             synced = await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_CP_COUNT", count=len(synced)))
+            await status_msg.edit(content=t("SYNC_CP_COUNT", count=len(synced)))
         else:
             synced = await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_GU_COUNT", count=len(synced)))
+            await status_msg.edit(content=t("SYNC_GU_COUNT", count=len(synced)))
         log.info(f"Commands synced by {ctx.author} (Spec: {spec})")
 
     @commands.command(name=f"clear_commands{SUFFIX}")
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         if not is_admin(ctx):
+            await ctx.send(t("ERR_ADMIN_ONLY"))
             return
         if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
+            await ctx.send(t("ERR_CHANNEL_ONLY"))
             return
-        self.bot.tree.clear_commands(guild=None)
+            
+        status_msg = await ctx.send(t("SYNC_START"))
         await self.bot.tree.sync(guild=None)
         
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
         
-        await ctx.send(t("SYNC_CLEAR"))
+        await status_msg.edit(content=t("SYNC_CLEAR"))
 
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))

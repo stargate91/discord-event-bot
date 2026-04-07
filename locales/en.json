@@ -35,5 +35,8 @@
   "SYNC_GL_COUNT": "Synced {count} commands globally.",
   "SYNC_CP_COUNT": "Copied global and synced {count} commands to this guild.",
   "SYNC_GU_COUNT": "Synced {count} commands to this guild.",
-  "SYNC_CLEAR": "Cleared slash commands globally and for this guild."
+  "SYNC_CLEAR": "Cleared slash commands globally and for this guild.",
+  "SYNC_START": "Synchronization in progress... ⏳",
+  "ERR_ADMIN_ONLY": "You do not have permission to synchronize commands.",
+  "ERR_CHANNEL_ONLY": "This command can only be used in the admin channel."
 }
