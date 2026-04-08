@@ -14,10 +14,10 @@ class Step1Modal(ui.Modal):
         self.wizard_view = wizard_view
         data = wizard_view.data
 
-        self.name = ui.TextInput(label=t("LBL_WIZ_NAME"), default=data.get("config_name", ""), required=True)
-        self.title = ui.TextInput(label=t("LBL_WIZ_TITLE"), default=data.get("title", ""), required=True)
-        self.desc = ui.TextInput(label=t("LBL_WIZ_DESC"), style=discord.TextStyle.paragraph, default=data.get("description", ""), required=False)
-        self.images = ui.TextInput(label=t("LBL_WIZ_IMAGES"), default=data.get("image_urls", ""), required=False)
+        self.name = ui.TextInput(label=t("LBL_WIZ_NAME"), default=(data.get("config_name") or ""), required=True)
+        self.title = ui.TextInput(label=t("LBL_WIZ_TITLE"), default=(data.get("title") or ""), required=True)
+        self.desc = ui.TextInput(label=t("LBL_WIZ_DESC"), style=discord.TextStyle.paragraph, default=(data.get("description") or ""), required=False)
+        self.images = ui.TextInput(label=t("LBL_WIZ_IMAGES"), default=(data.get("image_urls") or ""), required=False)
         
         self.add_item(self.name)
         self.add_item(self.title)
@@ -38,11 +38,11 @@ class Step2Modal(ui.Modal):
         self.wizard_view = wizard_view
         data = wizard_view.data
 
-        self.color = ui.TextInput(label=t("LBL_WIZ_COLOR"), default=data.get("color", "0x3498db"), required=False)
-        self.max_acc = ui.TextInput(label=t("LBL_WIZ_MAX"), default=str(data.get("max_accepted", 0)), required=False)
-        self.ping = ui.TextInput(label=t("LBL_WIZ_PING"), default=str(data.get("ping_role", "")), required=False)
-        self.start = ui.TextInput(label=t("LBL_WIZ_START"), placeholder="YYYY-MM-DD HH:MM", default=data.get("start_str", ""), required=True)
-        self.end = ui.TextInput(label=t("LBL_WIZ_END"), placeholder="YYYY-MM-DD HH:MM", default=data.get("end_str", ""), required=False)
+        self.color = ui.TextInput(label=t("LBL_WIZ_COLOR"), default=(data.get("color") or "0x3498db"), required=False)
+        self.max_acc = ui.TextInput(label=t("LBL_WIZ_MAX"), default=str(data.get("max_accepted") or 0), required=False)
+        self.ping = ui.TextInput(label=t("LBL_WIZ_PING"), default=str(data.get("ping_role") or ""), required=False)
+        self.start = ui.TextInput(label=t("LBL_WIZ_START"), placeholder="YYYY-MM-DD HH:MM", default=(data.get("start_str") or ""), required=True)
+        self.end = ui.TextInput(label=t("LBL_WIZ_END"), placeholder="YYYY-MM-DD HH:MM", default=(data.get("end_str") or ""), required=False)
 
         self.add_item(self.color)
         self.add_item(self.max_acc)
@@ -52,7 +52,6 @@ class Step2Modal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
-            # Basic validation
             self.wizard_view.data["color"] = self.color.value
             self.wizard_view.data["max_accepted"] = int(self.max_acc.value) if self.max_acc.value.isdigit() else 0
             self.wizard_view.data["ping_role"] = int(self.ping.value) if self.ping.value.isdigit() else 0
@@ -63,6 +62,25 @@ class Step2Modal(ui.Modal):
         except Exception as e:
             await interaction.response.send_message(f"Error: {e}", ephemeral=True)
 
+class Step3Modal(ui.Modal):
+    def __init__(self, wizard_view):
+        super().__init__(title=t("SEL_TRIG_TYPE"))
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+
+        self.offset = ui.TextInput(
+            label=t("LBL_WIZ_OFFSET"), 
+            placeholder="pl. 4h, 30m, 1d", 
+            default=(data.get("repost_offset") or "1h"), 
+            required=True
+        )
+        self.add_item(self.offset)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["repost_offset"] = self.offset.value
+        self.wizard_view.steps_completed["step3"] = True
+        await self.wizard_view.update_message(interaction)
+
 class EventWizardView(ui.View):
     def __init__(self, bot, creator_id, existing_data=None, is_edit=False):
         super().__init__(timeout=600)
@@ -72,25 +90,46 @@ class EventWizardView(ui.View):
         self.data = existing_data or {}
         self.steps_completed = {
             "step1": bool(self.data.get("title")),
-            "step2": bool(self.data.get("start_str"))
+            "step2": bool(self.data.get("start_str")),
+            "step3": bool(self.data.get("repost_offset"))
         }
         
     def get_status_text(self):
         s1 = t("WIZARD_STATUS_OK") if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT")
         s2 = t("WIZARD_STATUS_OK") if self.steps_completed["step2"] else t("WIZARD_STATUS_WAIT")
-        return f"- {t('BTN_STEP_1')}: {s1}\n- {t('BTN_STEP_2')}: {s2}"
+        s3 = t("WIZARD_STATUS_OK") if self.steps_completed["step3"] else t("WIZARD_STATUS_WAIT")
+        return f"- {t('BTN_STEP_1')}: {s1}\n- {t('BTN_STEP_2')}: {s2}\n- Offset: {s3}"
 
     async def update_message(self, interaction: discord.Interaction):
         embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=self.get_status_text()), color=discord.Color.blue())
         await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.button(label="1. Basic Info", style=discord.ButtonStyle.gray)
+    @ui.button(label="1. Alapadatok / Basic Info", style=discord.ButtonStyle.gray, custom_id="wiz_step_1", row=0)
     async def step1_btn(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.send_modal(Step1Modal(self))
+        try:
+            await interaction.response.send_modal(Step1Modal(self))
+        except Exception as e:
+            log.error(f"Error opening Step1Modal: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"Error: {e}", ephemeral=True)
 
-    @ui.button(label="2. Details & Timing", style=discord.ButtonStyle.gray)
+    @ui.button(label="2. Részletek / Details", style=discord.ButtonStyle.gray, custom_id="wiz_step_2", row=0)
     async def step2_btn(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.send_modal(Step2Modal(self))
+        try:
+            await interaction.response.send_modal(Step2Modal(self))
+        except Exception as e:
+            log.error(f"Error opening Step2Modal: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"Error: {e}", ephemeral=True)
+
+    @ui.button(label="3. Értesítés / Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
+    async def step3_btn(self, interaction: discord.Interaction, button: ui.Button):
+        try:
+            await interaction.response.send_modal(Step3Modal(self))
+        except Exception as e:
+            log.error(f"Error opening Step3Modal: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"Error: {e}", ephemeral=True)
 
     @ui.select(
         placeholder="Recurrence Type",
