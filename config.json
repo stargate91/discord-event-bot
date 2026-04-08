@@ -13,10 +13,15 @@
       "title": "Dota 2 | Weekly Battle Cup (Saturday)",
       "description": "Five players. One draft. No second chances.\nBring your A-game or get sent home early. ;)",
       "image_url": [
-        "https://w.wallhaven.cc/full/w8/wallhaven-w8wj76.jpg"
+        "https://i.imgur.com/9EtrgHi.jpeg",
+        "https://i.imgur.com/It7nYyq.jpeg",
+        "https://i.imgur.com/x59x7Rm.jpeg",
+        "https://i.imgur.com/67kiIv9.jpeg",
+        "https://i.imgur.com/zOoMQcd.jpeg",
+        "https://i.imgur.com/HR8fOZK.jpeg"
       ], // Direct image URL(s) for the embed. String or Array — array picks randomly each post
       "timezone": "Europe/Budapest", // IANA timezone (e.g. "UTC", "Europe/Budapest", "US/Eastern")
-      "color": "0xff0000", // Embed color in hex (e.g. "0x3498db", "0xff0000")
+      "color": "0xc23c2a", // Embed color in hex (e.g. "0x3498db", "0xff0000")
       "max_accepted": 0, // Max RSVP accepts (0 = unlimited)
       "ping_role": "1491072788507660518", // Discord Role ID to ping (leave empty for no ping)
       "start": "2026-04-11 19:00", // Format: YYYY-MM-DD HH:MM
