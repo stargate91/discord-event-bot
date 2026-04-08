@@ -4,6 +4,8 @@ import database
 from utils.i18n import t
 import json
 from utils.logger import log
+import time
+import random
 
 def get_event_conf(name):
     try:
@@ -69,8 +71,13 @@ class DynamicEventView(discord.ui.View):
         if not db_event:
             db_event = await database.get_active_event(self.event_id)
             
+        # Preference: 1. Passed event_conf, 2. Database data, 3. Config.json template
         if not self.event_conf and db_event:
-            self.event_conf = get_event_conf(db_event["config_name"])
+            # Check if database has the data
+            if db_event.get("title"):
+                self.event_conf = db_event
+            else:
+                self.event_conf = get_event_conf(db_event["config_name"])
 
         if not self.event_conf:
             return discord.Embed(title="Missing configuration", color=discord.Color.red())
@@ -90,9 +97,11 @@ class DynamicEventView(discord.ui.View):
             elif status == "tentative":
                 tentative.append(user_mention)
 
-        color_hex = self.event_conf.get("color", "0x3498db")
+        color_hex = str(self.event_conf.get("color", "0x3498db"))
         if color_hex.startswith("0x"):
             color = int(color_hex, 16)
+        elif color_hex.startswith("#"):
+            color = int(color_hex[1:], 16)
         else:
             color = discord.Color.blue()
 
@@ -116,11 +125,17 @@ class DynamicEventView(discord.ui.View):
         embed.add_field(name=t("EMBED_DEC", count=len(declined)), value="\n".join(declined) or t("EMBED_NONE"), inline=True)
         embed.add_field(name=t("EMBED_TEN", count=len(tentative)), value="\n".join(tentative) or t("EMBED_NONE"), inline=True)
 
-        image_url = self.event_conf.get("image_url")
+        image_url = self.event_conf.get("image_urls") or self.event_conf.get("image_url")
         if image_url:
             if isinstance(image_url, list):
-                import random
                 embed.set_image(url=random.choice(image_url))
+            elif isinstance(image_url, str) and "," in image_url:
+                urls = [u.strip() for u in image_url.split(",")]
+                # If recurring, send random. Original request: "ha nem recurring akkor csak az elsőt nézi"
+                if recurrence != "none":
+                    embed.set_image(url=random.choice(urls))
+                else:
+                    embed.set_image(url=urls[0])
             else:
                 embed.set_image(url=image_url)
             

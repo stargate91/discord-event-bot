@@ -7,6 +7,7 @@ import uuid
 import datetime
 import json
 from cogs.event_ui import DynamicEventView
+from cogs.event_wizard import EventWizardView
 from utils.i18n import t
 from dateutil import parser
 from dateutil import tz
@@ -44,7 +45,62 @@ class EventCommands(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="event-publish", description="Publish a specific configured event")
+    @app_commands.command(name="create-event", description="Új esemény létrehozása varázslóval")
+    async def create_event(self, interaction: discord.Interaction):
+        if not is_admin(interaction):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
+        
+        view = EventWizardView(self.bot, interaction.user.id)
+        embed = discord.Embed(
+            title=t("WIZARD_TITLE"), 
+            description=t("WIZARD_DESC", status=view.get_status_text()), 
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="edit-event", description="Meglévő esemény szerkesztése")
+    @app_commands.describe(event_id="A szerkeszteni kívánt esemény azonosítója")
+    async def edit_event(self, interaction: discord.Interaction, event_id: str):
+        if not is_admin(interaction):
+            await interaction.response.send_message("No permission.", ephemeral=True)
+            return
+            
+        db_event = await database.get_active_event(event_id)
+        if not db_event:
+            await interaction.response.send_message("Esemény nem található.", ephemeral=True)
+            return
+
+        # Prepare existing data for the wizard
+        local_tz = tz.gettz("Europe/Budapest")
+        start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
+        db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
+        
+        if db_event.get("end_time"):
+            end_dt = datetime.datetime.fromtimestamp(db_event["end_time"], tz=local_tz)
+            db_event["end_str"] = end_dt.strftime("%Y-%m-%d %H:%M")
+        else:
+            db_event["end_str"] = ""
+
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
+        embed = discord.Embed(
+            title=t("WIZARD_TITLE"), 
+            description=t("WIZARD_DESC", status=view.get_status_text()), 
+            color=discord.Color.gold()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @edit_event.autocomplete("event_id")
+    async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        active_events = await database.get_all_active_events()
+        choices = []
+        for ev in active_events:
+            label = f"{ev.get('title') or ev['config_name']} ({ev['event_id']})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+        return choices[:25]
+
+    @app_commands.command(name="event-publish", description="Publish a specific configured event template")
     @app_commands.describe(name="Event configuration name")
     async def event_publish(self, interaction: discord.Interaction, name: str):
         if not is_admin(interaction):
@@ -59,7 +115,6 @@ class EventCommands(commands.Cog):
             await interaction.response.send_message("This event is disabled in config.", ephemeral=True)
             return
 
-        # Time calculation
         try:
             local_tz = tz.gettz(event_conf.get("timezone", "UTC"))
             dt = parser.parse(event_conf.get("start"))
@@ -70,15 +125,14 @@ class EventCommands(commands.Cog):
             return
 
         channel_id = event_conf.get("channel_id") or interaction.channel_id
-        
         event_id = str(uuid.uuid4())[:8]
         
-        # We need a new event persistence
         await database.create_active_event(
             event_id=event_id,
             config_name=name,
             channel_id=channel_id,
-            start_time=start_timestamp
+            start_time=start_timestamp,
+            data=event_conf
         )
 
         view = DynamicEventView(self.bot, event_id, event_conf)
@@ -96,10 +150,8 @@ class EventCommands(commands.Cog):
             content += f" <@&{ping_role}>"
             
         msg = await target_channel.send(content=content, embed=embed, view=view)
-        
         await database.set_event_message(event_id, msg.id)
         self.bot.add_view(view)
-        log.info(f"Published event '{name}' (ID: {event_id}) in channel {channel_id}")
 
     @event_publish.autocomplete("name")
     async def publish_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -108,7 +160,7 @@ class EventCommands(commands.Cog):
             for e in EVENTS_CONFIG if current.lower() in e["name"].lower() and e.get("enabled", True)
         ][:25]
 
-    @app_commands.command(name="remove-event", description="Remove an active event from the database and disable its buttons")
+    @app_commands.command(name="remove-event", description="Remove an active event")
     @app_commands.describe(event_id="Select the active event to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not is_admin(interaction):
@@ -117,10 +169,9 @@ class EventCommands(commands.Cog):
 
         db_event = await database.get_active_event(event_id)
         if not db_event:
-            await interaction.response.send_message(f"Event `{event_id}` not found or already removed.", ephemeral=True)
+            await interaction.response.send_message(f"Event `{event_id}` not found.", ephemeral=True)
             return
 
-        # Try to disable buttons on the Discord message
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel and db_event.get("message_id"):
@@ -138,19 +189,16 @@ class EventCommands(commands.Cog):
         except Exception as e:
             log.warning(f"Could not update old message for event {event_id}: {e}")
 
-        # Delete from database
         await database.delete_active_event(event_id)
-
         config_name = db_event.get('config_name', 'Unknown')
         await interaction.response.send_message(f"✅ Event `{config_name}` (`{event_id}`) removed.", ephemeral=True)
-        log.info(f"Removed event '{config_name}' (ID: {event_id}) by {interaction.user}")
 
     @remove_event.autocomplete("event_id")
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
         active_events = await database.get_all_active_events()
         choices = []
         for ev in active_events:
-            label = f"{ev['config_name']} ({ev['event_id']})"
+            label = f"{ev.get('title') or ev['config_name']} ({ev['event_id']})"
             if current.lower() in label.lower():
                 choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
@@ -177,7 +225,6 @@ class EventCommands(commands.Cog):
         else:
             synced = await self.bot.tree.sync(guild=ctx.guild)
             await status_msg.edit(content=t("SYNC_GU_COUNT", count=len(synced)))
-        log.info(f"Commands synced by {ctx.author} (Spec: {spec})")
 
     @commands.command(name=f"clear_commands{SUFFIX}")
     @commands.guild_only()
@@ -191,10 +238,8 @@ class EventCommands(commands.Cog):
             
         status_msg = await ctx.send(t("SYNC_START"))
         await self.bot.tree.sync(guild=None)
-        
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
-        
         await status_msg.edit(content=t("SYNC_CLEAR"))
 
 async def setup(bot):
