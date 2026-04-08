@@ -236,7 +236,7 @@ class EventCommands(commands.Cog):
             await ctx.send(t("ERR_CHANNEL_ONLY"))
             return
             
-        await ctx.send(t("SYNC_START_MSG"))
+        await ctx.send(t("SYNC_CLEAR_START"))
         # Clear Global
         self.bot.tree.clear_commands(guild=None)
         await self.bot.tree.sync(guild=None)
