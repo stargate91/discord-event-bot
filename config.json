@@ -9,7 +9,7 @@
     {
       "name": "dota_battle_cup", // Internal ID (used in /event_publish autocomplete)
       "enabled": true, // false = hidden from publish list
-      "channel_id": 1353268279078293504, // Discord Channel ID where event is posted (null = current channel)
+      "channel_id": 1491246193722920960, // Discord Channel ID where event is posted (null = current channel)
       "title": "Dota 2 | Weekly Battle Cup (Saturday)",
       "description": "Five players. One draft. No second chances.\nBring your A-game or get sent home early. ;)",
       "image_url": [
