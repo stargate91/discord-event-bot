@@ -267,7 +267,10 @@ class EventCommands(commands.Cog):
 
 async def setup(bot):
     cog = EventCommands(bot)
-    suffix = getattr(bot, 'command_suffix', '')
+    # Get suffix from bot config correctly
+    config = getattr(bot, 'config', {})
+    suffix = config.get('command_suffix', '')
+    
     if suffix:
         cog.sync_prefix.aliases = [f"sync{suffix}"]
         cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
