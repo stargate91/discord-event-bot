@@ -48,7 +48,7 @@ class EventCommands(commands.Cog):
     @app_commands.command(name="create-event", description="Új esemény létrehozása varázslóval")
     async def create_event(self, interaction: discord.Interaction):
         if not is_admin(interaction):
-            await interaction.response.send_message("No permission.", ephemeral=True)
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
         
         view = EventWizardView(self.bot, interaction.user.id)
@@ -63,12 +63,12 @@ class EventCommands(commands.Cog):
     @app_commands.describe(event_id="A szerkeszteni kívánt esemény azonosítója")
     async def edit_event(self, interaction: discord.Interaction, event_id: str):
         if not is_admin(interaction):
-            await interaction.response.send_message("No permission.", ephemeral=True)
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
             
         db_event = await database.get_active_event(event_id)
         if not db_event:
-            await interaction.response.send_message("Esemény nem található.", ephemeral=True)
+            await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
         # Prepare existing data for the wizard
@@ -104,7 +104,7 @@ class EventCommands(commands.Cog):
     @app_commands.describe(name="Event configuration name")
     async def event_publish(self, interaction: discord.Interaction, name: str):
         if not is_admin(interaction):
-            await interaction.response.send_message("No permission.", ephemeral=True)
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
         event_conf = get_event_dict(name)
         if not event_conf:
@@ -164,7 +164,7 @@ class EventCommands(commands.Cog):
     @app_commands.describe(event_id="Select the active event to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not is_admin(interaction):
-            await interaction.response.send_message("No permission.", ephemeral=True)
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
         db_event = await database.get_active_event(event_id)
@@ -203,7 +203,7 @@ class EventCommands(commands.Cog):
                 choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
-    @commands.command(name=f"sync{SUFFIX}")
+    @commands.command(name="sync")
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         if not is_admin(ctx):
@@ -213,20 +213,20 @@ class EventCommands(commands.Cog):
             await ctx.send(t("ERR_CHANNEL_ONLY"))
             return
         
-        status_msg = await ctx.send(t("SYNC_START"))
+        await ctx.send(t("SYNC_START_MSG"))
         
         if spec == "global":
             synced = await self.bot.tree.sync()
-            await status_msg.edit(content=t("SYNC_GL_COUNT", count=len(synced)))
+            await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
         elif spec == "copy":
             self.bot.tree.copy_global_to(guild=ctx.guild)
             synced = await self.bot.tree.sync(guild=ctx.guild)
-            await status_msg.edit(content=t("SYNC_CP_COUNT", count=len(synced)))
+            await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
         else:
             synced = await self.bot.tree.sync(guild=ctx.guild)
-            await status_msg.edit(content=t("SYNC_GU_COUNT", count=len(synced)))
+            await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
 
-    @commands.command(name=f"clear_commands{SUFFIX}")
+    @commands.command(name="clear_commands")
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         if not is_admin(ctx):
@@ -236,11 +236,41 @@ class EventCommands(commands.Cog):
             await ctx.send(t("ERR_CHANNEL_ONLY"))
             return
             
-        status_msg = await ctx.send(t("SYNC_START"))
+        await ctx.send(t("SYNC_START_MSG"))
+        # Clear Global
+        self.bot.tree.clear_commands(guild=None)
         await self.bot.tree.sync(guild=None)
+        # Clear Guild
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
-        await status_msg.edit(content=t("SYNC_CLEAR"))
+        await ctx.send(t("SYNC_CLEAR_SUCCESS"))
+
+    @app_commands.command(name="sync", description="Szinkronizálja a slash parancsokat.")
+    @app_commands.describe(mode="guild (azonnali), global (lassabb), vagy copy")
+    async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
+        if not is_admin(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        if mode == "global":
+            synced = await self.bot.tree.sync()
+            await interaction.followup.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)), ephemeral=True)
+        elif mode == "copy":
+            self.bot.tree.copy_global_to(guild=interaction.guild)
+            synced = await self.bot.tree.sync(guild=interaction.guild)
+            await interaction.followup.send(t("SYNC_SUCCESS_COPY", count=len(synced)), ephemeral=True)
+        else:
+            synced = await self.bot.tree.sync(guild=interaction.guild)
+            await interaction.followup.send(t("SYNC_SUCCESS_GUILD", count=len(synced)), ephemeral=True)
 
 async def setup(bot):
-    await bot.add_cog(EventCommands(bot))
+    cog = EventCommands(bot)
+    suffix = getattr(bot, 'command_suffix', '')
+    if suffix:
+        cog.sync_prefix.aliases = [f"sync{suffix}"]
+        cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
+        log.info(f"[Admin] Dynamic aliases prepared for suffix: {suffix}")
+        
+    await bot.add_cog(cog)
