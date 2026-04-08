@@ -1,10 +1,13 @@
 import discord
 from discord.ext import commands
 import os
+import asyncio
+import random
 from dotenv import load_dotenv
 import database
 import json
 from utils.logger import log
+from utils.i18n import t
 
 from cogs.event_ui import DynamicEventView
 
@@ -20,8 +23,10 @@ class EventBot(commands.Bot):
             from utils.jsonc import load_jsonc
             config_data = load_jsonc('config.json')
             prefix = config_data.get("command_prefix", "!")
+            self.config = config_data
         except Exception:
             prefix = "!"
+            self.config = {}
             
         super().__init__(command_prefix=prefix, intents=intents)
 
@@ -41,9 +46,7 @@ class EventBot(commands.Bot):
             
         # Sync slash commands
         try:
-            from utils.jsonc import load_jsonc
-            config = load_jsonc('config.json')
-            guild_id = config.get("guild_id")
+            guild_id = self.config.get("guild_id")
             if guild_id:
                 guild = discord.Object(id=guild_id)
                 self.tree.copy_global_to(guild=guild)
@@ -53,8 +56,42 @@ class EventBot(commands.Bot):
         except Exception as e:
             log.error(f"Failed to sync commands: {e}")
 
+        # Start dynamic presence task
+        self.loop.create_task(self.status_task())
+
+    async def status_task(self):
+        """Periodically update the bot's rich presence with Nexus persona."""
+        await self.wait_until_ready()
+        
+        while not self.is_closed():
+            try:
+                # Get active events count
+                active_events = await database.get_all_active_events()
+                event_count = len(active_events)
+                
+                # Get dynamic statuses from i18n
+                # dynamic_status is a list in our JSON
+                from utils.i18n import TRANSLATIONS
+                statuses = TRANSLATIONS.get("dynamic_status", [t("watching_events", count=event_count)])
+                
+                # Select random status
+                status_text = random.choice(statuses).replace("{count}", str(event_count))
+                
+                activity = discord.Activity(
+                    type=discord.ActivityType.watching,
+                    name=status_text
+                )
+                await self.change_presence(activity=activity, status=discord.Status.online)
+                
+            except Exception as e:
+                log.error(f"[Presence] Error updating status: {e}")
+            
+            # Rotate every 60 seconds
+            await asyncio.sleep(60)
+
     async def on_ready(self):
         log.info(f"Logged in as {self.user} (ID: {self.user.id})")
+        log.info("Nexus Event Bot is ready and monitoring events.")
         log.info("------")
 
 if __name__ == "__main__":

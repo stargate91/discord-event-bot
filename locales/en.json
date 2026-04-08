@@ -38,5 +38,14 @@
   "SYNC_CLEAR": "Cleared slash commands globally and for this guild.",
   "SYNC_START": "Synchronization in progress... ⏳",
   "ERR_ADMIN_ONLY": "You do not have permission to synchronize commands.",
-  "ERR_CHANNEL_ONLY": "This command can only be used in the admin channel."
+  "ERR_CHANNEL_ONLY": "This command can only be used in the admin channel.",
+  "watching_events": "Nexus live: {count} events ✨",
+  "dynamic_status": [
+    "Hustling through events! 🎮",
+    "Energy drink ready... 🥤",
+    "Heading to the next party! 💖",
+    "Planning the network... 🔌",
+    "Ready for the next raid? ⚔️",
+    "Every event in my hands. 🙌"
+  ]
 }

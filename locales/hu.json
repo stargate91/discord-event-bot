@@ -38,5 +38,14 @@
   "SYNC_CLEAR": "Slash parancsok törölve globálisan és ezen a szerveren is.",
   "SYNC_START": "Szinkronizálás folyamatban... ⏳",
   "ERR_ADMIN_ONLY": "Nincs jogosultságod a szinkronizáláshoz.",
-  "ERR_CHANNEL_ONLY": "Ezt a parancsot csak az admin csatornában használhatod."
+  "ERR_CHANNEL_ONLY": "Ezt a parancsot csak az admin csatornában használhatod.",
+  "watching_events": "Nexus live: {count} esemény ✨",
+  "dynamic_status": [
+    "Események pörgetése! 🎮",
+    "Energiaital bekészítve... 🥤",
+    "Megyek a következő bulira! 💖",
+    "Szervezem a hálózatot... 🔌",
+    "Ready for the next raid? ⚔️",
+    "Minden esemény a kezemben. 🙌"
+  ]
 }
