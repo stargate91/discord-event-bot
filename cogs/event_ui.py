@@ -72,7 +72,9 @@ async def load_custom_sets():
 
 def get_active_set(key):
     """Return the set config for a given key, searching local cache."""
-    return CUSTOM_ICON_SETS.get(key, CUSTOM_ICON_SETS.get("standard", {}))
+    # Fallback to standard if key not found, and then to a bare minimum structure
+    # to prevent KeyError: 'options' in views.
+    return CUSTOM_ICON_SETS.get(key, CUSTOM_ICON_SETS.get("standard", {"options": []}))
 
 class DynamicEventView(discord.ui.View):
     # This class creates the buttons people see under the event message

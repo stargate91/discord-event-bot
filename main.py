@@ -8,8 +8,7 @@ import database
 import json
 from utils.logger import log
 from utils.i18n import t
-
-from cogs.event_ui import DynamicEventView
+from cogs.event_ui import DynamicEventView, load_custom_sets
 
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
@@ -43,6 +42,9 @@ class EventBot(commands.Bot):
         await self.load_extension("cogs.event_commands")
         await self.load_extension("cogs.scheduler_task")
         await self.load_extension("cogs.emoji_set_commands")
+        
+        # Load custom emoji sets into cache before persistent views
+        await load_custom_sets()
         
         # Load persistent views for existing active events
         from cogs.event_ui import get_event_conf
