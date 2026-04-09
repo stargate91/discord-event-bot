@@ -507,7 +507,7 @@ class EventCommands(commands.GroupCog, name="event"):
                 await interaction.followup.send(f"✅ All data for this server has been successfully deleted.", ephemeral=True)
             except Exception as e: log.error(f"Error during guild reset: {e}", guild_id=guild_id); await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
 
-    @commands.command(name="sync" + SUFFIX)
+    @commands.command(name="sync")
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
@@ -520,7 +520,7 @@ class EventCommands(commands.GroupCog, name="event"):
         except discord.Forbidden: await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
         except Exception as e: await ctx.send(f"❌ Sync failed: `{e}`")
 
-    @commands.command(name="clear_commands" + SUFFIX)
+    @commands.command(name="clear_commands")
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
