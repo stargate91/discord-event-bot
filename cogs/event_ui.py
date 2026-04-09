@@ -139,7 +139,30 @@ class DynamicEventView(discord.ui.View):
             else:
                 embed.set_image(url=image_url)
             
-        embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id="System"))
+        # Creator logic
+        creator_text = "System"
+        creator_id_val = self.event_conf.get("creator_id") or (db_event.get("creator_id") if db_event else None)
+        
+        if creator_id_val:
+            if creator_id_val.isdigit():
+                # It's a User ID, try to get the user name
+                user = self.bot.get_user(int(creator_id_val))
+                if not user:
+                    try:
+                        user = await self.bot.fetch_user(int(creator_id_val))
+                    except:
+                        user = None
+                
+                if user:
+                    creator_text = user.display_name
+                else:
+                    creator_text = f"ID: {creator_id_val}"
+            else:
+                # It's some custom string like "System" or "Dota Master"
+                creator_text = creator_id_val
+
+        embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
+
         return embed
 
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):

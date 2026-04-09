@@ -89,9 +89,15 @@ class EventWizardView(ui.View):
         self.creator_id = creator_id
         self.is_edit = is_edit
         self.data = existing_data or {}
+        self.can_publish = False
+        
+        # Ensure we check both singular and plural for pre-filling
+        if not self.data.get("image_urls") and self.data.get("image_url"):
+            self.data["image_urls"] = self.data["image_url"]
+
         self.steps_completed = {
-            "step1": bool(self.data.get("title")),
-            "step2": bool(self.data.get("start_str")),
+            "step1": bool(self.data.get("title") or self.data.get("config_name")),
+            "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
             "step3": bool(self.data.get("repost_offset"))
         }
 
@@ -103,7 +109,24 @@ class EventWizardView(ui.View):
 
     async def update_message(self, interaction: discord.Interaction):
         status = self.get_status_text()
-        embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=status), color=discord.Color.blue())
+        embed = discord.Embed(
+            title=t("WIZARD_TITLE"), 
+            description=t("WIZARD_DESC", status=status), 
+            color=discord.Color.blue() if not self.is_edit else discord.Color.gold()
+        )
+        
+        # Add publish button if saved
+        if self.can_publish:
+            publish_btn = ui.Button(label=t("BTN_PUBLISH"), style=discord.ButtonStyle.green, row=4, custom_id="wiz_publish")
+            publish_btn.callback = self.publish_btn
+            self.add_item(publish_btn)
+            # Remove the save button or change its style? 
+            # Let's just find and update it
+            for child in self.children:
+                if getattr(child, "custom_id", "") == "wiz_save":
+                    child.disabled = True
+                    child.label = t("BTN_SAVE_PREVIEW")
+
         if not interaction.response.is_done():
             await interaction.response.edit_message(embed=embed, view=self)
         else:
@@ -155,8 +178,8 @@ class EventWizardView(ui.View):
         self.data["repost_trigger"] = str(select.values[0])
         await self.update_message(interaction)
 
-    @ui.button(label="SUBMIT", style=discord.ButtonStyle.green, row=4)
-    async def submit_btn(self, interaction: discord.Interaction, button: ui.Button):
+    @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
+    async def save_preview_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not self.steps_completed["step1"] or not self.steps_completed["step2"]:
             await interaction.response.send_message("Kérlek töltsd ki az 1. és 2. lépést!", ephemeral=True)
             return
@@ -166,6 +189,9 @@ class EventWizardView(ui.View):
         for k, v in self.data.items():
             if isinstance(v, (str, int, float, bool)) or v is None:
                 clean_data[k] = v
+            elif isinstance(v, list):
+                # Join lists with comma for storage
+                clean_data[k] = ",".join(str(i) for i in v)
             else:
                 clean_data[k] = str(v)
         self.data = clean_data
@@ -193,8 +219,38 @@ class EventWizardView(ui.View):
         self.data["event_id"] = event_id
         
         if self.is_edit:
+            # Keep existing creator_id if not present
+            if "creator_id" not in self.data:
+                self.data["creator_id"] = str(self.creator_id)
             await database.update_active_event(event_id, self.data)
-            db_event = await database.get_active_event(event_id)
+        else:
+            self.data["creator_id"] = str(self.creator_id)
+            await database.create_active_event(
+                event_id=event_id,
+                config_name=str(self.data.get("config_name") or "manual"),
+                channel_id=interaction.channel_id,
+                start_time=self.data["start_time"],
+                data=self.data
+            )
+
+        # Update state to allow publication
+        self.can_publish = True
+        
+        # Generate preview
+        view = DynamicEventView(self.bot, event_id, self.data)
+        embed = await view.generate_embed()
+        
+        await interaction.followup.send(t("MSG_SAVED_PREVIEW"), embed=embed, ephemeral=True)
+        await self.update_message(interaction)
+
+    async def publish_btn(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        from cogs.event_ui import DynamicEventView
+        event_id = self.data["event_id"]
+        db_event = await database.get_active_event(event_id)
+        
+        if self.is_edit:
             if db_event and db_event.get("message_id") and db_event.get("channel_id"):
                 channel = self.bot.get_channel(db_event["channel_id"])
                 if channel:
@@ -207,18 +263,15 @@ class EventWizardView(ui.View):
                         log.error(f"Error updating message: {e}")
             await interaction.followup.send("Esemény sikeresen frissítve!", ephemeral=True)
         else:
-            await database.create_active_event(
-                event_id=event_id,
-                config_name=str(self.data.get("config_name") or "manual"),
-                channel_id=interaction.channel_id,
-                start_time=self.data["start_time"],
-                data=self.data
-            )
             view = DynamicEventView(self.bot, event_id, self.data)
             embed = await view.generate_embed()
             msg = await interaction.channel.send(content=t("MSG_EV_CREATED_PUBLIC"), embed=embed, view=view)
             await database.set_event_message(event_id, msg.id)
             self.bot.add_view(view)
-            await interaction.followup.send("Esemény sikeresen létrehozva!", ephemeral=True)
+            await interaction.followup.send("Esemény sikeresen közzétéve!", ephemeral=True)
 
+        # Clean up wizard
+        for child in self.children:
+            child.disabled = True
+        await interaction.edit_original_response(view=self)
         self.stop()

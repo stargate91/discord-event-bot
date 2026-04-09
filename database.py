@@ -24,7 +24,8 @@ async def init_db():
                 recurrence_type TEXT,
                 repost_trigger TEXT,
                 repost_offset TEXT,
-                timezone TEXT DEFAULT 'Europe/Budapest'
+                timezone TEXT DEFAULT 'Europe/Budapest',
+                creator_id TEXT
             )
         """)
         
@@ -33,7 +34,8 @@ async def init_db():
             ("title", "TEXT"), ("description", "TEXT"), ("image_urls", "TEXT"),
             ("color", "TEXT"), ("max_accepted", "INTEGER"), ("ping_role", "INTEGER"),
             ("end_time", "REAL"), ("recurrence_type", "TEXT"), ("repost_trigger", "TEXT"),
-            ("repost_offset", "TEXT"), ("timezone", "TEXT DEFAULT 'Europe/Budapest'")
+            ("repost_offset", "TEXT"), ("timezone", "TEXT DEFAULT 'Europe/Budapest'"),
+            ("creator_id", "TEXT")
         ]
         for col_name, col_type in new_columns:
             try:
@@ -54,39 +56,93 @@ async def init_db():
 async def create_active_event(event_id, config_name, channel_id, start_time, data=None):
     if data is None:
         data = {}
+    
+    # Standardize field names and types
+    title = data.get("title")
+    description = data.get("description")
+    
+    # Handle image_url(s) list or string
+    raw_images = data.get("image_urls") or data.get("image_url")
+    if isinstance(raw_images, list):
+        image_urls = ",".join(str(u) for u in raw_images)
+    else:
+        image_urls = str(raw_images) if raw_images else None
+
+    color = str(data.get("color") or "0x3498db")
+    max_acc = int(data.get("max_accepted") or 0)
+    ping = str(data.get("ping_role") or "")
+    # Ensure ping role is just digits
+    import re
+    ping_digits = re.sub(r"\D", "", ping)
+    ping_role = int(ping_digits) if ping_digits else 0
+    
+    end_time = data.get("end_time") or data.get("end")
+    recurrence = data.get("recurrence_type", "none")
+    repost_trigger = data.get("repost_trigger", "before_start")
+    repost_offset = data.get("repost_offset", "1h")
+    timezone = data.get("timezone", "Europe/Budapest")
+    creator_id = str(data.get("creator_id") or "System")
+
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             INSERT INTO active_events (
                 event_id, config_name, channel_id, start_time,
                 title, description, image_urls, color, max_accepted, 
                 ping_role, end_time, recurrence_type, repost_trigger, 
-                repost_offset, timezone
+                repost_offset, timezone, creator_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_id, config_name, channel_id, start_time,
-            data.get("title"), data.get("description"), data.get("image_urls"),
-            data.get("color"), data.get("max_accepted"), data.get("ping_role"),
-            data.get("end_time"), data.get("recurrence_type"), data.get("repost_trigger"),
-            data.get("repost_offset"), data.get("timezone", "Europe/Budapest")
+            title, description, image_urls,
+            color, max_acc, ping_role,
+            end_time, recurrence, repost_trigger,
+            repost_offset, timezone, creator_id
         ))
         await db.commit()
 
 async def update_active_event(event_id, data):
+    # Standardize field names and types
+    title = data.get("title")
+    description = data.get("description")
+    
+    # Handle image_url(s) list or string
+    raw_images = data.get("image_urls") or data.get("image_url")
+    if isinstance(raw_images, list):
+        image_urls = ",".join(str(u) for u in raw_images)
+    else:
+        image_urls = str(raw_images) if raw_images else None
+
+    color = str(data.get("color") or "0x3498db")
+    max_acc = int(data.get("max_accepted") or 0)
+    
+    ping = str(data.get("ping_role") or "")
+    import re
+    ping_digits = re.sub(r"\D", "", ping)
+    ping_role = int(ping_digits) if ping_digits else 0
+    
+    start_time = data.get("start_time")
+    end_time = data.get("end_time") or data.get("end")
+    recurrence = data.get("recurrence_type", "none")
+    repost_trigger = data.get("repost_trigger", "before_start")
+    repost_offset = data.get("repost_offset", "1h")
+    timezone = data.get("timezone", "Europe/Budapest")
+    creator_id = str(data.get("creator_id") or "System")
+
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             UPDATE active_events SET 
                 title = ?, description = ?, image_urls = ?, 
                 color = ?, max_accepted = ?, ping_role = ?, 
                 start_time = ?, end_time = ?, recurrence_type = ?, 
-                repost_trigger = ?, repost_offset = ?, timezone = ?
+                repost_trigger = ?, repost_offset = ?, timezone = ?,
+                creator_id = ?
             WHERE event_id = ?
         """, (
-            data.get("title"), data.get("description"), data.get("image_urls"),
-            data.get("color"), data.get("max_accepted"), data.get("ping_role"),
-            data.get("start_time"), data.get("end_time"), data.get("recurrence_type"),
-            data.get("repost_trigger"), data.get("repost_offset"), 
-            data.get("timezone", "Europe/Budapest"), event_id
+            title, description, image_urls,
+            color, max_acc, ping_role,
+            start_time, end_time, recurrence,
+            repost_trigger, repost_offset, timezone, creator_id, event_id
         ))
         await db.commit()
 

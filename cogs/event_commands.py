@@ -117,15 +117,34 @@ class EventCommands(commands.Cog):
 
         try:
             local_tz = tz.gettz(event_conf.get("timezone", "UTC"))
-            dt = parser.parse(event_conf.get("start"))
-            dt = dt.replace(tzinfo=local_tz)
-            start_timestamp = dt.timestamp()
+            
+            # Parse start time
+            dt_start = parser.parse(event_conf.get("start"))
+            dt_start = dt_start.replace(tzinfo=local_tz)
+            start_timestamp = dt_start.timestamp()
+            
+            # Parse end time if exists
+            end_timestamp = None
+            if event_conf.get("end"):
+                dt_end = parser.parse(event_conf.get("end"))
+                dt_end = dt_end.replace(tzinfo=local_tz)
+                end_timestamp = dt_end.timestamp()
+                # Store it specifically as end_time for the database helper
+                event_conf["end_time"] = end_timestamp
+
         except Exception as e:
             await interaction.response.send_message(f"Time parsing error: {e}", ephemeral=True)
             return
 
         channel_id = event_conf.get("channel_id") or interaction.channel_id
         event_id = str(uuid.uuid4())[:8]
+        
+        # Determine creator identity
+        # Preference: 1. Config 'creator_id' or 'created_by', 2. Interaction user ID
+        creator_val = event_conf.get("creator_id") or event_conf.get("created_by")
+        if not creator_val:
+            creator_val = str(interaction.user.id)
+        event_conf["creator_id"] = creator_val
         
         await database.create_active_event(
             event_id=event_id,

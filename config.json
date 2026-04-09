@@ -20,6 +20,7 @@
         "https://i.imgur.com/zOoMQcd.jpeg",
         "https://i.imgur.com/HR8fOZK.jpeg"
       ], // Direct image URL(s) for the embed. String or Array — array picks randomly each post
+      "creator_id": "System", // Custom creator display (e.g. "System", "@User", "Organizer")
       "timezone": "Europe/Budapest", // IANA timezone (e.g. "UTC", "Europe/Budapest", "US/Eastern")
       "color": "0xc23c2a", // Embed color in hex (e.g. "0x3498db", "0xff0000")
       "max_accepted": 0, // Max RSVP accepts (0 = unlimited)
