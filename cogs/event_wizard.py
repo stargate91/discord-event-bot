@@ -270,20 +270,25 @@ class EventWizardView(ui.View):
 
         current_set = self.data.get("icon_set", "standard")
         
-        # Dynamically populate icon_set_select options
-        self.icon_set_select.options = [
+        # Build the options list uniquely to avoid "already used" errors
+        base_values = ["standard", "mmo", "team", "timing"]
+        final_options = [
             discord.SelectOption(label="Standard (✅, ❌, ❔)", value="standard", emoji="💠", default=(current_set == "standard")),
             discord.SelectOption(label="MMO / Raid (🛡️, 🏥, ⚔️)", value="mmo", emoji="⚔️", default=(current_set == "mmo")),
             discord.SelectOption(label="Teams (🅰️, 🅱️, 👁️)", value="team", emoji="🚩", default=(current_set == "team")),
             discord.SelectOption(label="Timing (✅, ⏰, 🏃)", value="timing", emoji="⏰", default=(current_set == "timing"))
         ]
         
-        # Add custom sets if they exist in event_ui cache or we fetch them
+        # Add custom sets if they exist in event_ui cache
         from cogs.event_ui import CUSTOM_ICON_SETS
         for set_id, sdata in CUSTOM_ICON_SETS.items():
+            # Skip if it's already in the base list
+            if set_id in base_values:
+                continue
+                
             opts = sdata.get("options", [])
             preview = " ".join([o.get("emoji") or o.get("label") or "?" for o in opts[:3]])
-            self.icon_set_select.options.append(
+            final_options.append(
                 discord.SelectOption(
                     label=set_id[:25], # discord limit
                     description=f"{preview}...",
@@ -291,6 +296,8 @@ class EventWizardView(ui.View):
                     default=(current_set == set_id)
                 )
             )
+            
+        self.icon_set_select.options = final_options
 
     def get_status_text(self):
         # Build the status checklist for the user
