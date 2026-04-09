@@ -120,5 +120,17 @@
   "WIZARD_LIMITS_TITLE": "Szerepkörök keretei",
   "MSG_PROMOTED_DEFAULT": "🔔 <@{user_id}>, bekerültél az aktív jelentkezők közé: {emoji} **{role}**!",
   "BTN_MESSAGES": "🔔 Üzenetek",
-  "WIZARD_MESSAGES_TITLE": "Egyedi értesítések"
+  "WIZARD_MESSAGES_TITLE": "Egyedi értesítések",
+  "BTN_GENERAL": "🌐 Általános",
+  "BTN_LOCAL": "🌍 Időzóna & Nyelv",
+  "BTN_COLOR": "🎨 Megjelenés (Szín)",
+  "BTN_REMINDERS": "🔔 Emlékeztetők",
+  "BTN_ADMIN_ROLES": "👥 Admin Rangok",
+  "BTN_ADMIN_CHANNELS": "📺 Admin Csatornák",
+  "SETUP_GENERAL_TITLE": "🌐 Általános Beállítások",
+  "SETUP_GENERAL_DESC": "Kezeld a bot nyelvét, az admin rangokat és a korlátozott csatornákat.",
+  "SETTING_TIMEZONE": "Alapértelmezett Időzóna",
+  "SETTING_COLOR": "Alapértelmezett Embed Szín",
+  "SETTING_ADMIN_ROLES": "Felhatalmazott Admin Rangok",
+  "SETTING_ADMIN_CHANNELS": "Engedélyezett Admin Csatornák"
 }

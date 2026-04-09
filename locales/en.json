@@ -128,5 +128,17 @@
   "WIZARD_LIMITS_TITLE": "Set Role Capacities",
   "MSG_PROMOTED_DEFAULT": "🔔 <@{user_id}>, you've been promoted to active slot: {emoji} **{role}**!",
   "BTN_MESSAGES": "🔔 Messages",
-  "WIZARD_MESSAGES_TITLE": "Custom Notifications"
+  "WIZARD_MESSAGES_TITLE": "Custom Notifications",
+  "BTN_GENERAL": "🌐 General",
+  "BTN_LOCAL": "🌍 Timezone & Localization",
+  "BTN_COLOR": "🎨 Aesthetics (Color)",
+  "BTN_REMINDERS": "🔔 Reminders",
+  "BTN_ADMIN_ROLES": "👥 Admin Roles",
+  "BTN_ADMIN_CHANNELS": "📺 Admin Channels",
+  "SETUP_GENERAL_TITLE": "🌐 General Settings",
+  "SETUP_GENERAL_DESC": "Manage bot language, admin roles, and restricted channels.",
+  "SETTING_TIMEZONE": "Default Timezone",
+  "SETTING_COLOR": "Default Embed Color",
+  "SETTING_ADMIN_ROLES": "Authorized Admin Roles",
+  "SETTING_ADMIN_CHANNELS": "Authorized Admin Channels"
 }

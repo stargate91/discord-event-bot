@@ -24,7 +24,8 @@ async def is_admin(ctx_or_int):
         return False
 
     # 0. Bot Owner always has access and bypasses all restrictions
-    if await ctx_or_int.bot.is_owner(user):
+    bot = ctx_or_int.client if isinstance(ctx_or_int, discord.Interaction) else ctx_or_int.bot
+    if await bot.is_owner(user):
         return True
 
     if not guild_id:
