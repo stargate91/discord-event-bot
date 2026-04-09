@@ -384,10 +384,26 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="Before Start", value="before_start"),
             discord.SelectOption(label="After Start", value="after_start"),
             discord.SelectOption(label="After End", value="after_end")
-        ]
+        ],
+        row=1
     )
     async def trigger_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["repost_trigger"] = str(select.values[0])
+        await self.update_message(interaction)
+
+    @ui.select(
+        placeholder="Reminder Type",
+        options=[
+            discord.SelectOption(label="None", value="none", emoji="❌"),
+            discord.SelectOption(label="Channel", value="channel", emoji="📢"),
+            discord.SelectOption(label="DM", value="dm", emoji="📩"),
+            discord.SelectOption(label="Both (Channel + DM)", value="both", emoji="🔄")
+        ],
+        row=2
+    )
+    async def reminder_type_select(self, interaction: discord.Interaction, select: ui.Select):
+        self.data["reminder_type"] = str(select.values[0])
+        await self.save_to_draft()
         await self.update_message(interaction)
 
     @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
