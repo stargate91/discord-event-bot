@@ -261,10 +261,21 @@ class EventWizardView(ui.View):
         }
 
         # Pre-select things if we are editing or resuming
+        self.sync_ui()
+
+    def sync_ui(self):
+        """Synchronizes the Select components with the current data."""
+        # Icon set
+        current_set = self.data.get("icon_set", "standard")
+        for opt in self.icon_set_select.options:
+            opt.default = (opt.value == current_set)
+
+        # Recurrence
         current_rec = self.data.get("recurrence_type", "none")
         for opt in self.recurrence_select.options:
             opt.default = (opt.value == current_rec)
 
+        # Trigger
         current_trig = self.data.get("repost_trigger", "before_start")
         for opt in self.trigger_select.options:
             opt.default = (opt.value == current_trig)
@@ -321,6 +332,9 @@ class EventWizardView(ui.View):
         return f"- {t('BTN_STEP_1')}: {s1}\n- {t('BTN_STEP_2')}: {s2}\n- Offset: {s3}"
 
     async def update_message(self, interaction: discord.Interaction):
+        # First, make sure the UI components match our current data
+        self.sync_ui()
+        
         # Refresh the main Wizard message
         status = self.get_status_text()
         embed = discord.Embed(
@@ -434,8 +448,8 @@ class EventWizardView(ui.View):
                 clean_data[k] = str(v)
         self.data = clean_data
 
-        # Try to parse the dates
         try:
+            # Try to parse the dates
             local_tz = tz.gettz(str(self.data.get("timezone") or "Europe/Budapest"))
             start_dt = parser.parse(str(self.data["start_str"])).replace(tzinfo=local_tz)
             self.data["start_time"] = start_dt.timestamp()
@@ -451,36 +465,40 @@ class EventWizardView(ui.View):
 
         await interaction.response.defer(ephemeral=True)
         
-        import uuid
-        from cogs.event_ui import DynamicEventView
-        
-        event_id = str(self.data.get("event_id") or str(uuid.uuid4())[:8])
-        self.data["event_id"] = event_id
-        
-        if self.is_edit:
-            # Keep existing creator_id if not present
-            if "creator_id" not in self.data:
+        try:
+            import uuid
+            from cogs.event_ui import DynamicEventView
+            
+            event_id = str(self.data.get("event_id") or str(uuid.uuid4())[:8])
+            self.data["event_id"] = event_id
+            
+            if self.is_edit:
+                # Keep existing creator_id if not present
+                if "creator_id" not in self.data:
+                    self.data["creator_id"] = str(self.creator_id)
+                await database.update_active_event(event_id, self.data)
+            else:
                 self.data["creator_id"] = str(self.creator_id)
-            await database.update_active_event(event_id, self.data)
-        else:
-            self.data["creator_id"] = str(self.creator_id)
-            await database.create_active_event(
-                event_id=event_id,
-                config_name=str(self.data.get("config_name") or "manual"),
-                channel_id=interaction.channel_id,
-                start_time=self.data["start_time"],
-                data=self.data
-            )
+                await database.create_active_event(
+                    event_id=event_id,
+                    config_name=str(self.data.get("config_name") or "manual"),
+                    channel_id=interaction.channel_id,
+                    start_time=self.data["start_time"],
+                    data=self.data
+                )
 
-        # Update state to allow publication
-        self.can_publish = True
-        
-        # Show what the event will look like
-        view = DynamicEventView(self.bot, event_id, self.data)
-        embed = await view.generate_embed()
-        
-        await interaction.followup.send(t("MSG_SAVED_PREVIEW"), embed=embed, ephemeral=True)
-        await self.update_message(interaction)
+            # Update state to allow publication
+            self.can_publish = True
+            
+            # Show what the event will look like
+            view = DynamicEventView(self.bot, event_id, self.data)
+            embed = await view.generate_embed()
+            
+            await interaction.followup.send(t("MSG_SAVED_PREVIEW"), embed=embed, ephemeral=True)
+            await self.update_message(interaction)
+        except Exception as e:
+            log.error(f"Error in save_preview_btn: {e}")
+            await interaction.followup.send(f"❌ Error during save: {e}", ephemeral=True)
 
     async def publish_btn(self, interaction: discord.Interaction):
         # This actually shows the event to everyone in the channel
