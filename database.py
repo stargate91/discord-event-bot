@@ -73,14 +73,32 @@ async def init_db():
         """)
         await db.commit()
 
-    # Dynamic Migration: Add extra_data column to active_events if it doesn't exist
+    # Dynamic Migration: ensure all columns exist
     async with aiosqlite.connect(DB_PATH) as db:
-        try:
-            await db.execute("ALTER TABLE active_events ADD COLUMN extra_data TEXT")
-            await db.commit()
-            log.info("[DB] Migrated active_events: added extra_data column.")
-        except:
-            pass # Column already exists
+        new_columns = [
+            ("creator_id", "TEXT"),
+            ("reminder_type", "TEXT DEFAULT 'none'"),
+            ("reminder_offset", "TEXT DEFAULT '15m'"),
+            ("reminder_sent", "INTEGER DEFAULT 0"),
+            ("recurrence_limit", "INTEGER DEFAULT 0"),
+            ("recurrence_count", "INTEGER DEFAULT 0"),
+            ("icon_set", "TEXT DEFAULT 'standard'"),
+            ("extra_data", "TEXT")
+        ]
+        
+        for col_name, col_type in new_columns:
+            try:
+                await db.execute(f"ALTER TABLE active_events ADD COLUMN {col_name} {col_type}")
+                await db.commit()
+                # Use a simple print or log if available. 
+                # Since we don't have a logger import here, we use the global log if it exists.
+                try:
+                    from utils.logger import log
+                    log.info(f"[DB] Migrated active_events: added {col_name} column.")
+                except:
+                    pass
+            except:
+                pass # Column already exists
 
 async def create_active_event(event_id, config_name, channel_id, start_time, data=None):
     # This function saves a brand new event to the database
