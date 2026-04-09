@@ -6,7 +6,6 @@ import time
 import uuid
 import datetime
 import json
-import json
 # imports moved inside methods to prevent circular dependency
 from utils.i18n import t
 from dateutil import parser
@@ -43,21 +42,17 @@ def get_event_dict(name):
             return e
     return None
 
-# We removed the local is_admin helper in favor of the centralized one in utils/auth.py
-
 class EventCommands(commands.GroupCog, name="event"):
     # Subgroup for administrative tasks
     admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers")
     # Subgroup for Bot Owner / System tasks
     master_group = app_commands.Group(name="master", description="System-level commands for the Bot Owner")
 
-    # This class holds all the slash commands for managing events under /event
     def __init__(self, bot):
         self.bot = bot
 
     @master_group.command(name="status", description="Manage the global bot presence status list")
     async def master_status(self, interaction: discord.Interaction):
-        # Strictly check for Bot Owner
         if not await self.bot.is_owner(interaction.user):
             return await interaction.response.send_message("❌ Ez a parancs csak a Bot Owner számára érhető el.", ephemeral=True)
 
@@ -133,7 +128,6 @@ class EventCommands(commands.GroupCog, name="event"):
 
     @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
-        # Open the branching UI (Single vs Recurring)
         from cogs.event_wizard import WizardStartView
         from utils.i18n import load_guild_translations
         await interaction.response.defer(ephemeral=True)
@@ -156,56 +150,18 @@ class EventCommands(commands.GroupCog, name="event"):
             log.error(f"Error in create_event: {e}", exc_info=True, guild_id=guild_id)
             await interaction.followup.send(f"❌ Hiba történt a varázsló megnyitásakor: `{e}`", ephemeral=True)
 
-# --- MASTER UI COMPONENTS ---
-
-class MasterPresenceView(discord.ui.View):
-    def __init__(self, presence_list):
-        super().__init__(timeout=300)
-        self.presence_list = presence_list
-
-    @discord.ui.button(label="➕ Hozzáadás", style=discord.ButtonStyle.green)
-    async def add_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(AddPresenceModal(self))
-
-    @discord.ui.button(label="🗑️ Lista ürítése", style=discord.ButtonStyle.danger)
-    async def clear_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.presence_list = []
-        await database.save_global_setting("bot_presence_list", json.dumps(self.presence_list))
-        await interaction.response.send_message("✅ Státusz lista törölve.", ephemeral=True)
-
-class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
-    status_input = discord.ui.TextInput(
-        label="Státusz szövege",
-        placeholder="Pl. watching {event_count} events",
-        required=True,
-        style=discord.TextStyle.short
-    )
-
-    def __init__(self, parent_view):
-        super().__init__()
-        self.parent_view = parent_view
-
-    async def on_submit(self, interaction: discord.Interaction):
-        new_status = self.status_input.value.strip()
-        self.parent_view.presence_list.append(new_status)
-        await database.save_global_setting("bot_presence_list", json.dumps(self.parent_view.presence_list))
-        await interaction.response.send_message(f"✅ Hozzáadva: `{new_status}`", ephemeral=True)
-
-
     @app_commands.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
         event_id="The short ID or series name of the event to edit",
         occurrence="Optional: which occurrence number of a series to edit (1, 2, 3...)"
     )
     async def edit_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
-        # Start editing process
         from cogs.event_wizard import EventWizardView
         from utils.i18n import load_guild_translations
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
         await load_guild_translations(guild_id)
         
-        # Open the Wizard for a specific event to change its details
         if not await is_admin(interaction):
             await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             return
@@ -221,7 +177,6 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
                 return
             
             if occurrence is not None:
-                # Select a specific Nth occurrence (1-based index)
                 idx = occurrence - 1
                 if 0 <= idx < len(series_events):
                     db_event = series_events[idx]
@@ -229,18 +184,15 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
                     await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) aktív esemény ebben a sorozatban.", ephemeral=True)
                     return
             else:
-                # Bulk mode: Load first one for template, track all IDs
                 db_event = series_events[0]
                 bulk_ids = [ev['event_id'] for ev in series_events]
         else:
-            # Normal single ID search
             db_event = await database.get_active_event(event_id)
 
         if not db_event:
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
-        # Prepare dates so the wizard can show them clearly
         local_tz = tz.gettz("Europe/Budapest")
         if db_event.get("start_time"):
             start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
@@ -253,19 +205,10 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
             db_event["end_str"] = ""
 
         try:
-            view = EventWizardView(
-                self.bot, 
-                interaction.user.id, 
-                existing_data=db_event, 
-                is_edit=True, 
-                guild_id=interaction.guild_id,
-                bulk_ids=bulk_ids
-            )
-            
+            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
             guild_id = interaction.guild_id
             title = t("WIZARD_TITLE", guild_id=guild_id)
-            if bulk_ids:
-                title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
+            if bulk_ids: title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
             
             embed = discord.Embed(
                 title=title, 
@@ -279,37 +222,28 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
-        # Helps the user search for event IDs while they type
         active_events = await database.get_all_active_events(interaction.guild_id)
-        
-        # Group by config_name
         groups = {}
         for ev in active_events:
             cfg = ev.get('config_name') or 'manual'
-            if cfg not in groups:
-                groups[cfg] = []
+            if cfg not in groups: groups[cfg] = []
             groups[cfg].append(ev)
 
         choices = []
         for cfg, evs in groups.items():
             if cfg != 'manual':
-                # Offer as a series
                 title = evs[0].get('title') or cfg
                 label = f"📦 [SOROZAT] {title} ({len(evs)} aktív)"
-                if current.lower() in label.lower():
-                    choices.append(app_commands.Choice(name=label, value=f"series:{cfg}"))
+                if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=f"series:{cfg}"))
             else:
-                # Manual events are shown individually
                 for ev in evs:
                     label = f"📝 {ev.get('title') or 'Unnamed'} ({ev['event_id']})"
-                    if current.lower() in label.lower():
-                        choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+                    if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
     @app_commands.command(name="list", description="Show all active events")
     async def list_events(self, interaction: discord.Interaction):
-        # Simply lists everything currently in the database
-        if not is_admin(interaction):
+        if not await is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
@@ -322,14 +256,12 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
         for ev in events:
             title = ev.get('title') or ev.get('config_name') or "Unnamed"
             text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
-        
         await interaction.response.send_message(text, ephemeral=True)
 
     @app_commands.command(name="publish", description="Post an event using a preset template")
     @app_commands.describe(name="The name of the event in config.json")
     async def event_publish(self, interaction: discord.Interaction, name: str):
-        # Create an event immediately using a template from config.json
-        if not is_admin(interaction):
+        if not await is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
@@ -344,8 +276,6 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
             return
 
         local_tz = tz.gettz(event_conf.get("timezone", "Europe/Budapest"))
-        
-        # Turn the start and end strings into numbers (timestamps)
         try:
             start_str = event_conf.get("start_time")
             if not start_str:
@@ -366,20 +296,11 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
         channel_id = event_conf.get("channel_id") or interaction.channel_id
         event_id = str(uuid.uuid4())[:8]
         
-        creator_val = event_conf.get("creator_id")
-        if not creator_val:
-            creator_val = str(interaction.user.id)
+        creator_val = event_conf.get("creator_id") or str(interaction.user.id)
         event_conf["creator_id"] = creator_val
         
         try:
-            await database.create_active_event(
-                guild_id=interaction.guild_id,
-                event_id=event_id,
-                config_name=name,
-                channel_id=channel_id,
-                start_time=start_timestamp,
-                data=event_conf
-            )
+            await database.create_active_event(guild_id=interaction.guild_id, event_id=event_id, config_name=name, channel_id=channel_id, start_time=start_timestamp, data=event_conf)
         except Exception as e:
             log.error(f"DB Error while creating event: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Adatbázis hiba történt a mentéskor: `{e}`", ephemeral=True)
@@ -389,17 +310,12 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
             from cogs.event_ui import DynamicEventView
             view = DynamicEventView(self.bot, event_id, event_conf)
             embed = await view.generate_embed()
-
             await interaction.followup.send(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
             
-            target_channel = self.bot.get_channel(channel_id)
-            if not target_channel:
-                target_channel = interaction.channel
-                
+            target_channel = self.bot.get_channel(channel_id) or interaction.channel
             content = t("MSG_EV_CREATED_PUBLIC")
             ping_role = event_conf.get("ping_role", "")
-            if ping_role:
-                content += f" <@&{ping_role}>"
+            if ping_role: content += f" <@&{ping_role}>"
                 
             msg = await target_channel.send(content=content, embed=embed, view=view)
             await database.set_event_message(event_id, msg.id, interaction.guild_id)
@@ -407,7 +323,6 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
         except Exception as e:
             log.error(f"UI Error while publishing event: {e}", exc_info=True)
             await interaction.followup.send(f"❌ Hiba történt a közzététel során: `{e}`", ephemeral=True)
-            return
 
     @event_publish.autocomplete("name")
     async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -418,111 +333,61 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
             events = config_data.get("events_config", [])
             for e in events:
                 e_name = str(e.get("config_name") or e.get("name") or "")
-                if current.lower() in e_name.lower():
-                    choices.append(app_commands.Choice(name=e_name[:100], value=e_name))
+                if current.lower() in e_name.lower(): choices.append(app_commands.Choice(name=e_name[:100], value=e_name))
         except: pass
         return choices[:25]
 
     @app_commands.command(name="cancel", description="Mark an event as CANCELLED")
-    @app_commands.describe(
-        event_id="The short ID or series name",
-        notify="How to notify participants",
-        occurrence="Occurrence number for series"
-    )
-    @app_commands.choices(notify=[
-        app_commands.Choice(name="None", value="none"),
-        app_commands.Choice(name="DM only", value="dm"),
-        app_commands.Choice(name="Chat only", value="chat"),
-        app_commands.Choice(name="Both DM and Chat", value="both")
-    ])
+    @app_commands.describe(event_id="The short ID or series name", notify="How to notify participants", occurrence="Occurrence number for series")
+    @app_commands.choices(notify=[app_commands.Choice(name="None", value="none"), app_commands.Choice(name="DM only", value="dm"), app_commands.Choice(name="Chat only", value="chat"), app_commands.Choice(name="Both DM and Chat", value="both")])
     async def cancel_event(self, interaction: discord.Interaction, event_id: str, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "cancelled", notify, occurrence)
 
     @app_commands.command(name="postpone", description="Mark an event as POSTPONED")
-    @app_commands.describe(
-        event_id="The short ID or series name",
-        new_time="Optional new date/time (e.g. 2026-05-10 18:00)",
-        notify="How to notify participants",
-        occurrence="Occurrence number for series"
-    )
-    @app_commands.choices(notify=[
-        app_commands.Choice(name="None", value="none"),
-        app_commands.Choice(name="DM only", value="dm"),
-        app_commands.Choice(name="Chat only", value="chat"),
-        app_commands.Choice(name="Both DM and Chat", value="both")
-    ])
+    @app_commands.describe(event_id="The short ID or series name", new_time="Optional new date/time (e.g. 2026-05-10 18:00)", notify="How to notify participants", occurrence="Occurrence number for series")
+    @app_commands.choices(notify=[app_commands.Choice(name="None", value="none"), app_commands.Choice(name="DM only", value="dm"), app_commands.Choice(name="Chat only", value="chat"), app_commands.Choice(name="Both DM and Chat", value="both")])
     async def postpone_event(self, interaction: discord.Interaction, event_id: str, new_time: str = None, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "postponed", notify, occurrence, new_time)
 
     @app_commands.command(name="activate", description="Set a cancelled/postponed event back to ACTIVE")
-    @app_commands.describe(
-        event_id="The short ID or series name",
-        occurrence="Occurrence number for series"
-    )
+    @app_commands.describe(event_id="The short ID or series name", occurrence="Occurrence number for series")
     async def activate_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "active", "none", occurrence)
 
     async def _handle_status_change(self, interaction, event_id, status, notify, occurrence, new_time=None):
-        if not is_admin(interaction):
+        if not await is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
-        
-        db_event = None
-        series_events = []
-        is_series_target = event_id.startswith("series:")
+        db_event, series_events, is_series_target = None, [], event_id.startswith("series:")
 
         if is_series_target:
             config_name = event_id.replace("series:", "")
             series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
-            if not series_events:
-                await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
-                return
-            
+            if not series_events: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             if occurrence is not None:
                 idx = occurrence - 1
-                if 0 <= idx < len(series_events):
-                    db_event = series_events[idx]
-                    event_id = db_event["event_id"]
-                    is_series_target = False
-                else:
-                    await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) esemény.", ephemeral=True)
-                    return
-            else:
-                db_event = series_events[0]
-        else:
-            db_event = await database.get_active_event(event_id)
+                if 0 <= idx < len(series_events): db_event = series_events[idx]; event_id = db_event["event_id"]; is_series_target = False
+                else: return await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) esemény.", ephemeral=True)
+            else: db_event = series_events[0]
+        else: db_event = await database.get_active_event(event_id)
 
-        if not db_event:
-            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
-            return
+        if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
 
-        # Special logic for Postpone time update
         if status == "postponed" and new_time:
             try:
                 local_tz = tz.gettz("Europe/Budapest")
                 dt = parser.parse(new_time).replace(tzinfo=local_tz)
-                # Update only this instance for time
                 await database.update_event_time(event_id, dt.timestamp())
-            except Exception as e:
-                await interaction.followup.send(f"❌ Hibás időpont: {e}", ephemeral=True)
-                return
+            except Exception as e: return await interaction.followup.send(f"❌ Hibás időpont: {e}", ephemeral=True)
 
         from cogs.event_ui import StatusChoiceView, DynamicEventView
-        
         if is_series_target and not occurrence:
-             # Choice popup
              view = StatusChoiceView(self.bot, event_id, db_event, series_events, status, notify)
-             await interaction.followup.send(
-                 f"💡 Ez egy sorozat része. Szeretnéd az ÖSSZES jövőbeli alkalmat **{status}** állapotra állítani?",
-                 view=view, ephemeral=True
-             )
+             await interaction.followup.send(f"💡 Ez egy sorozat része. Szeretnéd az ÖSSZES jövőbeli alkalmat **{status}** állapotra állítani?", view=view, ephemeral=True)
         else:
-            # Simple single update
             await database.update_event_status(event_id, status)
-            
-            # Refresh UI
             ev = await database.get_active_event(event_id)
             if ev and ev.get("message_id") and ev.get("channel_id"):
                 chan = self.bot.get_channel(ev["channel_id"])
@@ -533,11 +398,8 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
                         emb = await dv.generate_embed(ev)
                         await msg.edit(embed=emb, view=dv)
                     except: pass
-            
-            # Notifications helper (using the choice view's logic internally)
             choice_view = StatusChoiceView(self.bot, event_id, ev, [], status, notify)
             await choice_view.refresh_and_notify(interaction, [event_id])
-            
             await interaction.followup.send(f"✅ Esemény mostantól: `{status}`", ephemeral=True)
 
     @cancel_event.autocomplete("event_id")
@@ -549,82 +411,57 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
     @app_commands.command(name="remove", description="Delete an active event message")
     @app_commands.describe(event_id="The event you want to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
-        # Completely delete an event and clean up the message
-        if not is_admin(interaction):
+        if not await is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
-
         await interaction.response.defer(ephemeral=True)
-
         db_event = await database.get_active_event(event_id, interaction.guild_id)
-        if not db_event:
-            await interaction.followup.send(f"Event `{event_id}` not found.", ephemeral=True)
-            return
-
-        # Try to disable buttons on the old message
+        if not db_event: return await interaction.followup.send(f"Event `{event_id}` not found.", ephemeral=True)
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel and db_event.get("message_id"):
                 old_msg = await channel.fetch_message(db_event["message_id"])
                 if old_msg:
                     view = discord.ui.View.from_message(old_msg)
-                    for child in view.children:
-                        child.disabled = True
+                    for child in view.children: child.disabled = True
                     embed = old_msg.embeds[0] if old_msg.embeds else None
-                    if embed:
-                        embed.title = f"{t('TAG_PAST')} {embed.title}"
-                        await old_msg.edit(embed=embed, view=view)
-                    else:
-                        await old_msg.edit(view=view)
-        except Exception as e:
-            log.warning(f"Could not update message for event {event_id}: {e}")
-
+                    if embed: embed.title = f"{t('TAG_PAST')} {embed.title}"; await old_msg.edit(embed=embed, view=view)
+                    else: await old_msg.edit(view=view)
+        except Exception as e: log.warning(f"Could not update message for event {event_id}: {e}")
         await database.delete_active_event(event_id, interaction.guild_id)
         await interaction.followup.send(f"✅ Event removed.", ephemeral=True)
 
     @remove_event.autocomplete("event_id")
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
-        # Same autocomplete logic as edit
         active_events = await database.get_all_active_events(interaction.guild_id)
         choices = []
         for ev in active_events:
             label = f"{ev.get('title') or ev.get('config_name')} ({ev['event_id']})"
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+            if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
     @app_commands.command(name="continue-draft", description="Finish an event you started earlier")
     @app_commands.describe(draft_id="Select which draft to finish")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
-        # Reload a draft from the database so you don't lose progress
         data = await database.get_draft(draft_id, interaction.guild_id)
-        if not data:
-            await interaction.response.send_message("Draft not found.", ephemeral=True)
-            return
-            
+        if not data: return await interaction.response.send_message("Draft not found.", ephemeral=True)
+        from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
-        embed = discord.Embed(
-            title=t("WIZARD_TITLE"), 
-            description=t("WIZARD_DESC", status=view.get_status_text()), 
-            color=discord.Color.blue()
-        )
+        embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.blue())
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @continue_draft.autocomplete("draft_id")
     async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        # Helps the user search for draft IDs while they type
         drafts = await database.get_user_drafts(interaction.guild_id, interaction.user.id)
         choices = []
         for d in drafts:
             label = f"{d['title']} ({d['draft_id']})"
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=d['draft_id']))
+            if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=d['draft_id']))
         return choices[:25]
 
     @app_commands.command(name="delete-draft", description="Delete one of your drafts")
     @app_commands.describe(draft_id="Select which draft to delete")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
-        # Delete a specific draft
         await database.delete_draft(draft_id, interaction.guild_id)
         await interaction.response.send_message("Draft deleted.", ephemeral=True)
 
@@ -634,7 +471,6 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
 
     @app_commands.command(name="delete-all-drafts", description="Delete all your drafts at once")
     async def delete_all_drafts(self, interaction: discord.Interaction):
-        # Wipe all drafts for the user
         await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
 
@@ -642,134 +478,96 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
 
     @admin_group.command(name="reset", description="WIPE ALL DATA for this server (Active events, RSVPs, drafts, custom symbols)")
     async def reset_server(self, interaction: discord.Interaction):
-        """DANGER: Completely removes all database entries linked to this guild."""
-        if not is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-            return
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
 
-        # Simple confirmation check
         class ConfirmReset(discord.ui.View):
             def __init__(self):
                 super().__init__(timeout=30)
                 self.value = None
-
             @discord.ui.button(label="YES, PERMANENTLY DELETE EVERYTHING", style=discord.ButtonStyle.danger)
             async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-                self.value = True
-                self.stop()
-                await interaction.response.defer()
-
+                self.value = True; self.stop(); await interaction.response.defer()
             @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
             async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-                self.value = False
-                self.stop()
-                await interaction.response.send_message("Reset cancelled.", ephemeral=True)
+                self.value = False; self.stop(); await interaction.response.send_message("Reset cancelled.", ephemeral=True)
 
         confirm_view = ConfirmReset()
-        await interaction.response.send_message(
-            "⚠️ **DANGER ZONE** ⚠️\nThis will permanently delete all events, RSVPs, drafts, and custom icons for **THIS SERVER ONLY**.\nAre you absolutely sure?",
-            view=confirm_view,
-            ephemeral=True
-        )
-
+        await interaction.response.send_message("⚠️ **DANGER ZONE** ⚠️\nThis will permanently delete all events, RSVPs, drafts, and custom icons for **THIS SERVER ONLY**.\nAre you absolutely sure?", view=confirm_view, ephemeral=True)
         await confirm_view.wait()
-
         if confirm_view.value:
             try:
                 guild_id = interaction.guild_id
                 await database.clear_guild_data(guild_id)
                 log.info(f"[Admin] Guild {guild_id} data was WIPED by {interaction.user}", guild_id=guild_id)
-                # We also need to reload custom sets in memory if some were deleted
                 try:
                     from cogs.event_ui import load_custom_sets
                     await load_custom_sets()
                 except: pass
                 await interaction.followup.send(f"✅ All data for this server has been successfully deleted.", ephemeral=True)
-            except Exception as e:
-                log.error(f"Error during guild reset: {e}", guild_id=guild_id)
-                await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
+            except Exception as e: log.error(f"Error during guild reset: {e}", guild_id=guild_id); await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
 
     @commands.command(name="sync" + SUFFIX)
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
-        # Traditional prefix command to sync slash commands with Discord
-        if not await is_admin(ctx):
-            await ctx.send(t("ERR_ADMIN_ONLY"))
-            return
-        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
-            await ctx.send(t("ERR_CHANNEL_ONLY"))
-            return
-        
+        if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
+        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID: return await ctx.send(t("ERR_CHANNEL_ONLY"))
         await ctx.send(t("SYNC_START_MSG"))
         try:
-            if spec == "global":
-                synced = await self.bot.tree.sync()
-                await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
-            elif spec == "copy":
-                self.bot.tree.copy_global_to(guild=ctx.guild)
-                synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
-            else:
-                synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
-        except discord.Forbidden:
-            await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
-        except Exception as e:
-            await ctx.send(f"❌ Sync failed: `{e}`")
+            if spec == "global": synced = await self.bot.tree.sync(); await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
+            elif spec == "copy": self.bot.tree.copy_global_to(guild=ctx.guild); synced = await self.bot.tree.sync(guild=ctx.guild); await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
+            else: synced = await self.bot.tree.sync(guild=ctx.guild); await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
+        except discord.Forbidden: await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
+        except Exception as e: await ctx.send(f"❌ Sync failed: `{e}`")
 
     @commands.command(name="clear_commands" + SUFFIX)
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
-        # Command to remove all slash commands (useful if something breaks)
-        if not await is_admin(ctx):
-            await ctx.send(t("ERR_ADMIN_ONLY"))
-            return
-        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
-            await ctx.send(t("ERR_CHANNEL_ONLY"))
-            return
-            
+        if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
+        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID: return await ctx.send(t("ERR_CHANNEL_ONLY"))
         await ctx.send(t("SYNC_CLEAR_START"))
         try:
-            self.bot.tree.clear_commands(guild=None)
-            await self.bot.tree.sync(guild=None)
-            self.bot.tree.clear_commands(guild=ctx.guild)
-            await self.bot.tree.sync(guild=ctx.guild)
-            
+            self.bot.tree.clear_commands(guild=None); await self.bot.tree.sync(guild=None)
+            self.bot.tree.clear_commands(guild=ctx.guild); await self.bot.tree.sync(guild=ctx.guild)
             suffix = self.bot.config.get("command_suffix", "")
             await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix))
-        except Exception as e:
-            await ctx.send(f"❌ Clear failed: `{e}`")
+        except Exception as e: await ctx.send(f"❌ Clear failed: `{e}`")
 
     @app_commands.command(name="sync", description="Sync slash commands manually")
     @app_commands.describe(mode="Choose: guild, global, or copy")
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
-        # Slash command version of the sync process
-        if not is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-            return
-
+        if not await is_admin(interaction): return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
         await interaction.response.defer(ephemeral=True)
+        if mode == "global": synced = await self.bot.tree.sync(); await interaction.followup.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)), ephemeral=True)
+        elif mode == "copy": self.bot.tree.copy_global_to(guild=interaction.guild); synced = await self.bot.tree.sync(guild=interaction.guild); await interaction.followup.send(t("SYNC_SUCCESS_COPY", count=len(synced)), ephemeral=True)
+        else: synced = await self.bot.tree.sync(guild=interaction.guild); await interaction.followup.send(t("SYNC_SUCCESS_GUILD", count=len(synced)), ephemeral=True)
 
-        if mode == "global":
-            synced = await self.bot.tree.sync()
-            await interaction.followup.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)), ephemeral=True)
-        elif mode == "copy":
-            self.bot.tree.copy_global_to(guild=interaction.guild)
-            synced = await self.bot.tree.sync(guild=interaction.guild)
-            await interaction.followup.send(t("SYNC_SUCCESS_COPY", count=len(synced)), ephemeral=True)
-        else:
-            synced = await self.bot.tree.sync(guild=interaction.guild)
-            await interaction.followup.send(t("SYNC_SUCCESS_GUILD", count=len(synced)), ephemeral=True)
+# --- MASTER UI COMPONENTS ---
+
+class MasterPresenceView(discord.ui.View):
+    def __init__(self, presence_list):
+        super().__init__(timeout=300)
+        self.presence_list = presence_list
+    @discord.ui.button(label="➕ Hozzáadás", style=discord.ButtonStyle.green)
+    async def add_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(AddPresenceModal(self))
+    @discord.ui.button(label="🗑️ Lista ürítése", style=discord.ButtonStyle.danger)
+    async def clear_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.presence_list = []; await database.save_global_setting("bot_presence_list", json.dumps(self.presence_list)); await interaction.response.send_message("✅ Státusz lista törölve.", ephemeral=True)
+
+class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
+    status_input = discord.ui.TextInput(label="Státusz szövege", placeholder="Pl. watching {event_count} events", required=True, style=discord.TextStyle.short)
+    def __init__(self, parent_view):
+        super().__init__(); self.parent_view = parent_view
+    async def on_submit(self, interaction: discord.Interaction):
+        new_status = self.status_input.value.strip(); self.parent_view.presence_list.append(new_status); await database.save_global_setting("bot_presence_list", json.dumps(self.parent_view.presence_list)); await interaction.response.send_message(f"✅ Hozzáadva: `{new_status}`", ephemeral=True)
 
 async def setup(bot):
-    # This prepares the commands class and sets up dynamic command aliases
     cog = EventCommands(bot)
     config = getattr(bot, 'config', {})
     suffix = config.get('command_suffix', '')
-    
     if suffix:
         cog.sync_prefix.aliases = [f"sync{suffix}"]
         cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
         log.info(f"[Admin] Dynamic aliases prepared for suffix: {suffix}")
-        
     await bot.add_cog(cog)
