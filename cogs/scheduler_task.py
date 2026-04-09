@@ -204,50 +204,50 @@ class SchedulerTask(commands.Cog):
         send_ping = rem_type in ["ping", "both"]
         send_dm = rem_type in ["dm", "both"]
 
-                # Check for custom reminder message
-                extra_data = db_event.get("extra_data")
-                custom_reminder = None
-                if extra_data:
-                    try:
-                        if isinstance(extra_data, str):
-                            custom_reminder = json.loads(extra_data).get("custom_reminder_msg")
-                        else:
-                            custom_reminder = extra_data.get("custom_reminder_msg")
-                    except: pass
-                
-                if custom_reminder:
-                    rem_text = custom_reminder.format(title=db_event['title'])
+        # Check for custom reminder message
+        extra_data = db_event.get("extra_data")
+        custom_reminder = None
+        if extra_data:
+            try:
+                if isinstance(extra_data, str):
+                    custom_reminder = json.loads(extra_data).get("custom_reminder_msg")
                 else:
-                    rem_text = t("MSG_REM_DESC", title=db_event['title'])
+                    custom_reminder = extra_data.get("custom_reminder_msg")
+            except: pass
+        
+        if custom_reminder:
+            rem_text = custom_reminder.format(title=db_event['title'])
+        else:
+            rem_text = t("MSG_REM_DESC", title=db_event['title'])
 
-                # Send a message in the channel
-                if send_ping:
-                    channel = self.bot.get_channel(db_event["channel_id"])
-                    if channel:
-                        mention_str = ", ".join(mentions)
+        # Send a message in the channel
+        if send_ping:
+            channel = self.bot.get_channel(db_event["channel_id"])
+            if channel:
+                mention_str = ", ".join(mentions)
+                embed = discord.Embed(
+                    title=f"🔔 Emlékeztető / Reminder",
+                    description=rem_text,
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
+                await channel.send(content=mention_str, embed=embed)
+
+        # Send a private message (DM) to everyone
+        if send_dm:
+            for p in participants:
+                try:
+                    user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
+                    if user:
                         embed = discord.Embed(
                             title=f"🔔 Emlékeztető / Reminder",
                             description=rem_text,
                             color=discord.Color.orange()
                         )
                         embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
-                        await channel.send(content=mention_str, embed=embed)
-
-                # Send a private message (DM) to everyone
-                if send_dm:
-                    for p in participants:
-                        try:
-                            user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
-                            if user:
-                                embed = discord.Embed(
-                                    title=f"🔔 Emlékeztető / Reminder",
-                                    description=rem_text,
-                                    color=discord.Color.orange()
-                                )
-                                embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
-                                await user.send(embed=embed)
-                        except Exception as e:
-                            log.error(f"Could not send DM to {p['user_id']}: {e}")
+                        await user.send(embed=embed)
+                except Exception as e:
+                    log.error(f"Could not send DM to {p['user_id']}: {e}")
 
         await database.mark_reminder_sent(event_id)
 
