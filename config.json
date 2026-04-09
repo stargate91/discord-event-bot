@@ -7,30 +7,29 @@
   "admin_role_id": 1283594037802176546, // Role ID that can use admin commands (+ server admins always can)
   "events_config": [
     {
-      "name": "dota_battle_cup", // Internal ID (used in /event_publish autocomplete)
-      "enabled": true, // false = hidden from publish list
-      "channel_id": 1491246193722920960, // Discord Channel ID where event is posted (null = current channel)
+      "config_name": "dota_battle_cup", // Internal ID
+      "enabled": true,
+      "channel_id": 1491246193722920960,
       "title": "Dota 2 | Weekly Battle Cup (Saturday)",
       "description": "Five players. One draft. No second chances.\nBring your A-game or get sent home early. ;)",
-      "image_url": [
+      "image_urls": [
         "https://i.imgur.com/9EtrgHi.jpeg",
         "https://i.imgur.com/It7nYyq.jpeg",
         "https://i.imgur.com/x59x7Rm.jpeg",
         "https://i.imgur.com/67kiIv9.jpeg",
         "https://i.imgur.com/zOoMQcd.jpeg",
         "https://i.imgur.com/HR8fOZK.jpeg"
-      ], // Direct image URL(s) for the embed. String or Array — array picks randomly each post
-      "creator_id": "System", // Custom creator display (e.g. "System", "@User", "Organizer")
-      "timezone": "Europe/Budapest", // IANA timezone (e.g. "UTC", "Europe/Budapest", "US/Eastern")
-      "color": "0xc23c2a", // Embed color in hex (e.g. "0x3498db", "0xff0000")
-      "max_accepted": 0, // Max RSVP accepts (0 = unlimited)
-      "ping_role": "1491072788507660518", // Discord Role ID to ping (leave empty for no ping)
-      "start": "2026-04-11 19:00", // Format: YYYY-MM-DD HH:MM
-      "end": "2026-04-11 22:00", // Format: YYYY-MM-DD HH:MM (leave empty for no end time)
-      "recurrence_type": "weekly", // "once", "daily", "weekly", "weekdays", "monthly"
-      "recurrence_custom": "", // Reserved for future custom recurrence
-      "repost_trigger": "before_start", // "before_start", "after_start", "after_end"
-      "repost_offset": "4h" // Offset from trigger: "5m", "3h", "6d"
+      ],
+      "creator_id": "System",
+      "timezone": "Europe/Budapest",
+      "color": "0xc23c2a",
+      "max_accepted": 0,
+      "ping_role": "1491072788507660518",
+      "start_time": "2026-04-11 19:00",
+      "end_time": "2026-04-11 22:00",
+      "recurrence_type": "weekly",
+      "repost_trigger": "before_start",
+      "repost_offset": "4h"
     }
   ]
 }

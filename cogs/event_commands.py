@@ -115,33 +115,32 @@ class EventCommands(commands.Cog):
             await interaction.response.send_message("This event is disabled in config.", ephemeral=True)
             return
 
+        local_tz = tz.gettz(event_conf.get("timezone", "Europe/Budapest"))
+        
+        # Parse start_time from config
         try:
-            local_tz = tz.gettz(event_conf.get("timezone", "UTC"))
-            
-            # Parse start time
-            dt_start = parser.parse(event_conf.get("start"))
-            dt_start = dt_start.replace(tzinfo=local_tz)
-            start_timestamp = dt_start.timestamp()
-            
-            # Parse end time if exists
-            end_timestamp = None
-            if event_conf.get("end"):
-                dt_end = parser.parse(event_conf.get("end"))
-                dt_end = dt_end.replace(tzinfo=local_tz)
-                end_timestamp = dt_end.timestamp()
-                # Store it specifically as end_time for the database helper
-                event_conf["end_time"] = end_timestamp
+            start_str = event_conf.get("start_time")
+            if not start_str:
+                await interaction.response.send_message("Hiba: 'start_time' hiányzik a konfigurációból!", ephemeral=True)
+                return
+            start_dt = parser.parse(str(start_str)).replace(tzinfo=local_tz)
+            start_timestamp = start_dt.timestamp()
+            event_conf["start_time"] = start_timestamp # Store as timestamp
 
+            # Parse end_time from config if present
+            end_str = event_conf.get("end_time")
+            if end_str:
+                end_dt = parser.parse(str(end_str)).replace(tzinfo=local_tz)
+                event_conf["end_time"] = end_dt.timestamp()
         except Exception as e:
-            await interaction.response.send_message(f"Time parsing error: {e}", ephemeral=True)
+            await interaction.response.send_message(f"Hiba az időpontok beolvasásakor: {e}", ephemeral=True)
             return
-
+        
         channel_id = event_conf.get("channel_id") or interaction.channel_id
         event_id = str(uuid.uuid4())[:8]
         
         # Determine creator identity
-        # Preference: 1. Config 'creator_id' or 'created_by', 2. Interaction user ID
-        creator_val = event_conf.get("creator_id") or event_conf.get("created_by")
+        creator_val = event_conf.get("creator_id")
         if not creator_val:
             creator_val = str(interaction.user.id)
         event_conf["creator_id"] = creator_val

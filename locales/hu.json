@@ -60,6 +60,7 @@
   "BTN_SAVE_PREVIEW": "Mentés és Előnézet",
   "BTN_PUBLISH": "KÖZZÉTÉTEL",
   "MSG_SAVED_PREVIEW": "Az adatok mentve lettek. Ellenőrizd az előnézetet alább, majd kattints a KÖZZÉTÉTEL-re a nyilvános poszt frissítéséhez/létrehozásához.",
+  "LBL_WIZ_CREATOR": "Létrehozó (ID vagy név)",
   "LBL_WIZ_NAME": "Belső név (azonosító)",
   "LBL_WIZ_TITLE": "Megjelenített cím",
   "LBL_WIZ_DESC": "Leírás",

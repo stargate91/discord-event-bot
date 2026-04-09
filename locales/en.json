@@ -60,6 +60,7 @@
   "BTN_SAVE_PREVIEW": "Save & Preview",
   "BTN_PUBLISH": "PUBLISH NOW",
   "MSG_SAVED_PREVIEW": "Data has been saved. Check the preview below, then click PUBLISH NOW to update/create the public post.",
+  "LBL_WIZ_CREATOR": "Creator (ID or name)",
   "LBL_WIZ_NAME": "Internal Name (ID)",
   "LBL_WIZ_TITLE": "Display Title",
   "LBL_WIZ_DESC": "Description",

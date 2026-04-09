@@ -125,26 +125,26 @@ class DynamicEventView(discord.ui.View):
         embed.add_field(name=t("EMBED_DEC", count=len(declined)), value="\n".join(declined) or t("EMBED_NONE"), inline=True)
         embed.add_field(name=t("EMBED_TEN", count=len(tentative)), value="\n".join(tentative) or t("EMBED_NONE"), inline=True)
 
-        image_url = self.event_conf.get("image_urls") or self.event_conf.get("image_url")
-        if image_url:
-            if isinstance(image_url, list):
-                embed.set_image(url=random.choice(image_url))
-            elif isinstance(image_url, str) and "," in image_url:
-                urls = [u.strip() for u in image_url.split(",")]
-                # If recurring, send random. Original request: "ha nem recurring akkor csak az elsőt nézi"
+        image_urls_val = self.event_conf.get("image_urls")
+        if image_urls_val:
+            if isinstance(image_urls_val, list):
+                embed.set_image(url=random.choice(image_urls_val))
+            elif isinstance(image_urls_val, str) and "," in image_urls_val:
+                urls = [u.strip() for u in image_urls_val.split(",")]
+                # If recurring, send random.
                 if recurrence != "none":
                     embed.set_image(url=random.choice(urls))
                 else:
                     embed.set_image(url=urls[0])
             else:
-                embed.set_image(url=image_url)
+                embed.set_image(url=image_urls_val)
             
         # Creator logic
         creator_text = "System"
-        creator_id_val = self.event_conf.get("creator_id") or (db_event.get("creator_id") if db_event else None)
+        creator_id_val = self.event_conf.get("creator_id")
         
         if creator_id_val:
-            if creator_id_val.isdigit():
+            if str(creator_id_val).isdigit():
                 # It's a User ID, try to get the user name
                 user = self.bot.get_user(int(creator_id_val))
                 if not user:
@@ -159,7 +159,7 @@ class DynamicEventView(discord.ui.View):
                     creator_text = f"ID: {creator_id_val}"
             else:
                 # It's some custom string like "System" or "Dota Master"
-                creator_text = creator_id_val
+                creator_text = str(creator_id_val)
 
         embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
 

@@ -4,7 +4,6 @@ import os
 DB_PATH = os.path.join("data", "events.db")
 
 async def init_db():
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
             CREATE TABLE IF NOT EXISTS active_events (
@@ -29,20 +28,6 @@ async def init_db():
             )
         """)
         
-        # Migration for existing databases
-        new_columns = [
-            ("title", "TEXT"), ("description", "TEXT"), ("image_urls", "TEXT"),
-            ("color", "TEXT"), ("max_accepted", "INTEGER"), ("ping_role", "INTEGER"),
-            ("end_time", "REAL"), ("recurrence_type", "TEXT"), ("repost_trigger", "TEXT"),
-            ("repost_offset", "TEXT"), ("timezone", "TEXT DEFAULT 'Europe/Budapest'"),
-            ("creator_id", "TEXT")
-        ]
-        for col_name, col_type in new_columns:
-            try:
-                await db.execute(f"ALTER TABLE active_events ADD COLUMN {col_name} {col_type}")
-            except Exception:
-                pass # Column already exists
-        
         await db.execute("""
             CREATE TABLE IF NOT EXISTS rsvps (
                 event_id TEXT,
@@ -57,12 +42,11 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
     if data is None:
         data = {}
     
-    # Standardize field names and types
+    # Standardized keys
     title = data.get("title")
     description = data.get("description")
     
-    # Handle image_url(s) list or string
-    raw_images = data.get("image_urls") or data.get("image_url")
+    raw_images = data.get("image_urls")
     if isinstance(raw_images, list):
         image_urls = ",".join(str(u) for u in raw_images)
     else:
@@ -70,13 +54,13 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
 
     color = str(data.get("color") or "0x3498db")
     max_acc = int(data.get("max_accepted") or 0)
-    ping = str(data.get("ping_role") or "")
-    # Ensure ping role is just digits
+    
     import re
-    ping_digits = re.sub(r"\D", "", ping)
+    ping_role_raw = str(data.get("ping_role") or "")
+    ping_digits = re.sub(r"\D", "", ping_role_raw)
     ping_role = int(ping_digits) if ping_digits else 0
     
-    end_time = data.get("end_time") or data.get("end")
+    end_time = data.get("end_time")
     recurrence = data.get("recurrence_type", "none")
     repost_trigger = data.get("repost_trigger", "before_start")
     repost_offset = data.get("repost_offset", "1h")
@@ -102,12 +86,11 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
         await db.commit()
 
 async def update_active_event(event_id, data):
-    # Standardize field names and types
+    # Standardized keys
     title = data.get("title")
     description = data.get("description")
     
-    # Handle image_url(s) list or string
-    raw_images = data.get("image_urls") or data.get("image_url")
+    raw_images = data.get("image_urls")
     if isinstance(raw_images, list):
         image_urls = ",".join(str(u) for u in raw_images)
     else:
@@ -116,13 +99,13 @@ async def update_active_event(event_id, data):
     color = str(data.get("color") or "0x3498db")
     max_acc = int(data.get("max_accepted") or 0)
     
-    ping = str(data.get("ping_role") or "")
     import re
-    ping_digits = re.sub(r"\D", "", ping)
+    ping_role_raw = str(data.get("ping_role") or "")
+    ping_digits = re.sub(r"\D", "", ping_role_raw)
     ping_role = int(ping_digits) if ping_digits else 0
     
     start_time = data.get("start_time")
-    end_time = data.get("end_time") or data.get("end")
+    end_time = data.get("end_time")
     recurrence = data.get("recurrence_type", "none")
     repost_trigger = data.get("repost_trigger", "before_start")
     repost_offset = data.get("repost_offset", "1h")

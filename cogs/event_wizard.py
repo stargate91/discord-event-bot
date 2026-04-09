@@ -18,17 +18,20 @@ class Step1Modal(ui.Modal):
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE"), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC"), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES"), default=str(data.get("image_urls") or ""), required=False)
+        self.creator_input = ui.TextInput(label=t("LBL_WIZ_CREATOR"), default=str(data.get("creator_id") or wizard_view.creator_id), required=False)
         
         self.add_item(self.name_input)
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
         self.add_item(self.images_input)
+        self.add_item(self.creator_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["config_name"] = str(self.name_input.value)
         self.wizard_view.data["title"] = str(self.title_input.value)
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
+        self.wizard_view.data["creator_id"] = str(self.creator_input.value)
         self.wizard_view.steps_completed["step1"] = True
         await self.wizard_view.update_message(interaction)
 
@@ -100,6 +103,15 @@ class EventWizardView(ui.View):
             "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
             "step3": bool(self.data.get("repost_offset"))
         }
+
+        # Pre-select values in Select menus if we have them
+        current_rec = self.data.get("recurrence_type", "none")
+        for opt in self.recurrence_select.options:
+            opt.default = (opt.value == current_rec)
+
+        current_trig = self.data.get("repost_trigger", "before_start")
+        for opt in self.trigger_select.options:
+            opt.default = (opt.value == current_trig)
 
     def get_status_text(self):
         s1 = t("WIZARD_STATUS_OK") if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT")
