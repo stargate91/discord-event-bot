@@ -70,7 +70,7 @@
         "positive": [
           "accepted"
         ],
-        "show_mgmt": true,
+        "show_mgmt": false,
         "buttons_per_row": 5
       }
     },

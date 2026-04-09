@@ -356,19 +356,21 @@ class DynamicEventView(discord.ui.View):
         if waiting_list:
             embed.add_field(name=f"⏳ {t('EMBED_WAITLIST') or 'Waiting List'} ({len(waiting_list)})", value="\n".join(waiting_list), inline=False)
 
-        # Handle images (we can pick a random one if there are many)
-        image_urls_val = self.event_conf.get("image_urls")
-        if image_urls_val:
-            if isinstance(image_urls_val, list):
-                embed.set_image(url=random.choice(image_urls_val))
-            elif isinstance(image_urls_val, str) and "," in image_urls_val:
-                urls = [u.strip() for u in image_urls_val.split(",")]
-                if recurrence != "none":
-                    embed.set_image(url=random.choice(urls))
-                else:
-                    embed.set_image(url=urls[0])
+        # Handle images — use the stored (already-chosen) URL from the database
+        image_url = None
+        if db_event and db_event.get("image_urls"):
+            image_url = str(db_event["image_urls"]).split(",")[0].strip()
+        elif self.event_conf.get("image_urls"):
+            val = self.event_conf["image_urls"]
+            if isinstance(val, list):
+                image_url = random.choice(val)
+            elif isinstance(val, str) and "," in val:
+                image_url = random.choice([u.strip() for u in val.split(",")])
             else:
-                embed.set_image(url=image_urls_val)
+                image_url = str(val)
+        
+        if image_url:
+            embed.set_image(url=image_url)
             
         # Add footer with IDs and Creator name
         creator_text = "System"

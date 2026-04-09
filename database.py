@@ -92,9 +92,10 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     title = data.get("title")
     description = data.get("description")
     
+    import random
     raw_images = data.get("image_urls")
-    if isinstance(raw_images, list):
-        image_urls = ",".join(str(u) for u in raw_images)
+    if isinstance(raw_images, list) and raw_images:
+        image_urls = random.choice(raw_images)
     else:
         image_urls = str(raw_images) if raw_images else None
 
