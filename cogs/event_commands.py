@@ -132,13 +132,15 @@ class EventCommands(commands.GroupCog, name="event"):
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
+
+        await interaction.response.defer(ephemeral=True)
         event_conf = get_event_dict(name)
         if not event_conf:
-            await interaction.response.send_message("Event not found in config.", ephemeral=True)
+            await interaction.followup.send("Event not found in config.", ephemeral=True)
             return
             
         if not event_conf.get("enabled"):
-            await interaction.response.send_message("This event is disabled in config.", ephemeral=True)
+            await interaction.followup.send("This event is disabled in config.", ephemeral=True)
             return
 
         local_tz = tz.gettz(event_conf.get("timezone", "Europe/Budapest"))
@@ -147,7 +149,7 @@ class EventCommands(commands.GroupCog, name="event"):
         try:
             start_str = event_conf.get("start_time")
             if not start_str:
-                await interaction.response.send_message("Error: 'start_time' is missing!", ephemeral=True)
+                await interaction.followup.send("Error: 'start_time' is missing!", ephemeral=True)
                 return
             start_dt = parser.parse(str(start_str)).replace(tzinfo=local_tz)
             start_timestamp = start_dt.timestamp()
@@ -158,7 +160,7 @@ class EventCommands(commands.GroupCog, name="event"):
                 end_dt = parser.parse(str(end_str)).replace(tzinfo=local_tz)
                 event_conf["end_time"] = end_dt.timestamp()
         except Exception as e:
-            await interaction.response.send_message(f"Error reading dates: {e}", ephemeral=True)
+            await interaction.followup.send(f"Error reading dates: {e}", ephemeral=True)
             return
         
         channel_id = event_conf.get("channel_id") or interaction.channel_id
@@ -180,7 +182,7 @@ class EventCommands(commands.GroupCog, name="event"):
         view = DynamicEventView(self.bot, event_id, event_conf)
         embed = await view.generate_embed()
 
-        await interaction.response.send_message(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
+        await interaction.followup.send(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
         
         target_channel = self.bot.get_channel(channel_id)
         if not target_channel:
@@ -203,9 +205,11 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
+        await interaction.response.defer(ephemeral=True)
+
         db_event = await database.get_active_event(event_id)
         if not db_event:
-            await interaction.response.send_message(f"Event `{event_id}` not found.", ephemeral=True)
+            await interaction.followup.send(f"Event `{event_id}` not found.", ephemeral=True)
             return
 
         # Try to disable buttons on the old message
@@ -227,7 +231,18 @@ class EventCommands(commands.GroupCog, name="event"):
             log.warning(f"Could not update message for event {event_id}: {e}")
 
         await database.delete_active_event(event_id)
-        await interaction.response.send_message(f"✅ Event removed.", ephemeral=True)
+        await interaction.followup.send(f"✅ Event removed.", ephemeral=True)
+
+    @remove_event.autocomplete("event_id")
+    async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        # Same autocomplete logic as edit
+        active_events = await database.get_all_active_events()
+        choices = []
+        for ev in active_events:
+            label = f"{ev.get('title') or ev.get('config_name')} ({ev['event_id']})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+        return choices[:25]
 
     @app_commands.command(name="continue-draft", description="Finish an event you started earlier")
     @app_commands.describe(draft_id="Select which draft to finish")

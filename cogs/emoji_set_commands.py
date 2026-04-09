@@ -7,7 +7,10 @@ import uuid
 from utils.logger import log
 from utils.i18n import t
 
-class EmojiSetCommands(commands.GroupCog, name="emoji-set"):
+class EmojiSetCommands(commands.GroupCog, name="emoji"):
+    # We create a nested group 'set' so commands become /emoji set <name>
+    set_group = app_commands.Group(name="set", description="Manage emoji sets")
+
     def __init__(self, bot):
         self.bot = bot
         super().__init__()
@@ -26,7 +29,7 @@ class EmojiSetCommands(commands.GroupCog, name="emoji-set"):
             pass
         return False
 
-    @app_commands.command(name="create", description="Create a custom emoji set for events")
+    @set_group.command(name="create", description="Create a custom emoji set for events")
     @app_commands.describe(
         name="Name of the emoji set",
         positive_count="How many of the first options count as 'positive' RSVP",
@@ -128,26 +131,31 @@ class EmojiSetCommands(commands.GroupCog, name="emoji-set"):
         await database.save_custom_emoji_set(set_id, name, config, interaction.user.id)
         await interaction.response.send_message(f"✅ Sikerült menteni a készletet: **{name}** (ID: `{set_id}`)", ephemeral=True)
 
-    @app_commands.command(name="list", description="List all custom emoji sets")
+    @set_group.command(name="list", description="List all custom emoji sets")
     async def list_sets(self, interaction: discord.Interaction):
         if not self.is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
-        sets = await database.get_all_custom_emoji_sets()
-        if not sets:
+        from cogs.event_ui import CUSTOM_ICON_SETS
+        
+        if not CUSTOM_ICON_SETS:
             await interaction.response.send_message("Nincsenek egyedi szettek.", ephemeral=True)
             return
 
         embed = discord.Embed(title="Egyedi Emoji Készletek", color=discord.Color.blue())
-        for s in sets:
-            opts = s["data"].get("options", [])
-            preview = " ".join([o["emoji"] or o["label"] for o in opts[:5]])
-            embed.add_field(name=f"{s['name']} (`{s['set_id']}`)", value=f"Opciók: {preview}...", inline=False)
+        for set_id, data in CUSTOM_ICON_SETS.items():
+            opts = data.get("options", [])
+            # Try to find a name for the set (config might have it, or we use set_id)
+            # Database sets have a name field, but CUSTOM_ICON_SETS only stores the 'data' part usually.
+            # Wait, let's check load_custom_sets again.
+            
+            preview = " ".join([o.get("emoji") or o.get("label") or "?" for o in opts[:5]])
+            embed.add_field(name=f"`{set_id}`", value=f"Opciók: {preview}...", inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    @app_commands.command(name="delete", description="Delete a custom emoji set")
+    @set_group.command(name="delete", description="Delete a custom emoji set")
     @app_commands.describe(set_id="The ID of the set to delete")
     async def delete_set(self, interaction: discord.Interaction, set_id: str):
         if not self.is_admin(interaction):
