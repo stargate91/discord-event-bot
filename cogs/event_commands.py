@@ -57,13 +57,17 @@ class EventCommands(commands.GroupCog, name="event"):
         
         await interaction.response.defer(ephemeral=True)
 
-        view = EventWizardView(self.bot, interaction.user.id)
-        embed = discord.Embed(
-            title=t("WIZARD_TITLE"), 
-            description=t("WIZARD_DESC", status=view.get_status_text()), 
-            color=discord.Color.blue()
-        )
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        try:
+            view = EventWizardView(self.bot, interaction.user.id)
+            embed = discord.Embed(
+                title=t("WIZARD_TITLE"), 
+                description=t("WIZARD_DESC", status=view.get_status_text()), 
+                color=discord.Color.blue()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"Error in create_event: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Hiba történt a varázsló megnyitásakor: `{e}`", ephemeral=True)
 
 
     @app_commands.command(name="edit", description="Edit an event that already exists")
@@ -92,13 +96,17 @@ class EventCommands(commands.GroupCog, name="event"):
         else:
             db_event["end_str"] = ""
 
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
-        embed = discord.Embed(
-            title=t("WIZARD_TITLE"), 
-            description=t("WIZARD_DESC", status=view.get_status_text()), 
-            color=discord.Color.gold()
-        )
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        try:
+            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
+            embed = discord.Embed(
+                title=t("WIZARD_TITLE"), 
+                description=t("WIZARD_DESC", status=view.get_status_text()), 
+                color=discord.Color.gold()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"Error in edit_event: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Hiba történt a szerkesztő megnyitásakor: `{e}`", ephemeral=True)
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):

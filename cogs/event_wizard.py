@@ -279,7 +279,7 @@ class EventWizardView(ui.View):
         from cogs.event_ui import CUSTOM_ICON_SETS
         for set_id, sdata in CUSTOM_ICON_SETS.items():
             opts = sdata.get("options", [])
-            preview = " ".join([o["emoji"] or o["label"] for o in opts[:3]])
+            preview = " ".join([o.get("emoji") or o.get("label") or "?" for o in opts[:3]])
             self.icon_set_select.options.append(
                 discord.SelectOption(
                     label=set_id[:25], # discord limit

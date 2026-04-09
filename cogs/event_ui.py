@@ -106,8 +106,10 @@ class DynamicEventView(discord.ui.View):
 
         # We loop through the options and make a button for each one
         added_count = 0
-        for i, opt in enumerate(self.active_set["options"]):
-            role_id = opt["id"]
+        for i, opt in enumerate(self.active_set.get("options", [])):
+            role_id = opt.get("id")
+            if not role_id:
+                continue
             # Apply override if available
             if role_id in role_limits:
                 opt["max_slots"] = role_limits[role_id]
@@ -121,7 +123,7 @@ class DynamicEventView(discord.ui.View):
 
             btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
-                emoji=opt["emoji"] or None,
+                emoji=opt.get("emoji") or None,
                 label=label or None,
                 custom_id=f"{role_id}_{event_id}",
                 row=row_idx
