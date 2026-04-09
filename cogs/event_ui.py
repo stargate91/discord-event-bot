@@ -15,13 +15,7 @@ try:
 except Exception:
     ADMIN_ROLE_ID = None
 
-def is_admin_user(interaction):
-    # This checks if the person clicking a button has admin powers
-    if interaction.user.guild_permissions.administrator:
-        return True
-    if ADMIN_ROLE_ID and discord.utils.get(interaction.user.roles, id=ADMIN_ROLE_ID):
-        return True
-    return False
+from utils.auth import is_admin
 
 def get_event_conf(name):
     # This helper gets the settings for a specific event type from config.json
@@ -50,23 +44,26 @@ ICON_SETS = {}
 CUSTOM_ICON_SETS = {}
 
 async def load_custom_sets():
-    """Fetch custom emoji sets from config.json AND database."""
+    """Fetch custom emoji sets from database (Global and Guild-specific)."""
     global CUSTOM_ICON_SETS
     try:
-        # 1. Load from config.json first
-        from utils.jsonc import load_jsonc
-        config = load_jsonc('config.json')
-        config_sets = config.get("emoji_sets", [])
-        for s in config_sets:
-            if "set_id" in s and "data" in s:
-                CUSTOM_ICON_SETS[s["set_id"]] = s["data"]
+        # 1. Load Global Sets from Database
+        global_sets = await database.get_all_global_emoji_sets()
+        for s in global_sets:
+            data = s["data"]
+            if isinstance(data, str):
+                data = json.loads(data)
+            CUSTOM_ICON_SETS[s["set_id"]] = data
         
-        # 2. Load from database (overwrites config if IDs match)
+        # 2. Load Guild-specific sets (overwrites global if IDs match)
         db_sets = await database.get_all_custom_emoji_sets()
         for s in db_sets:
-            CUSTOM_ICON_SETS[s["set_id"]] = s["data"]
+            data = s["data"]
+            if isinstance(data, str):
+                data = json.loads(data)
+            CUSTOM_ICON_SETS[s["set_id"]] = data
             
-        log.info(f"Loaded {len(CUSTOM_ICON_SETS)} custom emoji sets.")
+        log.info(f"Loaded {len(CUSTOM_ICON_SETS)} emoji sets from database.")
     except Exception as e:
         log.error(f"Failed to load custom emoji sets: {e}")
 
@@ -148,8 +145,9 @@ class DynamicEventView(discord.ui.View):
         self.add_item(calendar_btn)
 
         # Management buttons
+        guild_id = self.event_conf.get("guild_id")
         if self.active_set.get("show_mgmt"):
-            edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}", row=next_row)
+            edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}", row=next_row)
             edit_btn.callback = self.edit_callback
             self.add_item(edit_btn)
 
@@ -247,8 +245,9 @@ class DynamicEventView(discord.ui.View):
 
     async def edit_callback(self, interaction: discord.Interaction):
         # When an admin clicks Edit, we check if it's part of a series
-        if not is_admin_user(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+        guild_id = interaction.guild_id
+        if not await is_admin(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -439,16 +438,17 @@ class StatusChoiceView(discord.ui.View):
 
     async def delete_callback(self, interaction: discord.Interaction):
         # Only admins can delete the event
-        if not interaction.user.guild_permissions.administrator:
-            await interaction.response.send_message(t("ERR_NO_PERM"), ephemeral=True)
+        if not await is_admin(interaction):
+            await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
             return
 
         await interaction.response.defer()
         await database.delete_active_event(self.event_id)
         
         # We change the embed look to show it's deleted
+        guild_id = interaction.guild_id
         embed = interaction.message.embeds[0]
-        embed.title = f"{t('TAG_DELETED')} {embed.title}"
+        embed.title = f"{t('TAG_DELETED', guild_id=guild_id)} {embed.title}"
         embed.color = discord.Color.red()
         
         # Turn off all buttons
@@ -528,12 +528,12 @@ class StatusChoiceView(discord.ui.View):
         
         # Add the start time (Discord makes this pretty automatically)
         start_ts = db_event['start_time'] if db_event else time.time()
-        embed.add_field(name=t("EMBED_START_TIME"), value=f"<t:{int(start_ts)}:F>", inline=False)
+        embed.add_field(name=t("EMBED_START_TIME", guild_id=guild_id), value=f"<t:{int(start_ts)}:F>", inline=False)
         
         # Add repetition info if it repeats
         recurrence = self.event_conf.get('recurrence_type', 'none')
         if recurrence != 'none':
-            embed.add_field(name=t("EMBED_RECURRENCE"), value=recurrence.capitalize(), inline=False)
+            embed.add_field(name=t("EMBED_RECURRENCE", guild_id=guild_id), value=recurrence.capitalize(), inline=False)
             
         # Add lists of people for each status
         max_acc = self.event_conf.get('max_accepted', 0)
@@ -561,7 +561,7 @@ class StatusChoiceView(discord.ui.View):
             if "list_label" in opt:
                 label_text = opt["list_label"]
             elif "label_key" in opt:
-                label_text = t(opt["label_key"])
+                label_text = t(opt["label_key"], guild_id=guild_id)
             else:
                 label_text = opt.get("label", "")
             
@@ -601,7 +601,7 @@ class StatusChoiceView(discord.ui.View):
 
         # Add the waiting list if there are people in it
         if waiting_list:
-            embed.add_field(name=f"⏳ {t('EMBED_WAITLIST') or 'Waiting List'} ({len(waiting_list)})", value="\n".join(waiting_list), inline=False)
+            embed.add_field(name=f"⏳ {t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'} ({len(waiting_list)})", value="\n".join(waiting_list), inline=False)
 
         # Handle images — use the stored (already-chosen) URL from the database
         image_url = None
@@ -641,7 +641,7 @@ class StatusChoiceView(discord.ui.View):
                 # If it's not a number, it's a manual name (e.g. "The Bot God")
                 creator_text = str(creator_id_val)
 
-        embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
+        embed.set_footer(text=t("EMBED_FOOTER", guild_id=self.event_conf.get("guild_id"), event_id=self.event_id, creator_id=creator_text))
 
         # Update visual button states based on current counts
         self.update_button_states(rsvps_list, self.event_conf)
@@ -747,7 +747,7 @@ class StatusChoiceView(discord.ui.View):
 
         embed = await self.generate_embed(db_event)
         await interaction.message.edit(embed=embed, view=self)
-        log.info(f"User {interaction.user} (ID: {interaction.user.id}) RSVP'd {status} for event {self.event_id}")
+        log.info(f"User {interaction.user} (ID: {interaction.user.id}) RSVP'd {status} for event {self.event_id}", guild_id=interaction.guild_id)
 
     async def notify_promotion(self, interaction, user_id, opt):
         # Handle the "someone got in" notification
@@ -773,7 +773,7 @@ class StatusChoiceView(discord.ui.View):
         if custom_msg:
             msg = custom_msg.format(user_id=user_id, role=role_name, emoji=emoji, title=event_title)
         else:
-            msg = t("MSG_PROMOTED_DEFAULT", user_id=user_id, role=role_name, emoji=emoji)
+            msg = t("MSG_PROMOTED_DEFAULT", guild_id=self.event_conf.get("guild_id"), user_id=user_id, role=role_name, emoji=emoji)
 
         if notify_type in ["channel", "both"]:
             await interaction.channel.send(msg)

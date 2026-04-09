@@ -41,6 +41,39 @@ class EventBot(commands.Bot):
             await database.set_pool(pool)
             await database.init_db()
             log.info("Successfully connected to PostgreSQL.")
+            
+            # --- Auto-Migration ---
+            guild_id = self.config.get("guild_id")
+            if guild_id:
+                # Preload translations for the main guild
+                from utils.i18n import load_guild_translations
+                await load_guild_translations(guild_id)
+
+                if await database.check_emoji_sets_empty(guild_id):
+                    log.info(f"Emoji sets table is empty for guild {guild_id}. Migrating from config.json...", guild_id=guild_id)
+                    sets = self.config.get("emoji_sets", [])
+                    for s in sets:
+                        await database.save_emoji_set(guild_id, s["set_id"], s["name"], s["data"])
+                    log.info(f"Migration complete: {len(sets)} sets imported.", guild_id=guild_id)
+                
+                # --- Presence Migration (Global) ---
+                if await database.get_global_setting("bot_presence_list") is None:
+                    globals_cfg = self.config.get("globals", {})
+                    presence_list = globals_cfg.get("bot_presence", [])
+                    if presence_list:
+                        log.info("Migrating bot presence list to global_settings...")
+                        await database.save_global_setting("bot_presence_list", json.dumps(presence_list))
+                
+                # --- Emoji Sets Migration (Global) ---
+                # Check if global sets table is empty
+                global_sets = await database.get_all_global_emoji_sets()
+                if not global_sets:
+                    config_sets = self.config.get("emoji_sets", [])
+                    if config_sets:
+                        log.info("Migrating global emoji sets to database...")
+                        for s in config_sets:
+                            await database.save_global_emoji_set(s["set_id"], s["name"], s["data"])
+                        log.info(f"Migration complete: {len(config_sets)} global sets imported.")
         except Exception as e:
             log.error(f"Failed to connect to PostgreSQL: {e}")
             exit(1)
@@ -56,7 +89,8 @@ class EventBot(commands.Bot):
             extensions = [
                 "cogs.event_commands",
                 "cogs.scheduler_task",
-                "cogs.emoji_set_commands"
+                "cogs.emoji_set_commands",
+                "cogs.server_setup"
             ]
             
             for ext in extensions:
@@ -77,7 +111,7 @@ class EventBot(commands.Bot):
                     conf = get_event_conf(event['config_name'])
                     self.add_view(DynamicEventView(self, event['event_id'], conf))
                 except Exception as e:
-                    log.error(f"Failed to load persistent view for event {event.get('event_id')}: {e}")
+                    log.error(f"Failed to load persistent view for event {event.get('event_id')}: {e}", guild_id=event.get('guild_id'))
                 
             # Sync slash commands
             guild_id = self.config.get("guild_id")
@@ -85,10 +119,10 @@ class EventBot(commands.Bot):
                 guild = discord.Object(id=guild_id)
                 self.tree.copy_global_to(guild=guild)
                 synced = await self.tree.sync(guild=guild)
-                log.info(f"Synced {len(synced)} commands to guild {guild_id}")
+                log.info(f"Synced {len(synced)} commands to guild {guild_id}", guild_id=guild_id)
             else:
                 synced = await self.tree.sync()
-                log.info(f"Synced {len(synced)} commands globally")
+                log.info("Synced commands globally")
         except Exception as e:
             log.error(f"Critical error during setup_hook: {e}", exc_info=True)
 
@@ -96,7 +130,7 @@ class EventBot(commands.Bot):
         self.loop.create_task(self.status_task())
 
     async def status_task(self):
-        """Periodically update the bot's rich presence from config."""
+        """Periodically update the bot's rich presence from database or config."""
         await self.wait_until_ready()
         
         while not self.is_closed():
@@ -104,15 +138,19 @@ class EventBot(commands.Bot):
                 # Get active events count
                 event_count = await database.get_active_event_count()
                 
-                # Load custom statuses from config
-                globals_cfg = self.config.get("globals", {})
-                presence_list = globals_cfg.get("bot_presence", [])
+                # 1. Try to load custom statuses from database
+                db_presence = await database.get_global_setting("bot_presence_list")
+                if db_presence:
+                    presence_list = json.loads(db_presence)
+                else:
+                    # 2. Fallback to config.json (initial setup)
+                    globals_cfg = self.config.get("globals", {})
+                    presence_list = globals_cfg.get("bot_presence", [])
                 
                 if not presence_list:
                     presence_list = [f"watching {event_count} events"]
                 
                 # Select random status and replace placeholders
-                import random
                 status_text = random.choice(presence_list).replace("{event_count}", str(event_count))
                 
                 activity = discord.Activity(

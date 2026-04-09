@@ -11,6 +11,69 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 
+class WizardStartView(ui.View):
+    """Initial choice: Single vs Recurring."""
+    def __init__(self, bot, creator_id, guild_id):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.creator_id = creator_id
+        self.guild_id = guild_id
+
+    @ui.button(label="🕒 Egyszeri esemény", style=discord.ButtonStyle.secondary, row=0)
+    async def single_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # Starts the fast-track wizard
+        view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
+        embed = discord.Embed(
+            title="🕒 Új Egyszeri Esemény", 
+            description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
+            color=discord.Color.blue()
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+    @ui.button(label="🔄 Ismétlődő sorozat", style=discord.ButtonStyle.primary, row=0)
+    async def recurring_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # Starts the full-track wizard
+        view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
+        embed = discord.Embed(
+            title="🔄 Új Ismétlődő Sorozat", 
+            description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
+            color=discord.Color.blue()
+        )
+        await interaction.response.edit_message(embed=embed, view=view)
+
+class SingleEventModal(ui.Modal):
+    """Fast-track modal combining Step 1 and parts of Step 2."""
+    def __init__(self, wizard_view):
+        super().__init__(title="Esemény alapadatai")
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+
+        self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=self.wizard_view.guild_id), default=str(data.get("title") or ""), required=True)
+        self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=self.wizard_view.guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
+        self.start_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=self.wizard_view.guild_id), placeholder="YYYY-MM-DD HH:MM", default=str(data.get("start_str") or ""), required=True)
+        self.end_input = ui.TextInput(label=t("LBL_WIZ_END", guild_id=self.wizard_view.guild_id) + " (Opcionális)", placeholder="YYYY-MM-DD HH:MM", default=str(data.get("end_str") or ""), required=False)
+        self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=self.wizard_view.guild_id), default=str(data.get("image_urls") or ""), required=False)
+
+        self.add_item(self.title_input)
+        self.add_item(self.desc_input)
+        self.add_item(self.start_input)
+        self.add_item(self.end_input)
+        self.add_item(self.images_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        title = str(self.title_input.value)
+        self.wizard_view.data["title"] = title
+        self.wizard_view.data["config_name"] = slugify(title) or "event"
+        self.wizard_view.data["description"] = str(self.desc_input.value)
+        self.wizard_view.data["start_str"] = str(self.start_input.value)
+        self.wizard_view.data["end_str"] = str(self.end_input.value)
+        self.wizard_view.data["image_urls"] = str(self.images_input.value)
+        
+        # Mark as completed
+        self.wizard_view.steps_completed["step1"] = True
+        self.wizard_view.steps_completed["step2"] = True
+        await self.wizard_view.update_message(interaction)
+
 class Step1Modal(ui.Modal):
     # This pop-up handles the basic info like the name and title
     def __init__(self, wizard_view):
@@ -296,27 +359,55 @@ class NotificationSettingsModal(ui.Modal):
         self.wizard_view.data["extra_data"] = json.dumps(extra_dict)
         
         await interaction.response.send_message("✅ Üzenetek mentve!", ephemeral=True)
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.update_message(interaction)
 
 class EventWizardView(ui.View):
     # This is the main class that controls the whole multi-step process
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series"):
         super().__init__(timeout=600)
         self.bot = bot
-        self.creator_id = str(creator_id)
-        self.guild_id = str(guild_id)
+        self.creator_id = creator_id
         self.is_edit = is_edit
-        self.bulk_ids = bulk_ids # List of event_ids for bulk editing
-        self.data = existing_data or {
-            "creator_id": self.creator_id,
-            "guild_id": self.guild_id
+        self.guild_id = guild_id
+        self.bulk_ids = bulk_ids
+        self.wizard_type = wizard_type # "single" or "series"
+        
+        self.data = existing_data or {}
+        # Pre-populate with guild defaults if it's a new event
+        if not is_edit and guild_id:
+            from utils.i18n import GUILD_CACHE
+            gid_str = str(guild_id)
+            if gid_str in GUILD_CACHE:
+                # Assuming settings were also cached or fetched during command entry
+                settings = GUILD_CACHE[gid_str].get("settings", {})
+                
+                if "timezone" not in self.data: 
+                    self.data["timezone"] = settings.get("timezone", "Europe/Budapest")
+                if "color" not in self.data:
+                    self.data["color"] = settings.get("default_color", "0x5865f2")
+                if "reminder_type" not in self.data:
+                    self.data["reminder_type"] = settings.get("reminder_type", "none")
+                if "reminder_offset" not in self.data:
+                    self.data["reminder_offset"] = settings.get("reminder_offset", "15m")
+            
+        # Ensure minimal defaults (Hardcoded fallbacks)
+        if "timezone" not in self.data: self.data["timezone"] = "Europe/Budapest"
+        if "recurrence_type" not in self.data: self.data["recurrence_type"] = "none"
+        if "use_waiting_list" not in self.data: self.data["use_waiting_list"] = False
+        if "color" not in self.data: self.data["color"] = "0x5865f2"
+        if "reminder_type" not in self.data: self.data["reminder_type"] = "none"
+        if "reminder_offset" not in self.data: self.data["reminder_offset"] = "15m"
+            "step1": is_edit,
+            "step2": is_edit,
+            "step3": is_edit or wizard_type == "single"
         }
         self.can_publish = False
-        
+        self.sync_ui()
         # We check images data correctly
         if not self.data.get("image_urls") and self.data.get("image_url"):
             self.data["image_urls"] = self.data["image_url"]
 
-        # Track which steps the user finished
         self.steps_completed = {
             "step1": bool(self.data.get("title") or self.data.get("config_name")),
             "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
@@ -324,33 +415,21 @@ class EventWizardView(ui.View):
         }
 
         # Pre-select things if we are editing or resuming
-        self.sync_ui()
+        # self.sync_ui() # Removed in favor of refresh_ui
 
-    def sync_ui(self):
-        """Synchronizes the Select components with the current data."""
-        # Icon set
+    async def refresh_ui(self):
+        """Synchronizes the Select components with the current data. Supports DB-based emoji sets."""
         current_set = self.data.get("icon_set", "standard")
-        for opt in self.icon_set_select.options:
-            opt.default = (opt.value == current_set)
-
-        # Recurrence
         current_rec = self.data.get("recurrence_type", "none")
-        for opt in self.recurrence_select.options:
-            opt.default = (opt.value == current_rec)
-
-        # Trigger
         current_trig = self.data.get("repost_trigger", "before_start")
-        for opt in self.trigger_select.options:
-            opt.default = (opt.value == current_trig)
-
-        # Waiting List
         current_wait = "enabled" if self.data.get("use_waiting_list", True) else "disabled"
-        for opt in self.waiting_list_select.options:
-            opt.default = (opt.value == current_wait)
 
-        current_set = self.data.get("icon_set", "standard")
-        
-        # Build the options list uniquely to avoid "already used" errors
+        # Update base select defaults
+        for opt in self.recurrence_select.options: opt.default = (opt.value == current_rec)
+        for opt in self.trigger_select.options: opt.default = (opt.value == current_trig)
+        for opt in self.waiting_list_select.options: opt.default = (opt.value == current_wait)
+
+        # Build Emoji Set options dynamically
         base_values = ["standard", "mmo", "team", "timing"]
         final_options = [
             discord.SelectOption(label="Standard (✅, ❌, ❔)", value="standard", emoji="💠", default=(current_set == "standard")),
@@ -359,23 +438,22 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="Timing (✅, ⏰, 🏃)", value="timing", emoji="⏰", default=(current_set == "timing"))
         ]
         
-        # Add custom sets if they exist in event_ui cache
-        from cogs.event_ui import CUSTOM_ICON_SETS
-        for set_id, sdata in CUSTOM_ICON_SETS.items():
-            # Skip if it's already in the base list
-            if set_id in base_values:
-                continue
-                
+        # Load custom sets from DB
+        db_sets = await database.get_emoji_sets(self.guild_id)
+        for s in db_sets:
+            set_id = s["set_id"]
+            if set_id in base_values: continue
+            
+            sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
             opts = sdata.get("options", [])
-            preview = " ".join([o.get("emoji") or o.get("label") or "?" for o in opts[:3]])
-            final_options.append(
-                discord.SelectOption(
-                    label=set_id[:25], # discord limit
-                    description=f"{preview}...",
-                    value=set_id,
-                    default=(current_set == set_id)
-                )
-            )
+            preview = " ".join([o.get("emoji") or "?" for o in opts[:3]])
+            
+            final_options.append(discord.SelectOption(
+                label=s["name"][:25],
+                description=f"{preview}...",
+                value=set_id,
+                default=(current_set == set_id)
+            ))
             
         self.icon_set_select.options = final_options
 
@@ -398,26 +476,28 @@ class EventWizardView(ui.View):
 
     def get_status_text(self):
         # Build the status checklist for the user
-        s1 = t("WIZARD_STATUS_OK") if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT")
-        s2 = t("WIZARD_STATUS_OK") if self.steps_completed["step2"] else t("WIZARD_STATUS_WAIT")
-        s3 = t("WIZARD_STATUS_OK") if self.steps_completed["step3"] else t("WIZARD_STATUS_WAIT")
-        return f"- {t('BTN_STEP_1')}: {s1}\n- {t('BTN_STEP_2')}: {s2}\n- Offset: {s3}"
+        guild_id = self.guild_id
+        s1 = t("WIZARD_STATUS_OK", guild_id=guild_id) if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT", guild_id=guild_id)
+        s2 = t("WIZARD_STATUS_OK", guild_id=guild_id) if self.steps_completed["step2"] else t("WIZARD_STATUS_WAIT", guild_id=guild_id)
+        s3 = t("WIZARD_STATUS_OK", guild_id=guild_id) if self.steps_completed["step3"] else t("WIZARD_STATUS_WAIT", guild_id=guild_id)
+        return f"- {t('BTN_STEP_1', guild_id=guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=guild_id)}: {s2}\n- Offset: {s3}"
 
     async def update_message(self, interaction: discord.Interaction):
-        # First, make sure the UI components match our current data
-        self.sync_ui()
+        # First, refresh UI including DB calls
+        await self.refresh_ui()
         
         # Refresh the main Wizard message
         status = self.get_status_text()
+        guild_id = self.guild_id
         embed = discord.Embed(
-            title=t("WIZARD_TITLE"), 
-            description=t("WIZARD_DESC", status=status), 
+            title=t("WIZARD_TITLE", guild_id=guild_id), 
+            description=t("WIZARD_DESC", guild_id=guild_id, status=status), 
             color=discord.Color.blue() if not self.is_edit else discord.Color.gold()
         )
         
         # Show "PUBLISH" button only after first save
         if self.can_publish:
-            publish_btn = ui.Button(label=t("BTN_PUBLISH"), style=discord.ButtonStyle.green, row=4, custom_id="wiz_publish")
+            publish_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green, row=4, custom_id="wiz_publish")
             publish_btn.callback = self.publish_btn
             self.add_item(publish_btn)
             for child in self.children:
@@ -430,19 +510,28 @@ class EventWizardView(ui.View):
         else:
             await interaction.edit_original_response(embed=embed, view=self)
 
-    # Step buttons to open modals
+    # Step buttons
     @ui.button(label="1. Info", style=discord.ButtonStyle.gray, custom_id="wiz_step_1", row=0)
     async def step1_btn(self, interaction: discord.Interaction, button: ui.Button):
-        await interaction.response.send_modal(Step1Modal(self))
+        if self.wizard_type == "single":
+            await interaction.response.send_modal(SingleEventModal(self))
+        else:
+            await interaction.response.send_modal(Step1Modal(self))
 
     @ui.button(label="2. Details", style=discord.ButtonStyle.gray, custom_id="wiz_step_2", row=0)
     async def step2_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if self.wizard_type == "single":
+            await interaction.response.send_message("💡 Egyszeri eseménynél az alapadatok között találod ezeket.", ephemeral=True)
+            return
         await interaction.response.send_modal(Step2Modal(self))
 
-    @ui.button(label="3. Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
+    @ui.button(label="3. Timing", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
     async def step3_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if self.wizard_type == "single":
+            await interaction.response.send_message("💡 Egyszeri eseménynél nincsenek ismétlődési beállítások.", ephemeral=True)
+            return
         if self.bulk_ids:
-            await interaction.response.send_message("💡 Tömeges szerkesztésnél az időzítési beállítások le vannak tiltva a dátumok védelme érdekében.", ephemeral=True)
+            await interaction.response.send_message("💡 Tömeges szerkesztésnél az időzítési beállítások le vannak tiltva.", ephemeral=True)
             return
         await interaction.response.send_modal(Step3Modal(self))
 

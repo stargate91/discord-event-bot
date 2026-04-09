@@ -11,6 +11,7 @@ import json
 from utils.i18n import t
 from dateutil import parser
 from dateutil import tz
+from utils.auth import is_admin
 from utils.logger import log
 
 # We load the config to know things like command suffixes and admin roles
@@ -42,44 +43,153 @@ def get_event_dict(name):
             return e
     return None
 
-def is_admin(ctx_or_interaction):
-    # Check if the user is an administrator or has the special admin role
-    user = ctx_or_interaction.author if hasattr(ctx_or_interaction, 'author') else ctx_or_interaction.user
-    if user.guild_permissions.administrator:
-        return True
-    if ADMIN_ROLE_ID and discord.utils.get(user.roles, id=ADMIN_ROLE_ID):
-        return True
-    return False
+# We removed the local is_admin helper in favor of the centralized one in utils/auth.py
 
 class EventCommands(commands.GroupCog, name="event"):
     # Subgroup for administrative tasks
-    admin_group = app_commands.Group(name="admin", description="Administrative commands for server management")
+    admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers")
+    # Subgroup for Bot Owner / System tasks
+    master_group = app_commands.Group(name="master", description="System-level commands for the Bot Owner")
 
     # This class holds all the slash commands for managing events under /event
     def __init__(self, bot):
         self.bot = bot
 
+    @master_group.command(name="status", description="Manage the global bot presence status list")
+    async def master_status(self, interaction: discord.Interaction):
+        # Strictly check for Bot Owner
+        if not await self.bot.is_owner(interaction.user):
+            return await interaction.response.send_message("❌ Ez a parancs csak a Bot Owner számára érhető el.", ephemeral=True)
+
+        presence_json = await database.get_global_setting("bot_presence_list")
+        presence_list = json.loads(presence_json) if presence_json else []
+
+        embed = discord.Embed(
+            title="🛠️ Global Presence Manager",
+            description="Itt kezelheted a bot státusz üzeneteit. Ezek pörögnek minden szerveren.",
+            color=discord.Color.dark_red()
+        )
+        
+        status_text = "\n".join([f"• {s}" for s in presence_list]) or "*Nincs egyedi státusz beállítva.*"
+        embed.add_field(name="Jelenlegi státuszok", value=status_text, inline=False)
+        embed.set_footer(text="Használd a gombokat a lista módosításához.")
+
+        view = MasterPresenceView(presence_list)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @admin_group.command(name="emojis", description="Manage server emoji sets via visual wizard")
+    async def admin_emojis(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+        
+        from cogs.emoji_wizard import EmojiWizardView
+        view = EmojiWizardView(self.bot, interaction.guild_id)
+        embed = discord.Embed(
+            title="✨ Emoji & Role Kezelő",
+            description="Itt hozhatsz létre és módosíthatsz egyedi ikon-készleteket az eseményekhez.",
+            color=discord.Color.purple()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @admin_group.command(name="messages", description="Manage global bot messages and strings")
+    async def admin_messages(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+        
+        from cogs.message_wizard import MessageWizardView
+        view = MessageWizardView(self.bot, interaction.guild_id)
+        embed = discord.Embed(
+            title="💬 Message Wizard",
+            description="Válaszd ki a kategóriát és a szöveget, amit módosítani szeretnél.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @admin_group.command(name="setup", description="Configure server-wide default values and admin settings")
+    async def admin_setup(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+        from cogs.server_setup import ServerSetupView
+        view = ServerSetupView(self.bot, guild_id)
+        embed = discord.Embed(
+            title="⚙️ Server Setup & Defaults",
+            description="Itt állíthatod be a szerver alapértelmezett értékeit (időzóna, színek, nyelv) és az admin jogosultságokat.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
     @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
-        # Open the multi-step UI
-        from cogs.event_wizard import EventWizardView
+        # Open the branching UI (Single vs Recurring)
+        from cogs.event_wizard import WizardStartView
+        from utils.i18n import load_guild_translations
         await interaction.response.defer(ephemeral=True)
-        if not is_admin(interaction):
-            await interaction.followup.send(t("ERR_ADMIN_ONLY"), ephemeral=True)
+        guild_id = interaction.guild_id
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             return
 
-
         try:
-            view = EventWizardView(self.bot, interaction.user.id, guild_id=interaction.guild_id)
+            view = WizardStartView(self.bot, interaction.user.id, guild_id=guild_id)
             embed = discord.Embed(
-                title=t("WIZARD_TITLE"), 
-                description=t("WIZARD_DESC", status=view.get_status_text()), 
+                title=t("WIZARD_TITLE", guild_id=guild_id), 
+                description="Kérlek válaszd ki az esemény típusát az indításhoz!", 
                 color=discord.Color.blue()
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"Error in create_event: {e}", exc_info=True)
+            log.error(f"Error in create_event: {e}", exc_info=True, guild_id=guild_id)
             await interaction.followup.send(f"❌ Hiba történt a varázsló megnyitásakor: `{e}`", ephemeral=True)
+
+# --- MASTER UI COMPONENTS ---
+
+class MasterPresenceView(discord.ui.View):
+    def __init__(self, presence_list):
+        super().__init__(timeout=300)
+        self.presence_list = presence_list
+
+    @discord.ui.button(label="➕ Hozzáadás", style=discord.ButtonStyle.green)
+    async def add_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_modal(AddPresenceModal(self))
+
+    @discord.ui.button(label="🗑️ Lista ürítése", style=discord.ButtonStyle.danger)
+    async def clear_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.presence_list = []
+        await database.save_global_setting("bot_presence_list", json.dumps(self.presence_list))
+        await interaction.response.send_message("✅ Státusz lista törölve.", ephemeral=True)
+
+class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
+    status_input = discord.ui.TextInput(
+        label="Státusz szövege",
+        placeholder="Pl. watching {event_count} events",
+        required=True,
+        style=discord.TextStyle.short
+    )
+
+    def __init__(self, parent_view):
+        super().__init__()
+        self.parent_view = parent_view
+
+    async def on_submit(self, interaction: discord.Interaction):
+        new_status = self.status_input.value.strip()
+        self.parent_view.presence_list.append(new_status)
+        await database.save_global_setting("bot_presence_list", json.dumps(self.parent_view.presence_list))
+        await interaction.response.send_message(f"✅ Hozzáadva: `{new_status}`", ephemeral=True)
 
 
     @app_commands.command(name="edit", description="Edit an existing event")
@@ -90,10 +200,14 @@ class EventCommands(commands.GroupCog, name="event"):
     async def edit_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         # Start editing process
         from cogs.event_wizard import EventWizardView
+        from utils.i18n import load_guild_translations
         await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        await load_guild_translations(guild_id)
+        
         # Open the Wizard for a specific event to change its details
-        if not is_admin(interaction):
-            await interaction.followup.send(t("ERR_ADMIN_ONLY"), ephemeral=True)
+        if not await is_admin(interaction):
+            await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             return
             
         db_event = None
@@ -148,18 +262,19 @@ class EventCommands(commands.GroupCog, name="event"):
                 bulk_ids=bulk_ids
             )
             
-            title = t("WIZARD_TITLE")
+            guild_id = interaction.guild_id
+            title = t("WIZARD_TITLE", guild_id=guild_id)
             if bulk_ids:
                 title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
             
             embed = discord.Embed(
                 title=title, 
-                description=t("WIZARD_DESC", status=view.get_status_text()), 
+                description=t("WIZARD_DESC", guild_id=guild_id, status=view.get_status_text()), 
                 color=discord.Color.gold()
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"Error in edit_event: {e}", exc_info=True)
+            log.error(f"Error in edit_event: {e}", exc_info=True, guild_id=guild_id)
             await interaction.followup.send(f"❌ Hiba történt a szerkesztő megnyitásakor: `{e}`", ephemeral=True)
 
     @edit_event.autocomplete("event_id")
@@ -563,7 +678,7 @@ class EventCommands(commands.GroupCog, name="event"):
             try:
                 guild_id = interaction.guild_id
                 await database.clear_guild_data(guild_id)
-                log.info(f"[Admin] Guild {guild_id} data was WIPED by {interaction.user}")
+                log.info(f"[Admin] Guild {guild_id} data was WIPED by {interaction.user}", guild_id=guild_id)
                 # We also need to reload custom sets in memory if some were deleted
                 try:
                     from cogs.event_ui import load_custom_sets
@@ -571,10 +686,10 @@ class EventCommands(commands.GroupCog, name="event"):
                 except: pass
                 await interaction.followup.send(f"✅ All data for this server has been successfully deleted.", ephemeral=True)
             except Exception as e:
-                log.error(f"Error during guild reset: {e}")
+                log.error(f"Error during guild reset: {e}", guild_id=guild_id)
                 await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
 
-    @commands.command(name="sync")
+    @commands.command(name="sync" + SUFFIX)
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         # Traditional prefix command to sync slash commands with Discord
@@ -602,7 +717,7 @@ class EventCommands(commands.GroupCog, name="event"):
         except Exception as e:
             await ctx.send(f"❌ Sync failed: `{e}`")
 
-    @commands.command(name="clear_commands")
+    @commands.command(name="clear_commands" + SUFFIX)
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         # Command to remove all slash commands (useful if something breaks)

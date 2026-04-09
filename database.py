@@ -68,22 +68,60 @@ async def init_db():
                 draft_id TEXT PRIMARY KEY,
                 creator_id TEXT,
                 title TEXT,
-                data TEXT,
+                data JSONB,
                 updated_at DOUBLE PRECISION,
                 guild_id TEXT
             )
         """)
 
-        # Table for custom emoji/button sets
+        # Table for custom emoji/button sets per guild
         await conn.execute("""
-            CREATE TABLE IF NOT EXISTS emoji_sets (
-                set_id TEXT PRIMARY KEY,
+            CREATE TABLE IF NOT EXISTS guild_emoji_sets (
+                guild_id TEXT,
+                set_id TEXT,
                 name TEXT,
-                data TEXT,
-                creator_id TEXT,
-                guild_id TEXT
+                data JSONB,
+                PRIMARY KEY (guild_id, set_id)
             )
         """)
+
+        # Table for per-guild translation overrides
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS guild_translations (
+                guild_id TEXT,
+                key TEXT,
+                value TEXT,
+                PRIMARY KEY (guild_id, key)
+            )
+        """)
+
+        # Table for per-guild configuration/defaults
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS guild_settings (
+                guild_id TEXT,
+                key TEXT,
+                value TEXT,
+                PRIMARY KEY (guild_id, key)
+            )
+        """)
+
+        # Table for global bot settings (Owner only)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS global_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT
+            )
+        """)
+
+        # Table for global emoji sets (available to all guilds)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS global_emoji_sets (
+                set_id TEXT PRIMARY KEY,
+                name TEXT,
+                data TEXT
+            )
+        """)
+
 
 async def check_config_exists(guild_id, config_name):
     """Returns True if a config_name already exists in active_events for this guild."""
@@ -205,6 +243,120 @@ async def update_event_time(event_id, start_time):
     """Update the start time for a specific event."""
     pool = await get_pool()
     await pool.execute("UPDATE active_events SET start_time = $1 WHERE event_id = $2", start_time, event_id)
+
+# --- Emoji Sets CRUD ---
+
+async def get_emoji_sets(guild_id):
+    """Get all emoji sets for a guild."""
+    pool = await get_pool()
+    return await pool.fetch("SELECT set_id, name, data FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
+
+async def save_emoji_set(guild_id, set_id, name, data):
+    """Upsert an emoji set."""
+    pool = await get_pool()
+    await pool.execute("""
+        INSERT INTO guild_emoji_sets (guild_id, set_id, name, data)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (guild_id, set_id) DO UPDATE 
+        SET name = EXCLUDED.name, data = EXCLUDED.data
+    """, str(guild_id), set_id, name, json.dumps(data) if isinstance(data, (dict, list)) else data)
+
+async def delete_emoji_set(guild_id, set_id):
+    """Delete an emoji set."""
+    pool = await get_pool()
+    await pool.execute("DELETE FROM guild_emoji_sets WHERE guild_id = $1 AND set_id = $2", str(guild_id), set_id)
+
+async def check_emoji_sets_empty(guild_id):
+    """Check if a guild has any emoji sets."""
+    pool = await get_pool()
+    count = await pool.fetchval("SELECT COUNT(*) FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
+    return count == 0
+
+# --- Translations CRUD ---
+
+async def get_guild_translations(guild_id):
+    """Get all translation overrides for a guild."""
+    pool = await get_pool()
+    rows = await pool.fetch("SELECT key, value FROM guild_translations WHERE guild_id = $1", str(guild_id))
+    return {row["key"]: row["value"] for row in rows}
+
+async def save_translation(guild_id, key, value):
+    """Save or update a translation override."""
+    pool = await get_pool()
+    await pool.execute("""
+        INSERT INTO guild_translations (guild_id, key, value)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (guild_id, key) DO UPDATE SET value = EXCLUDED.value
+    """, str(guild_id), key, value)
+
+async def delete_translation(guild_id, key):
+    """Delete a translation override."""
+    pool = await get_pool()
+    await pool.execute("DELETE FROM guild_translations WHERE guild_id = $1 AND key = $2", str(guild_id), key)
+
+# --- Guild Settings CRUD ---
+
+async def save_guild_setting(guild_id: int, key: str, value: str):
+    """Upsert a guild setting."""
+    pool = await get_pool()
+    await pool.execute('''
+        INSERT INTO guild_settings (guild_id, key, value) 
+        VALUES ($1, $2, $3)
+        ON CONFLICT (guild_id, key) DO UPDATE SET value = EXCLUDED.value
+    ''', str(guild_id), key, str(value))
+
+async def get_guild_setting(guild_id: int, key: str, default=None):
+    """Get a specific guild setting."""
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT value FROM guild_settings WHERE guild_id = $1 AND key = $2", str(guild_id), key)
+    if row:
+        return row['value']
+    return default
+
+async def get_all_guild_settings(guild_id: int):
+    """Get all settings for a guild."""
+    pool = await get_pool()
+    rows = await pool.fetch("SELECT key, value FROM guild_settings WHERE guild_id = $1", str(guild_id))
+    return {r['key']: r['value'] for r in rows}
+
+# --- Global Settings CRUD ---
+
+async def save_global_setting(key: str, value: str):
+    """Upsert a global setting."""
+    pool = await get_pool()
+    await pool.execute('''
+        INSERT INTO global_settings (key, value) 
+        VALUES ($1, $2)
+        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+    ''', key, str(value))
+
+async def get_global_setting(key: str, default=None):
+    """Get a specific global setting."""
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT value FROM global_settings WHERE key = $1", key)
+    if row:
+        return row['value']
+    return default
+
+# --- Global Emoji Sets CRUD ---
+
+async def save_global_emoji_set(set_id: str, name: str, data):
+    """Upsert a global emoji set."""
+    if isinstance(data, (dict, list)):
+        import json
+        data = json.dumps(data)
+    
+    pool = await get_pool()
+    await pool.execute("""
+        INSERT INTO global_emoji_sets (set_id, name, data)
+        VALUES ($1, $2, $3)
+        ON CONFLICT (set_id) DO UPDATE SET name = EXCLUDED.name, data = EXCLUDED.data
+    """, set_id, name, data)
+
+async def get_all_global_emoji_sets():
+    """Get all global emoji sets."""
+    pool = await get_pool()
+    return await pool.fetch("SELECT set_id, name, data FROM global_emoji_sets")
 
 async def update_active_event(event_id, data):
     title = data.get("title")

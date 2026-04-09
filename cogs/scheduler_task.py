@@ -73,7 +73,7 @@ class SchedulerTask(commands.Cog):
             try:
                 await self.handle_reminders(db_event, now)
             except Exception as e:
-                log.error(f"[Scheduler] Error handling reminders for {db_event['event_id']}: {e}")
+                log.error(f"[Scheduler] Error handling reminders for {db_event['event_id']}: {e}", guild_id=db_event.get("guild_id"))
 
             # 2. We check if it's time to repost a recurring event
             config_name = db_event["config_name"]
@@ -127,11 +127,12 @@ class SchedulerTask(commands.Cog):
                         for child in view.children:
                             child.disabled = True
                         if old_msg.embeds:
+                            guild_id = db_event.get("guild_id")
                             embed = old_msg.embeds[0]
-                            embed.title = f"{t('TAG_PAST')} {embed.title}"
+                            embed.title = f"{t('TAG_PAST', guild_id=guild_id)} {embed.title}"
                             await old_msg.edit(embed=embed, view=view)
             except Exception as e:
-                log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}")
+                log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}", guild_id=db_event.get("guild_id"))
 
             # Find the new start time
             next_start = calc_next_start(start_ts, event_conf)
@@ -143,7 +144,7 @@ class SchedulerTask(commands.Cog):
             rec_count = int(db_event.get("recurrence_count") or 0)
             
             if rec_limit > 0 and (rec_count + 1) >= rec_limit:
-                log.info(f"[Scheduler] Limit ({rec_limit}) reached. No more events for today.")
+                log.info(f"[Scheduler] Limit ({rec_limit}) reached. No more events for today.", guild_id=db_event.get("guild_id"))
                 continue
 
             # Create the brand new event in the database
@@ -168,7 +169,8 @@ class SchedulerTask(commands.Cog):
                 view = DynamicEventView(self.bot, new_event_id, event_conf)
                 embed = await view.generate_embed()
 
-                content = t("MSG_REC_ALERT")
+                guild_id = db_event.get("guild_id")
+                content = t("MSG_REC_ALERT", guild_id=guild_id)
                 ping_role = event_conf.get("ping_role", "")
                 if ping_role:
                     content += f" <@&{ping_role}>"
@@ -219,7 +221,7 @@ class SchedulerTask(commands.Cog):
         if custom_reminder:
             rem_text = custom_reminder.format(title=db_event['title'])
         else:
-            rem_text = t("MSG_REM_DESC", title=db_event['title'])
+            rem_text = t("MSG_REM_DESC", guild_id=db_event.get("guild_id"), title=db_event['title'])
 
         # Send a message in the channel
         if send_ping:
@@ -248,7 +250,7 @@ class SchedulerTask(commands.Cog):
                         embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
                         await user.send(embed=embed)
                 except Exception as e:
-                    log.error(f"Could not send DM to {p['user_id']}: {e}")
+                    log.error(f"Could not send DM to {p['user_id']}: {e}", guild_id=db_event.get("guild_id"))
 
         await database.mark_reminder_sent(event_id)
 
