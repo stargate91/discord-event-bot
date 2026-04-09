@@ -102,17 +102,24 @@ class Step3Modal(ui.Modal):
             default=str(data.get("recurrence_limit") or 0),
             required=True
         )
+        self.rem_type_input = ui.TextInput(
+            label="Rem. Type (none, channel, dm, both)",
+            default=str(data.get("reminder_type") or "both"),
+            required=True
+        )
 
         self.add_item(self.timezone_input)
         self.add_item(self.offset_input)
         self.add_item(self.reminder_offset_input)
         self.add_item(self.rec_limit_input)
+        self.add_item(self.rem_type_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["repost_offset"] = str(self.offset_input.value)
         self.wizard_view.data["reminder_offset"] = str(self.reminder_offset_input.value)
         self.wizard_view.data["recurrence_limit"] = int(self.rec_limit_input.value) if str(self.rec_limit_input.value).isdigit() else 0
+        self.wizard_view.data["reminder_type"] = str(self.rem_type_input.value).lower()
         
         self.wizard_view.steps_completed["step3"] = True
         await self.wizard_view.save_to_draft()
@@ -260,10 +267,6 @@ class EventWizardView(ui.View):
         current_trig = self.data.get("repost_trigger", "before_start")
         for opt in self.trigger_select.options:
             opt.default = (opt.value == current_trig)
-            
-        current_rem = self.data.get("reminder_type", "none")
-        for opt in self.reminder_type_select.options:
-            opt.default = (opt.value == current_rem)
 
         current_set = self.data.get("icon_set", "standard")
         
@@ -385,25 +388,10 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="After Start", value="after_start"),
             discord.SelectOption(label="After End", value="after_end")
         ],
-        row=1
+        row=3
     )
     async def trigger_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["repost_trigger"] = str(select.values[0])
-        await self.update_message(interaction)
-
-    @ui.select(
-        placeholder="Reminder Type",
-        options=[
-            discord.SelectOption(label="None", value="none", emoji="❌"),
-            discord.SelectOption(label="Channel", value="channel", emoji="📢"),
-            discord.SelectOption(label="DM", value="dm", emoji="📩"),
-            discord.SelectOption(label="Both (Channel + DM)", value="both", emoji="🔄")
-        ],
-        row=2
-    )
-    async def reminder_type_select(self, interaction: discord.Interaction, select: ui.Select):
-        self.data["reminder_type"] = str(select.values[0])
-        await self.save_to_draft()
         await self.update_message(interaction)
 
     @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
