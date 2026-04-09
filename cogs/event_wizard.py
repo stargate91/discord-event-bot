@@ -209,7 +209,7 @@ class EventWizardView(ui.View):
         self.data = clean_data
 
         try:
-            local_tz = tz.gettz("Europe/Budapest")
+            local_tz = tz.gettz(str(self.data.get("timezone") or "Europe/Budapest"))
             start_dt = parser.parse(str(self.data["start_str"])).replace(tzinfo=local_tz)
             self.data["start_time"] = start_dt.timestamp()
             
@@ -219,7 +219,7 @@ class EventWizardView(ui.View):
             else:
                 self.data["end_time"] = None
         except Exception as e:
-            await interaction.response.send_message(f"Dátum formátum hiba: {e}", ephemeral=True)
+            await interaction.response.send_message(f"Dátum vagy időzóna hiba: {e}", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)

@@ -79,5 +79,6 @@
   "SEL_TRIG_BEFORE": "Before Start",
   "SEL_TRIG_AFTER_S": "After Start",
   "SEL_TRIG_AFTER_E": "After End",
+  "LBL_WIZ_TZ": "Timezone (e.g. Europe/Budapest)",
   "LBL_WIZ_OFFSET": "Offset (e.g. 1h, 30m, 1d)"
 }

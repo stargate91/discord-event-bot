@@ -79,5 +79,6 @@
   "SEL_TRIG_BEFORE": "Kezdés előtt",
   "SEL_TRIG_AFTER_S": "Kezdés után",
   "SEL_TRIG_AFTER_E": "Vége után",
+  "LBL_WIZ_TZ": "Időzóna (pl. Europe/Budapest)",
   "LBL_WIZ_OFFSET": "Eltolás (pl. 1h, 30m, 1d)"
 }
