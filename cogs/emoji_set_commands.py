@@ -30,9 +30,10 @@ class EmojiSetCommands(commands.GroupCog, name="emoji-set"):
     @app_commands.describe(
         name="Name of the emoji set",
         positive_count="How many of the first options count as 'positive' RSVP",
-        options="Format: emoji:button_label:list_label | next_emoji:next_label... Use '|' to separate."
+        options="Format: emoji:button_label:list_label:limit | ...",
+        per_row="Buttons per row (1-5)"
     )
-    async def create_set(self, interaction: discord.Interaction, name: str, positive_count: int, options: str):
+    async def create_set(self, interaction: discord.Interaction, name: str, positive_count: int, options: str, per_row: int = 5):
         if not self.is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -78,32 +79,49 @@ class EmojiSetCommands(commands.GroupCog, name="emoji-set"):
             custom_emoji_match = re.search(r'<(a?):([a-zA-Z0-9_]+):([0-9]+)>', part)
             if custom_emoji_match:
                 emoji_str = custom_emoji_match.group(0)
-                # Re-parse labels after the emoji
                 remaining = part[custom_emoji_match.end():].lstrip(':').strip()
                 label_parts = [s.strip() for s in remaining.split(":")]
                 button_label = label_parts[0] if len(label_parts) >= 1 else ""
                 list_label = label_parts[1] if len(label_parts) >= 2 else ""
+                max_slots_str = label_parts[2] if len(label_parts) >= 3 else None
+            else:
+                emoji_str = sub_parts[0] if len(sub_parts) >= 1 else ""
+                button_label = sub_parts[1] if len(sub_parts) >= 2 else ""
+                list_label = sub_parts[2] if len(sub_parts) >= 3 else ""
+                max_slots_str = sub_parts[3] if len(sub_parts) >= 4 else None
 
             if not emoji_str and not button_label:
                 continue
                 
             if not list_label:
                 list_label = button_label # Default to button label if empty
+            
+            max_slots = None
+            if max_slots_str:
+                try:
+                    max_slots = int(max_slots_str)
+                except:
+                    max_slots = None
 
             parsed_options.append({
                 "id": f"custom_{idx}",
                 "emoji": emoji_str,
                 "label": button_label,
-                "list_label": list_label
+                "list_label": list_label,
+                "max_slots": max_slots
             })
 
         if not parsed_options:
-            await interaction.response.send_message("Hiba: Nem sikerült feldolgozni az opciókat. Formátum: `emoji:gomb:lista | ...`", ephemeral=True)
+            await interaction.response.send_message("Hiba: Nem sikerült feldolgozni az opciókat. Formátum: `emoji:gomb:lista:limit | ...`", ephemeral=True)
             return
+
+        # Cap per_row between 1 and 5
+        buttons_per_row = max(1, min(5, per_row))
 
         config = {
             "options": parsed_options,
             "positive_count": positive_count,
+            "buttons_per_row": buttons_per_row,
             "show_mgmt": False # As requested
         }
 

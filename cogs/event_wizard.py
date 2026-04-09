@@ -5,6 +5,7 @@ from utils.i18n import t
 from utils.logger import log
 import datetime
 import time
+import json
 from dateutil import parser
 from dateutil import tz
 
@@ -117,10 +118,123 @@ class Step3Modal(ui.Modal):
         await self.wizard_view.save_to_draft()
         await self.wizard_view.update_message(interaction)
 
+class RoleLimitsModal(ui.Modal):
+    # This pop-up allows setting per-role capacities dynamically
+    def __init__(self, wizard_view, icon_set_data):
+        super().__init__(title=(t("WIZARD_LIMITS_TITLE")[:45]))
+        self.wizard_view = wizard_view
+        self.options = icon_set_data.get("options", [])
+        
+        # Get existing limits from extra_data if any
+        extra_data = wizard_view.data.get("extra_data")
+        existing_limits = {}
+        if extra_data:
+            try:
+                existing_limits = json.loads(extra_data).get("role_limits", {})
+            except: pass
+            
+        self.inputs = {}
+        # Discord limit is 5 items in a Modal
+        for opt in self.options[:5]:
+            role_id = opt["id"]
+            label = opt.get("label") or opt.get("list_label") or role_id
+            emoji = opt.get("emoji", "")
+            field_label = f"{emoji} {label}"[:45]
+            
+            default_val = str(existing_limits.get(role_id, opt.get("max_slots", "")))
+            if default_val == "None": default_val = ""
+            
+            text_input = ui.TextInput(
+                label=field_label,
+                placeholder="0 = no limit",
+                default=default_val,
+                required=False
+            )
+            self.inputs[role_id] = text_input
+            self.add_item(text_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        role_limits = {}
+        for role_id, text_input in self.inputs.items():
+            val = text_input.value.strip()
+            if val and val.isdigit():
+                role_limits[role_id] = int(val)
+            else:
+                role_limits[role_id] = 0
+                
+        # Update extra_data dictionary
+        extra_data_raw = self.wizard_view.data.get("extra_data")
+        extra_dict = {}
+        if extra_data_raw:
+            try:
+                if isinstance(extra_data_raw, str):
+                    extra_dict = json.loads(extra_data_raw)
+                else:
+                    extra_dict = extra_data_raw # Already a dict in some cases
+            except: pass
+        
+        extra_dict["role_limits"] = role_limits
+        self.wizard_view.data["extra_data"] = json.dumps(extra_dict)
+        
+        await interaction.response.send_message("✅ Sikerült menteni a limiteket!", ephemeral=True)
+
+class NotificationSettingsModal(ui.Modal):
+    # This pop-up allows users to define custom strings for promotions and reminders
+    def __init__(self, wizard_view):
+        super().__init__(title=(t("WIZARD_MESSAGES_TITLE")[:45]))
+        self.wizard_view = wizard_view
+        
+        extra_data = wizard_view.data.get("extra_data")
+        promo_val = ""
+        rem_val = ""
+        if extra_data:
+            try:
+                d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
+                promo_val = d.get("custom_promo_msg", "")
+                rem_val = d.get("custom_reminder_msg", "")
+            except: pass
+            
+        self.promo_input = ui.TextInput(
+            label="Promo Msg (Placeholders: {user_id}, {role})",
+            placeholder="e.g. Grats <@{user_id}>! You are now {role}!",
+            default=promo_val,
+            style=discord.TextStyle.paragraph,
+            required=False
+        )
+        self.rem_input = ui.TextInput(
+            label="Reminder Msg (Placeholders: {title})",
+            placeholder="e.g. Hurry up! {title} is starting!",
+            default=rem_val,
+            style=discord.TextStyle.paragraph,
+            required=False
+        )
+        self.add_item(self.promo_input)
+        self.add_item(self.rem_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        extra_data_raw = self.wizard_view.data.get("extra_data")
+        extra_dict = {}
+        if extra_data_raw:
+            try:
+                if isinstance(extra_data_raw, str):
+                    extra_dict = json.loads(extra_data_raw)
+                else:
+                    extra_dict = extra_data_raw
+            except: pass
+            
+        extra_dict["custom_promo_msg"] = self.promo_input.value
+        extra_dict["custom_reminder_msg"] = self.rem_input.value
+        self.wizard_view.data["extra_data"] = json.dumps(extra_dict)
+        
+        await interaction.response.send_message("✅ Üzenetek mentve!", ephemeral=True)
+
 class EventWizardView(ui.View):
     # This is the main view with all the buttons and select menus
     def __init__(self, bot, creator_id, existing_data=None, is_edit=False):
-        super().__init__(timeout=600)
+        # Allow custom timeout from config
+        globals_cfg = bot.config.get("globals", {})
+        timeout = globals_cfg.get("wizard_timeout", 600)
+        super().__init__(timeout=timeout)
         self.bot = bot
         self.creator_id = creator_id
         self.is_edit = is_edit
@@ -218,6 +332,21 @@ class EventWizardView(ui.View):
     @ui.button(label="3. Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
     async def step3_btn(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(Step3Modal(self))
+
+    @ui.button(label="Role Limits", style=discord.ButtonStyle.gray, custom_id="wiz_role_limits", row=0)
+    async def role_limits_btn(self, interaction: discord.Interaction, button: ui.Button):
+        from cogs.event_ui import get_active_set
+        icon_set_key = self.data.get("icon_set", "standard")
+        if icon_set_key == "standard":
+            await interaction.response.send_message("A standard készletnél nincsenek külön szerepkör limitek.", ephemeral=True)
+            return
+            
+        active_set = get_active_set(icon_set_key)
+        await interaction.response.send_modal(RoleLimitsModal(self, active_set))
+
+    @ui.button(label="Messages", style=discord.ButtonStyle.gray, custom_id="wiz_messages", row=0)
+    async def messages_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.send_modal(NotificationSettingsModal(self))
 
     @ui.select(
         placeholder="Icon Set (Presets)",

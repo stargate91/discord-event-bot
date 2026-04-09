@@ -33,6 +33,12 @@ class EventBot(commands.Bot):
     async def setup_hook(self):
         await database.init_db()
         
+        # Apply global logging level from config
+        from utils.logger import set_log_level
+        globals_cfg = self.config.get("globals", {})
+        if "logging_level" in globals_cfg:
+            set_log_level(globals_cfg["logging_level"])
+
         # Load cogs
         await self.load_extension("cogs.event_commands")
         await self.load_extension("cogs.scheduler_task")
@@ -61,22 +67,24 @@ class EventBot(commands.Bot):
         self.loop.create_task(self.status_task())
 
     async def status_task(self):
-        """Periodically update the bot's rich presence with Nexus persona."""
+        """Periodically update the bot's rich presence from config."""
         await self.wait_until_ready()
         
         while not self.is_closed():
             try:
                 # Get active events count
-                active_events = await database.get_all_active_events()
-                event_count = len(active_events)
+                event_count = await database.get_active_event_count()
                 
-                # Get dynamic statuses from i18n
-                # dynamic_status is a list in our JSON
-                from utils.i18n import TRANSLATIONS
-                statuses = TRANSLATIONS.get("dynamic_status", [t("watching_events", count=event_count)])
+                # Load custom statuses from config
+                globals_cfg = self.config.get("globals", {})
+                presence_list = globals_cfg.get("bot_presence", [])
                 
-                # Select random status
-                status_text = random.choice(statuses).replace("{count}", str(event_count))
+                if not presence_list:
+                    presence_list = [f"watching {event_count} events"]
+                
+                # Select random status and replace placeholders
+                import random
+                status_text = random.choice(presence_list).replace("{event_count}", str(event_count))
                 
                 activity = discord.Activity(
                     type=discord.ActivityType.watching,

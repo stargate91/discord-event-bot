@@ -25,3 +25,11 @@ def setup_logger(name="EventBot", log_file="logs/discord_event_bot.log", level=l
 
 # Create the main logger that the rest of the bot will use
 log = setup_logger()
+
+def set_log_level(level_name):
+    """Update the global logger level by name (INFO, DEBUG, ERROR)."""
+    level = getattr(logging, level_name.upper(), logging.INFO)
+    log.setLevel(level)
+    for handler in log.handlers:
+        handler.setLevel(level)
+    log.info(f"Logging level set to {level_name.upper()}")

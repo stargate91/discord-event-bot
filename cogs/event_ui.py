@@ -29,77 +29,50 @@ def get_event_conf(name):
         from utils.jsonc import load_jsonc
         config_data = load_jsonc('config.json')
         events = config_data.get("events_config", [])
+        globals_cfg = config_data.get("globals", {})
+        defaults = globals_cfg.get("event_defaults", {})
+        
         for e in events:
-            if e.get("name") == name:
-                return e
-    except Exception:
-        pass
+            if e.get("config_name") == name or e.get("name") == name:
+                # Merge defaults into event (event values take priority)
+                merged = defaults.copy()
+                merged.update(e)
+                return merged
+    except Exception as e:
+        log.error(f"Error loading event config: {e}")
     return None
 
 # Here we define the different button sets like MMO or Teams
-ICON_SETS = {
-    "standard": {
-        "options": [
-            {"id": "accepted", "emoji": "✅", "label_key": "RSVP_ACCEPTED"},
-            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"},
-            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"}
-        ],
-        "positive": ["accepted"],
-        "show_mgmt": True
-    },
-    "mmo": {
-        "options": [
-            {"id": "tank", "emoji": "🛡️", "label_key": "RSVP_TANK"},
-            {"id": "heal", "emoji": "🏥", "label_key": "RSVP_HEAL"},
-            {"id": "dps", "emoji": "⚔️", "label_key": "RSVP_DPS"},
-            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
-        ],
-        "positive": ["tank", "heal", "dps"],
-        "show_mgmt": False
-    },
-    "team": {
-        "options": [
-            {"id": "team_a", "emoji": "🅰️", "label_key": "RSVP_TEAM_A"},
-            {"id": "team_b", "emoji": "🅱️", "label_key": "RSVP_TEAM_B"},
-            {"id": "spectator", "emoji": "👁️", "label_key": "RSVP_SPECTATOR"},
-            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
-        ],
-        "positive": ["team_a", "team_b", "spectator"],
-        "show_mgmt": False
-    },
-    "timing": {
-        "options": [
-            {"id": "on_time", "emoji": "✅", "label_key": "RSVP_ON_TIME"},
-            {"id": "late", "emoji": "⏰", "label_key": "RSVP_LATE"},
-            {"id": "interim", "emoji": "🏃", "label_key": "RSVP_INTERIM"},
-            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
-        ],
-        "positive": ["on_time", "late", "interim"],
-        "show_mgmt": False
-    }
-}
+# These are now managed in config.json or database
+ICON_SETS = {}
 
 # This will hold sets loaded from the database
 CUSTOM_ICON_SETS = {}
 
 async def load_custom_sets():
-    """Fetch custom emoji sets from database and update the local cache."""
+    """Fetch custom emoji sets from config.json AND database."""
     global CUSTOM_ICON_SETS
     try:
-        sets = await database.get_all_custom_emoji_sets()
-        for s in sets:
+        # 1. Load from config.json first
+        from utils.jsonc import load_jsonc
+        config = load_jsonc('config.json')
+        config_sets = config.get("emoji_sets", [])
+        for s in config_sets:
+            if "set_id" in s and "data" in s:
+                CUSTOM_ICON_SETS[s["set_id"]] = s["data"]
+        
+        # 2. Load from database (overwrites config if IDs match)
+        db_sets = await database.get_all_custom_emoji_sets()
+        for s in db_sets:
             CUSTOM_ICON_SETS[s["set_id"]] = s["data"]
+            
+        log.info(f"Loaded {len(CUSTOM_ICON_SETS)} custom emoji sets.")
     except Exception as e:
         log.error(f"Failed to load custom emoji sets: {e}")
 
 def get_active_set(key):
-    """Return the set config for a given key, searching presets then custom sets."""
-    if key in ICON_SETS:
-        return ICON_SETS[key]
-    return CUSTOM_ICON_SETS.get(key, ICON_SETS["standard"])
+    """Return the set config for a given key, searching local cache."""
+    return CUSTOM_ICON_SETS.get(key, CUSTOM_ICON_SETS.get("standard", {}))
 
 class DynamicEventView(discord.ui.View):
     # This class creates the buttons people see under the event message
@@ -114,38 +87,69 @@ class DynamicEventView(discord.ui.View):
         if event_conf:
             icon_set_key = event_conf.get("icon_set", "standard")
         
-        self.active_set = get_active_set(icon_set_key)
+        self.active_set = get_active_set(icon_set_key).copy()
+        
+        # Override limits if extra_data exists (per-event limits from Wizard)
+        extra_data = event_conf.get("extra_data") if event_conf else None
+        role_limits = {}
+        if extra_data:
+            try:
+                if isinstance(extra_data, str):
+                    role_limits = json.loads(extra_data).get("role_limits", {})
+                else:
+                    role_limits = extra_data.get("role_limits", {})
+            except: pass
+
+        per_row = self.active_set.get("buttons_per_row", 5)
 
         # We loop through the options and make a button for each one
-        for opt in self.active_set["options"]:
+        added_count = 0
+        for i, opt in enumerate(self.active_set["options"]):
+            role_id = opt["id"]
+            # Apply override if available
+            if role_id in role_limits:
+                opt["max_slots"] = role_limits[role_id]
+
             label = opt.get("label") if "label" in opt else ""
+            row_idx = added_count // per_row
+            
+            if row_idx > 4:
+                log.warning(f"Row limit reached for event {event_id}. Skipping option {role_id}.")
+                break
+
             btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
                 emoji=opt["emoji"] or None,
                 label=label or None,
-                custom_id=f"{opt['id']}_{event_id}"
+                custom_id=f"{role_id}_{event_id}",
+                row=row_idx
             )
-            # This little trick helps us remember which status the button is for
+            
             def create_callback(status_id):
                 async def callback(interaction: discord.Interaction):
                     await self.handle_rsvp(interaction, status_id)
                 return callback
             
-            btn.callback = create_callback(opt["id"])
+            btn.callback = create_callback(role_id)
             self.add_item(btn)
+            added_count += 1
 
-        # We add the calendar icon so people can save the date
-        calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}")
+        # Calculate the next available row for utility buttons
+        next_row = (added_count - 1) // per_row + 1 if added_count > 0 else 0
+        if next_row > 4: next_row = 4
+
+        # We add the calendar icon
+        calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}", row=next_row)
         calendar_btn.callback = self.calendar_callback
         self.add_item(calendar_btn)
 
-        # If it's the standard set, we also show Edit and Delete buttons for admins
-        if self.active_set["show_mgmt"]:
-            edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}")
+        # Management buttons
+        if self.active_set.get("show_mgmt"):
+            edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}", row=next_row)
             edit_btn.callback = self.edit_callback
             self.add_item(edit_btn)
 
-            delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}")
+            delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}", row=next_row)
             delete_btn.callback = self.delete_callback
             self.add_item(delete_btn)
 
@@ -283,10 +287,26 @@ class DynamicEventView(discord.ui.View):
         # Add lists of people for each status
         max_acc = self.event_conf.get('max_accepted', 0)
         
+        # Merge per-event role limits from extra_data
+        extra_data = db_event.get("extra_data") if db_event else None
+        role_limits = {}
+        if extra_data:
+            try:
+                if isinstance(extra_data, str):
+                    role_limits = json.loads(extra_data).get("role_limits", {})
+                else:
+                    role_limits = extra_data.get("role_limits", {})
+            except: pass
+
+        # We also collect people on the waiting list for later
+        waiting_list = []
+
         for opt in self.active_set["options"]:
-            users = status_map.get(opt["id"], [])
+            role_id = opt["id"]
+            users = status_map.get(role_id, [])
             
-            # Use literal label/list_label if available (for custom sets), or translation key
+            # Apply per-event override
+            limit = role_limits.get(role_id, opt.get("max_slots"))
             if "list_label" in opt:
                 label_text = opt["list_label"]
             elif "label_key" in opt:
@@ -301,14 +321,17 @@ class DynamicEventView(discord.ui.View):
             if "positive" in self.active_set:
                 is_positive = (opt["id"] in self.active_set["positive"])
             elif "positive_count" in self.active_set:
-                # Find index of opt in options
                 idx = self.active_set["options"].index(opt)
                 is_positive = (idx < self.active_set["positive_count"])
 
             if is_positive and max_acc > 0:
                 count_text = f"{len(users)}/{max_acc}"
             
-            # Format field name: Emoji Label (Count) or just Label or just Emoji
+            # Per-role limit display
+            if limit:
+                count_text = f"{len(users)}/{limit}"
+            
+            # Format field name
             name_parts = []
             if opt.get("emoji"):
                 name_parts.append(opt["emoji"])
@@ -317,6 +340,17 @@ class DynamicEventView(discord.ui.View):
             
             field_name = f"{' '.join(name_parts)} ({count_text})"
             embed.add_field(name=field_name, value="\n".join(users) or t("EMBED_NONE"), inline=True)
+
+            # Collect waiting users for this specific role
+            wait_tag = f"wait_{opt['id']}"
+            if wait_tag in status_map:
+                emoji = opt.get("emoji", "⏳")
+                for u in status_map[wait_tag]:
+                    waiting_list.append(f"{emoji} {u}")
+
+        # Add the waiting list if there are people in it
+        if waiting_list:
+            embed.add_field(name=f"⏳ {t('EMBED_WAITLIST') or 'Waiting List'} ({len(waiting_list)})", value="\n".join(waiting_list), inline=False)
 
         # Handle images (we can pick a random one if there are many)
         image_urls_val = self.event_conf.get("image_urls")
@@ -372,7 +406,38 @@ class DynamicEventView(discord.ui.View):
             if not self.event_conf:
                 self.event_conf = db_event
 
-        # Check if there is still room left (Capacity Check)
+        # Check if the user is leaving a slot that might have a waiting list
+        rsvps_list = await database.get_rsvps(self.event_id)
+        old_status = next((s for uid, s in rsvps_list if uid == interaction.user.id), None)
+
+        # 1. Capacity Check for the new status
+        target_status = status
+        opt = next((o for o in self.active_set["options"] if o["id"] == status), None)
+        
+        # Get limit (priority: per-event extra_data > global set default)
+        extra_data_raw = db_event.get("extra_data")
+        role_limits = {}
+        if extra_data_raw:
+            try:
+                if isinstance(extra_data_raw, str):
+                    role_limits = json.loads(extra_data_raw).get("role_limits", {})
+                else:
+                    role_limits = extra_data_raw.get("role_limits", {})
+            except: pass
+            
+        role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
+
+        if role_limit:
+            current_count = sum(1 for _, s in rsvps_list if s == status)
+            if current_count >= role_limit and old_status != status:
+                # Check if waiting list is enabled
+                if self.event_conf.get("use_waiting_list", True):
+                    target_status = f"wait_{status}"
+                else:
+                    await interaction.response.send_message(f"Sajnálom, a(z) {opt.get('label') or opt['id']} pozíció betelt!", ephemeral=True)
+                    return
+
+        # 2. Total Capacity Check (Existing logic)
         positive_statuses = []
         if "positive" in self.active_set:
             positive_statuses = self.active_set["positive"]
@@ -380,29 +445,80 @@ class DynamicEventView(discord.ui.View):
             cnt = self.active_set["positive_count"]
             positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
 
-        if status in positive_statuses:
+        if target_status in positive_statuses:
             max_acc = self.event_conf.get('max_accepted', 0)
             if max_acc > 0:
-                rsvps = await database.get_rsvps(self.event_id)
-                current_acc = sum(1 for _, s in rsvps if s in positive_statuses)
-                
-                already_has_positive = False
-                for uid, s in rsvps:
-                    if uid == interaction.user.id and s in positive_statuses:
-                        already_has_positive = True
-                        break
-                        
+                current_acc = sum(1 for _, s in rsvps_list if s in positive_statuses)
+                already_has_positive = (old_status in positive_statuses)
                 if not already_has_positive and current_acc >= max_acc:
-                    await interaction.response.send_message("Sajnálom, de ez az esemény már betelt!", ephemeral=True)
-                    return
+                    # If total event is full, we could also move them to a global waitlist
+                    # For now, let's just use the per-role waitlist if available or block
+                    if not target_status.startswith("wait_"):
+                        target_status = f"wait_{status}"
 
-        # Save the new status and refresh the message
+        # 3. Save the new status
         await interaction.response.defer()
-        await database.update_rsvp(self.event_id, interaction.user.id, status)
-        
+        await database.update_rsvp(self.event_id, interaction.user.id, target_status)
+
+        # 4. Handle Promotion (If someone left a limited slot)
+        if old_status and old_status != target_status:
+            # Check if old_status had a limit and someone is waiting
+            old_role_limit = role_limits.get(old_status, next((o.get("max_slots") for o in self.active_set["options"] if o["id"] == old_status), None))
+            
+            if old_role_limit:
+                # Safety: Only promote if we are under global capacity (if limit exists)
+                can_promote = True
+                max_acc = self.event_conf.get('max_accepted', 0)
+                if max_acc > 0:
+                    current_acc = sum(1 for _, s in rsvps_list if s in positive_statuses)
+                    if current_acc >= max_acc:
+                        can_promote = False
+                
+                if can_promote:
+                    promoted_uid = await database.promote_next_waiting(self.event_id, f"wait_{old_status}", old_status)
+                    if promoted_uid:
+                        await self.notify_promotion(interaction, promoted_uid, next(o for o in self.active_set["options"] if o["id"] == old_status))
+
         embed = await self.generate_embed(db_event)
         await interaction.message.edit(embed=embed, view=self)
         log.info(f"User {interaction.user} (ID: {interaction.user.id}) RSVP'd {status} for event {self.event_id}")
+
+    async def notify_promotion(self, interaction, user_id, opt):
+        # Handle the "someone got in" notification
+        notify_type = self.event_conf.get("notify_promotion", "none")
+        if notify_type == "none":
+            return
+
+        emoji = opt.get("emoji", "")
+        role_name = opt.get("label") or opt.get("list_label") or opt["id"]
+        event_title = self.event_conf.get("title", "")
+
+        # Check for custom message in extra_data
+        extra_data = self.event_conf.get("extra_data")
+        custom_msg = None
+        if extra_data:
+            try:
+                if isinstance(extra_data, str):
+                    custom_msg = json.loads(extra_data).get("custom_promo_msg")
+                else:
+                    custom_msg = extra_data.get("custom_promo_msg")
+            except: pass
+
+        if custom_msg:
+            msg = custom_msg.format(user_id=user_id, role=role_name, emoji=emoji, title=event_title)
+        else:
+            msg = t("MSG_PROMOTED_DEFAULT", user_id=user_id, role=role_name, emoji=emoji)
+
+        if notify_type in ["channel", "both"]:
+            await interaction.channel.send(msg)
+        
+        if notify_type in ["dm", "both"]:
+            try:
+                user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
+                if user:
+                    await user.send(msg)
+            except:
+                pass
 
 async def setup(bot):
     # This is for discord.py to load this extension

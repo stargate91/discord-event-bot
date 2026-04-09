@@ -119,5 +119,11 @@
   "RSVP_SPECTATOR": "Spectator",
   "RSVP_ON_TIME": "On Time",
   "RSVP_LATE": "Late",
-  "RSVP_INTERIM": "Interim"
+  "RSVP_INTERIM": "Interim",
+  "EMBED_WAITLIST": "Waiting List",
+  "BTN_ROLE_LIMITS": "Role Limits",
+  "WIZARD_LIMITS_TITLE": "Set Role Capacities",
+  "MSG_PROMOTED_DEFAULT": "🔔 <@{user_id}>, you've been promoted to active slot: {emoji} **{role}**!",
+  "BTN_MESSAGES": "🔔 Messages",
+  "WIZARD_MESSAGES_TITLE": "Custom Notifications"
 }

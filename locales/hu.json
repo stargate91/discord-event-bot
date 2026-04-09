@@ -119,5 +119,11 @@
   "RSVP_SPECTATOR": "Néző",
   "RSVP_ON_TIME": "Ott lesz időben",
   "RSVP_LATE": "Késni fog",
-  "RSVP_INTERIM": "Részben van ott"
+  "RSVP_INTERIM": "Részben van ott",
+  "EMBED_WAITLIST": "Várólista",
+  "BTN_ROLE_LIMITS": "Szerepkör limitek",
+  "WIZARD_LIMITS_TITLE": "Szerepkörök keretei",
+  "MSG_PROMOTED_DEFAULT": "🔔 <@{user_id}>, bekerültél az aktív jelentkezők közé: {emoji} **{role}**!",
+  "BTN_MESSAGES": "🔔 Üzenetek",
+  "WIZARD_MESSAGES_TITLE": "Egyedi értesítések"
 }

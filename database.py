@@ -35,7 +35,8 @@ async def init_db():
                 reminder_sent INTEGER DEFAULT 0,
                 recurrence_limit INTEGER DEFAULT 0,
                 recurrence_count INTEGER DEFAULT 0,
-                icon_set TEXT DEFAULT 'standard'
+                icon_set TEXT DEFAULT 'standard',
+                extra_data TEXT
             )
         """)
         
@@ -45,6 +46,7 @@ async def init_db():
                 event_id TEXT,
                 user_id INTEGER,
                 status TEXT,
+                joined_at REAL,
                 PRIMARY KEY (event_id, user_id)
             )
         """)
@@ -110,6 +112,7 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
     recurrence_limit = int(data.get("recurrence_limit") or 0)
     recurrence_count = int(data.get("recurrence_count") or 0)
     icon_set = str(data.get("icon_set") or "standard")
+    extra_data = data.get("extra_data")
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -119,9 +122,9 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
                 ping_role, end_time, recurrence_type, repost_trigger, 
                 repost_offset, timezone, creator_id,
                 reminder_type, reminder_offset, reminder_sent,
-                recurrence_limit, recurrence_count, icon_set
+                recurrence_limit, recurrence_count, icon_set, extra_data
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_id, config_name, channel_id, start_time,
             title, description, image_urls,
@@ -129,7 +132,7 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
             end_time, recurrence, repost_trigger,
             repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent,
-            recurrence_limit, recurrence_count, icon_set
+            recurrence_limit, recurrence_count, icon_set, extra_data
         ))
         await db.commit()
 
@@ -167,6 +170,7 @@ async def update_active_event(event_id, data):
     recurrence_limit = int(data.get("recurrence_limit") or 0)
     recurrence_count = int(data.get("recurrence_count") or 0)
     icon_set = str(data.get("icon_set") or "standard")
+    extra_data = data.get("extra_data")
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -177,7 +181,7 @@ async def update_active_event(event_id, data):
                 repost_trigger = ?, repost_offset = ?, timezone = ?,
                 creator_id = ?, reminder_type = ?, reminder_offset = ?,
                 reminder_sent = ?, recurrence_limit = ?, recurrence_count = ?,
-                icon_set = ?
+                icon_set = ?, extra_data = ?
             WHERE event_id = ?
         """, (
             title, description, image_urls,
@@ -185,7 +189,7 @@ async def update_active_event(event_id, data):
             start_time, end_time, recurrence,
             repost_trigger, repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent,
-            recurrence_limit, recurrence_count, icon_set, event_id
+            recurrence_limit, recurrence_count, icon_set, extra_data, event_id
         ))
         await db.commit()
 
@@ -234,13 +238,38 @@ async def get_all_active_events():
 
 async def update_rsvp(event_id, user_id, status):
     # Save or update a user's reaction (Yes/No/Maybe etc)
+    now = time.time()
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
-            INSERT INTO rsvps (event_id, user_id, status)
-            VALUES (?, ?, ?)
-            ON CONFLICT(event_id, user_id) DO UPDATE SET status = excluded.status
-        """, (event_id, user_id, status))
+            INSERT INTO rsvps (event_id, user_id, status, joined_at)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(event_id, user_id) DO UPDATE SET 
+                status = excluded.status,
+                joined_at = CASE WHEN rsvps.status != excluded.status THEN excluded.joined_at ELSE rsvps.joined_at END
+        """, (event_id, user_id, status, now))
         await db.commit()
+
+async def get_rsvps_with_time(event_id):
+    # Get RSVP rows with timestamps
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT user_id, status, joined_at FROM rsvps WHERE event_id = ? ORDER BY joined_at ASC", (event_id,)) as cursor:
+            return await cursor.fetchall()
+
+async def promote_next_waiting(event_id, waiting_status, target_status):
+    # Find the first person in the waiting list for a specific role and promote them
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("""
+            SELECT user_id FROM rsvps 
+            WHERE event_id = ? AND status = ? 
+            ORDER BY joined_at ASC LIMIT 1
+        """, (event_id, waiting_status)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                user_id = row[0]
+                await db.execute("UPDATE rsvps SET status = ? WHERE event_id = ? AND user_id = ?", (target_status, event_id, user_id))
+                await db.commit()
+                return user_id
+    return None
 
 async def get_rsvps(event_id):
     # Just get the RSVP rows for an event
