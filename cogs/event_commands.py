@@ -43,12 +43,12 @@ def is_admin(ctx_or_interaction):
         return True
     return False
 
-class EventCommands(commands.Cog):
-    # This class holds all the slash commands for managing events
+class EventCommands(commands.GroupCog, name="event"):
+    # This class holds all the slash commands for managing events under /event
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="create-event", description="Start the wizard to create a new event")
+    @app_commands.command(name="create", description="Start the wizard to create a new event")
     async def create_event(self, interaction: discord.Interaction):
         # Open the multi-step form (Wizard) for a new event
         if not is_admin(interaction):
@@ -63,7 +63,7 @@ class EventCommands(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-    @app_commands.command(name="edit-event", description="Edit an event that already exists")
+    @app_commands.command(name="edit", description="Edit an event that already exists")
     @app_commands.describe(event_id="The ID of the event you want to change")
     async def edit_event(self, interaction: discord.Interaction, event_id: str):
         # Open the Wizard for a specific event to change its details
@@ -106,7 +106,26 @@ class EventCommands(commands.Cog):
                 choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
-    @app_commands.command(name="event-publish", description="Post an event using a preset template")
+    @app_commands.command(name="list", description="Show all active events")
+    async def list_events(self, interaction: discord.Interaction):
+        # Simply lists everything currently in the database
+        if not is_admin(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return
+
+        events = await database.get_all_active_events()
+        if not events:
+            await interaction.response.send_message("Nincsenek aktív események.", ephemeral=True)
+            return
+
+        text = "**Aktív események:**\n"
+        for ev in events:
+            title = ev.get('title') or ev.get('config_name') or "Unnamed"
+            text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
+        
+        await interaction.response.send_message(text, ephemeral=True)
+
+    @app_commands.command(name="publish", description="Post an event using a preset template")
     @app_commands.describe(name="The name of the event in config.json")
     async def event_publish(self, interaction: discord.Interaction, name: str):
         # Create an event immediately using a template from config.json
@@ -176,7 +195,7 @@ class EventCommands(commands.Cog):
         await database.set_event_message(event_id, msg.id)
         self.bot.add_view(view)
 
-    @app_commands.command(name="remove-event", description="Delete an active event message")
+    @app_commands.command(name="remove", description="Delete an active event message")
     @app_commands.describe(event_id="The event you want to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         # Completely delete an event and clean up the message
@@ -252,17 +271,21 @@ class EventCommands(commands.Cog):
             return
         
         await ctx.send(t("SYNC_START_MSG"))
-        
-        if spec == "global":
-            synced = await self.bot.tree.sync()
-            await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
-        elif spec == "copy":
-            self.bot.tree.copy_global_to(guild=ctx.guild)
-            synced = await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
-        else:
-            synced = await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
+        try:
+            if spec == "global":
+                synced = await self.bot.tree.sync()
+                await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
+            elif spec == "copy":
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await self.bot.tree.sync(guild=ctx.guild)
+                await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
+            else:
+                synced = await self.bot.tree.sync(guild=ctx.guild)
+                await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
+        except discord.Forbidden:
+            await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
+        except Exception as e:
+            await ctx.send(f"❌ Sync failed: `{e}`")
 
     @commands.command(name="clear_commands")
     @commands.guild_only()
@@ -276,12 +299,16 @@ class EventCommands(commands.Cog):
             return
             
         await ctx.send(t("SYNC_CLEAR_START"))
-        self.bot.tree.clear_commands(guild=None)
-        await self.bot.tree.sync(guild=None)
-        self.bot.tree.clear_commands(guild=ctx.guild)
-        await self.bot.tree.sync(guild=ctx.guild)
-        suffix = self.bot.config.get("command_suffix", "")
-        await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix))
+        try:
+            self.bot.tree.clear_commands(guild=None)
+            await self.bot.tree.sync(guild=None)
+            self.bot.tree.clear_commands(guild=ctx.guild)
+            await self.bot.tree.sync(guild=ctx.guild)
+            
+            suffix = self.bot.config.get("command_suffix", "")
+            await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix))
+        except Exception as e:
+            await ctx.send(f"❌ Clear failed: `{e}`")
 
     @app_commands.command(name="sync", description="Sync slash commands manually")
     @app_commands.describe(mode="Choose: guild, global, or copy")
