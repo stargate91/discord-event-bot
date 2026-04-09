@@ -39,6 +39,35 @@ class DynamicEventView(discord.ui.View):
         tentative_btn.callback = self.tentative_callback
         self.add_item(tentative_btn)
 
+        calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}")
+        calendar_btn.callback = self.calendar_callback
+        self.add_item(calendar_btn)
+
+    async def calendar_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        db_event = await database.get_active_event(self.event_id)
+        if not db_event:
+            await interaction.followup.send("Event not found.", ephemeral=True)
+            return
+        
+        from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
+        
+        title = db_event.get("title") or "Event"
+        desc = db_event.get("description") or ""
+        start_ts = db_event["start_time"]
+        end_ts = db_event.get("end_time")
+
+        google_url = get_google_calendar_url(title, desc, start_ts, end_ts)
+        outlook_url = get_outlook_calendar_url(title, desc, start_ts, end_ts)
+        yahoo_url = get_yahoo_calendar_url(title, desc, start_ts, end_ts)
+
+        view = discord.ui.View()
+        view.add_item(discord.ui.Button(label=t("BTN_GOOGLE"), url=google_url, emoji="💙"))
+        view.add_item(discord.ui.Button(label=t("BTN_OUTLOOK"), url=outlook_url, emoji="🧡"))
+        view.add_item(discord.ui.Button(label=t("BTN_YAHOO"), url=yahoo_url, emoji="💜"))
+
+        await interaction.followup.send(t("MSG_CHOOSE_CALENDAR"), view=view, ephemeral=True)
+
     async def accept_callback(self, interaction: discord.Interaction):
         await self.handle_rsvp(interaction, "accepted")
 
