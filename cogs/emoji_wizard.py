@@ -13,41 +13,40 @@ class EmojiWizardView(ui.View):
         self.guild_id = guild_id
         self.selected_set_id = None
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def prepare(self):
+        """Initial data fetch to populate the view before sending."""
         sets = await database.get_emoji_sets(self.guild_id)
         
-        embed = discord.Embed(
-            title="✨ Emoji & Role Kezelő",
-            description="Válaszd ki a szerkeszteni kívánt készletet, vagy hozz létre újat.",
-            color=discord.Color.purple()
-        )
-        
-        # Build select options
         options = []
         for s in sets:
-            sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
+            s_data = s["data"]
+            sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
             opts = sdata.get("options", [])
             preview = " ".join([o.get("emoji") or "?" for o in opts[:3]])
             options.append(discord.SelectOption(
                 label=s["name"], 
                 value=s["set_id"], 
-                description=f"{preview}...",
-                default=(s["set_id"] == self.selected_set_id)
+                description=preview if preview else "No preview"
             ))
             
         if not options:
-            options.append(discord.SelectOption(label="Nincs egyedi szett", value="none", disabled=True))
+            options.append(discord.SelectOption(label="Nincs egyedi szett", value="none"))
 
         self.set_select.options = options
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        await self.prepare()
         
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed, view=self)
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.select(placeholder="Válassz egy készletet...", row=0)
+    @ui.select(placeholder="Válassz egy készletet...", row=0, options=[discord.SelectOption(label="Nincs elérhető készlet", value="none")])
     async def set_select(self, interaction: discord.Interaction, select: ui.Select):
-        if select.values[0] == "none": return
+        if select.values[0] == "none": 
+            await interaction.response.defer()
+            return
         self.selected_set_id = select.values[0]
         await self.refresh_message(interaction)
 

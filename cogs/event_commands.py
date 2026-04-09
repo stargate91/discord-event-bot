@@ -115,6 +115,8 @@ class EventCommands(commands.GroupCog, name="event"):
             
             from cogs.emoji_wizard import EmojiWizardView
             view = EmojiWizardView(self.bot, interaction.guild_id)
+            await view.prepare()
+            
             embed = discord.Embed(
                 title="✨ " + t("LBL_WIZ_ICON_SET", guild_id=guild_id),
                 description=t("SETUP_GENERAL_DESC", guild_id=guild_id),
