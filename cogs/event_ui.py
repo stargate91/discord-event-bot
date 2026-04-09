@@ -464,8 +464,16 @@ class EditChoiceView(discord.ui.View):
         if not self.event_conf:
             self.event_conf = get_event_conf(db_event["config_name"])
             if not self.event_conf:
-                self.event_conf = db_event
-
+                # Merge row data with extra_data if available
+                self.event_conf = dict(db_event)
+                extra_data_raw = db_event.get("extra_data")
+                if extra_data_raw:
+                    try:
+                        extra_dict = json.loads(extra_data_raw) if isinstance(extra_data_raw, str) else extra_data_raw
+                        if isinstance(extra_dict, dict):
+                            self.event_conf.update(extra_dict)
+                    except: pass
+        
         # Check if the user is leaving a slot that might have a waiting list
         rsvps_list = await database.get_rsvps(self.event_id)
         old_status = next((s for uid, s in rsvps_list if uid == interaction.user.id), None)

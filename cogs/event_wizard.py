@@ -21,13 +21,13 @@ class Step1Modal(ui.Modal):
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE"), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC"), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES"), default=str(data.get("image_urls") or ""), required=False)
-        self.creator_input = ui.TextInput(label=t("LBL_WIZ_CREATOR"), default=str(data.get("creator_id") or wizard_view.creator_id), required=False)
+        self.channel_id_input = ui.TextInput(label="Channel ID (Optional)", placeholder="Default: current channel", default=str(data.get("channel_id") or ""), required=False)
         
         self.add_item(self.name_input)
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
         self.add_item(self.images_input)
-        self.add_item(self.creator_input)
+        self.add_item(self.channel_id_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         # Save things to our data dictionary
@@ -35,7 +35,7 @@ class Step1Modal(ui.Modal):
         self.wizard_view.data["title"] = str(self.title_input.value)
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
-        self.wizard_view.data["creator_id"] = str(self.creator_input.value)
+        self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
         self.wizard_view.steps_completed["step1"] = True
         await self.wizard_view.update_message(interaction)
 
@@ -123,6 +123,51 @@ class Step3Modal(ui.Modal):
         self.wizard_view.data["reminder_type"] = str(self.rem_type_input.value).lower()
         
         self.wizard_view.steps_completed["step3"] = True
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.update_message(interaction)
+
+class AdvancedSettingsModal(ui.Modal):
+    """Fourth modal for technical things like Creator ID and Waiting List properties."""
+    def __init__(self, wizard_view):
+        super().__init__(title="4. Advanced Settings")
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+
+        self.creator_input = ui.TextInput(
+            label=t("LBL_WIZ_CREATOR"), 
+            default=str(data.get("creator_id") or wizard_view.creator_id), 
+            required=False
+        )
+        self.wait_limit_input = ui.TextInput(
+            label="Wait List Limit (0 = infinity)",
+            placeholder="e.g. 10",
+            default=str(data.get("waiting_list_limit") or 0),
+            required=False
+        )
+
+        self.add_item(self.creator_input)
+        self.add_item(self.wait_limit_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["creator_id"] = str(self.creator_input.value)
+        val = str(self.wait_limit_input.value)
+        wait_limit = int(val) if val.isdigit() else 0
+        
+        # Merge into extra_data
+        extra_data_raw = self.wizard_view.data.get("extra_data")
+        extra_dict = {}
+        if extra_data_raw:
+            try:
+                if isinstance(extra_data_raw, str):
+                    extra_dict = json.loads(extra_data_raw)
+                else:
+                    extra_dict = extra_data_raw
+            except: pass
+            
+        extra_dict["waiting_list_limit"] = wait_limit
+        self.wizard_view.data["extra_data"] = json.dumps(extra_dict)
+        
+        await interaction.response.send_message("✅ Haladó beállítások mentve!", ephemeral=True)
         await self.wizard_view.save_to_draft()
         await self.wizard_view.update_message(interaction)
 
@@ -282,6 +327,11 @@ class EventWizardView(ui.View):
         for opt in self.trigger_select.options:
             opt.default = (opt.value == current_trig)
 
+        # Waiting List
+        current_wait = "enabled" if self.data.get("use_waiting_list", True) else "disabled"
+        for opt in self.waiting_list_select.options:
+            opt.default = (opt.value == current_wait)
+
         current_set = self.data.get("icon_set", "standard")
         
         # Build the options list uniquely to avoid "already used" errors
@@ -380,6 +430,10 @@ class EventWizardView(ui.View):
             return
         await interaction.response.send_modal(Step3Modal(self))
 
+    @ui.button(label="4. Advanced", style=discord.ButtonStyle.gray, custom_id="wiz_step_4", row=0)
+    async def advanced_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await interaction.response.send_modal(AdvancedSettingsModal(self))
+
     @ui.button(label="Role Limits", style=discord.ButtonStyle.gray, custom_id="wiz_role_limits", row=0)
     async def role_limits_btn(self, interaction: discord.Interaction, button: ui.Button):
         from cogs.event_ui import get_active_set
@@ -438,6 +492,35 @@ class EventWizardView(ui.View):
         self.data["repost_trigger"] = str(select.values[0])
         await self.update_message(interaction)
 
+    @ui.select(
+        placeholder="Waiting List",
+        options=[
+            discord.SelectOption(label="Waiting List: Enabled", value="enabled", emoji="⏳"),
+            discord.SelectOption(label="Waiting List: Disabled", value="disabled", emoji="🚫")
+        ],
+        row=3
+    )
+    async def waiting_list_select(self, interaction: discord.Interaction, select: ui.Select):
+        use_waiting = (str(select.values[0]) == "enabled")
+        self.data["use_waiting_list"] = use_waiting
+        
+        # Merge into extra_data
+        extra_data_raw = self.data.get("extra_data")
+        extra_dict = {}
+        if extra_data_raw:
+            try:
+                if isinstance(extra_data_raw, str):
+                    extra_dict = json.loads(extra_data_raw)
+                else:
+                    extra_dict = extra_data_raw
+            except: pass
+        
+        extra_dict["use_waiting_list"] = use_waiting
+        self.data["extra_data"] = json.dumps(extra_dict)
+        
+        await self.save_to_draft()
+        await self.update_message(interaction)
+
     @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
     async def save_preview_btn(self, interaction: discord.Interaction, button: ui.Button):
         # We need step 1 and 2 before saving
@@ -491,13 +574,18 @@ class EventWizardView(ui.View):
                 else:
                     await database.update_active_event(event_id, self.data)
             else:
-                self.data["creator_id"] = str(self.creator_id)
+                self.data["creator_id"] = str(self.data.get("creator_id") or self.creator_id)
                 self.data["guild_id"] = self.guild_id
+                
+                target_channel_id = interaction.channel_id
+                if self.data.get("channel_id") and str(self.data["channel_id"]).isdigit():
+                    target_channel_id = int(self.data["channel_id"])
+
                 await database.create_active_event(
                     guild_id=self.guild_id,
                     event_id=event_id,
                     config_name=str(self.data.get("config_name") or "manual"),
-                    channel_id=interaction.channel_id,
+                    channel_id=target_channel_id,
                     start_time=self.data["start_time"],
                     data=self.data
                 )
@@ -545,10 +633,23 @@ class EventWizardView(ui.View):
         else:
             view = DynamicEventView(self.bot, event_id, self.data)
             embed = await view.generate_embed()
-            msg = await interaction.channel.send(content=t("MSG_EV_CREATED_PUBLIC"), embed=embed, view=view)
+            
+            # Send to target channel if specified
+            target_chan = interaction.channel
+            if self.data.get("channel_id") and str(self.data["channel_id"]).isdigit():
+                chan = self.bot.get_channel(int(self.data["channel_id"]))
+                if chan:
+                    target_chan = chan
+                else:
+                    try:
+                        target_chan = await self.bot.fetch_channel(int(self.data["channel_id"]))
+                    except:
+                        pass
+            
+            msg = await target_chan.send(content=t("MSG_EV_CREATED_PUBLIC"), embed=embed, view=view)
             await database.set_event_message(event_id, msg.id)
             self.bot.add_view(view)
-            await interaction.followup.send("Published!", ephemeral=True)
+            await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
 
         # Stop the wizard
         for child in self.children:
