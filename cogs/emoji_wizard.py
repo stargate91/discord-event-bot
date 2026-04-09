@@ -37,6 +37,12 @@ class EmojiWizardView(ui.View):
     async def refresh_message(self, interaction: discord.Interaction):
         await self.prepare()
         
+        embed = discord.Embed(
+            title="✨ Emoji & Role Kezelő",
+            description="Válaszd ki a szerkeszteni kívánt készletet, vagy hozz létre újat.",
+            color=discord.Color.purple()
+        )
+        
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed, view=self)
         else:
@@ -98,5 +104,6 @@ class CreateEmojiSetModal(ui.Modal):
         }
         await database.save_emoji_set(self.wizard_view.guild_id, set_id, self.name_input.value, data)
         self.wizard_view.selected_set_id = set_id
-        await interaction.response.send_message(f"✅ Szett létrehozva: {self.name_input.value}", ephemeral=True)
+        
+        # Update the ORIGINAL message with the new list
         await self.wizard_view.refresh_message(interaction)

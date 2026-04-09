@@ -563,49 +563,6 @@ async def delete_all_user_drafts(guild_id, creator_id):
     pool = await get_pool()
     await pool.execute("DELETE FROM event_drafts WHERE creator_id = $1 AND guild_id = $2", str(creator_id), str(guild_id))
 
-# --- Custom Emoji Sets ---
-
-async def save_custom_emoji_set(guild_id, set_id, name, data, creator_id):
-    data_json = json.dumps(data)
-    pool = await get_pool()
-    await pool.execute("""
-        INSERT INTO emoji_sets (set_id, name, data, creator_id, guild_id)
-        VALUES ($1, $2, $3, $4, $5)
-        ON CONFLICT (set_id) DO UPDATE SET
-            name = EXCLUDED.name,
-            data = EXCLUDED.data,
-            creator_id = EXCLUDED.creator_id,
-            guild_id = EXCLUDED.guild_id
-    """, set_id, name, data_json, str(creator_id), str(guild_id))
-
-async def get_all_custom_emoji_sets(guild_id=None):
-    pool = await get_pool()
-    if guild_id:
-        rows = await pool.fetch("SELECT set_id, name, data, creator_id FROM emoji_sets WHERE guild_id = $1", str(guild_id))
-    else:
-        rows = await pool.fetch("SELECT set_id, name, data, creator_id FROM emoji_sets")
-        
-    return [{"set_id": dict(r)["set_id"], "name": dict(r)["name"], "data": json.loads(dict(r)["data"]), "creator_id": dict(r)["creator_id"]} for r in rows]
-
-async def get_custom_emoji_set(set_id, guild_id=None):
-    pool = await get_pool()
-    if guild_id:
-        row = await pool.fetchrow("SELECT set_id, name, data, creator_id FROM emoji_sets WHERE set_id = $1 AND guild_id = $2", set_id, str(guild_id))
-    else:
-        row = await pool.fetchrow("SELECT set_id, name, data, creator_id FROM emoji_sets WHERE set_id = $1", set_id)
-        
-    if row:
-        r_dict = dict(row)
-        return {"set_id": r_dict["set_id"], "name": r_dict["name"], "data": json.loads(r_dict["data"]), "creator_id": r_dict["creator_id"]}
-    return None
-
-async def delete_custom_emoji_set(set_id, guild_id=None):
-    pool = await get_pool()
-    if guild_id:
-        await pool.execute("DELETE FROM emoji_sets WHERE set_id = $1 AND guild_id = $2", set_id, str(guild_id))
-    else:
-        await pool.execute("DELETE FROM emoji_sets WHERE set_id = $1", set_id)
-
 async def clear_guild_data(guild_id):
     pool = await get_pool()
     # First find all active events for this guild to clean up RSVPs
@@ -617,4 +574,4 @@ async def clear_guild_data(guild_id):
         
     await pool.execute("DELETE FROM active_events WHERE guild_id = $1", str(guild_id))
     await pool.execute("DELETE FROM event_drafts WHERE guild_id = $1", str(guild_id))
-    await pool.execute("DELETE FROM emoji_sets WHERE guild_id = $1", str(guild_id))
+    await pool.execute("DELETE FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
