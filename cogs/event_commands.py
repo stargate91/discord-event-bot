@@ -219,6 +219,15 @@ class EventCommands(commands.GroupCog, name="event"):
         await database.set_event_message(event_id, msg.id, interaction.guild_id)
         self.bot.add_view(view)
 
+    @event_publish.autocomplete("name")
+    async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
+        choices = []
+        for e in EVENTS_CONFIG:
+            e_name = str(e.get("name", ""))
+            if current.lower() in e_name.lower():
+                choices.append(app_commands.Choice(name=e_name, value=e_name))
+        return choices[:25]
+
     @app_commands.command(name="remove", description="Delete an active event message")
     @app_commands.describe(event_id="The event you want to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
