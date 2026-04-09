@@ -55,24 +55,6 @@ class EventCommands(commands.GroupCog, name="event"):
         view = MasterPresenceView(presence_list)
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
-    @admin_group.command(name="emojis", description="Manage server emoji sets via visual wizard")
-    async def admin_emojis(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        from utils.i18n import load_guild_translations
-        await load_guild_translations(guild_id)
-        
-        if not await is_admin(interaction):
-            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
-        
-        from cogs.emoji_wizard import EmojiWizardView
-        view = EmojiWizardView(self.bot, interaction.guild_id)
-        embed = discord.Embed(
-            title="✨ Emoji & Role Kezelő",
-            description="Itt hozhatsz létre és módosíthatsz egyedi ikon-készleteket az eseményekhez.",
-            color=discord.Color.purple()
-        )
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @admin_group.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):
