@@ -370,11 +370,18 @@ class EditChoiceView(discord.ui.View):
         if not db_event:
             db_event = await database.get_active_event(self.event_id)
             
-        if not self.event_conf and db_event:
-            if db_event.get("title"):
-                self.event_conf = db_event
-            else:
-                self.event_conf = get_event_conf(db_event["config_name"])
+        if db_event and not self.event_conf:
+            self.event_conf = get_event_conf(db_event["config_name"])
+            if not self.event_conf:
+                # Merge row data with extra_data if available
+                self.event_conf = dict(db_event)
+                ex_raw = db_event.get("extra_data")
+                if ex_raw:
+                    try:
+                        ex_dict = json.loads(ex_raw) if isinstance(ex_raw, str) else ex_raw
+                        if isinstance(ex_dict, dict):
+                            self.event_conf.update(ex_dict)
+                    except: pass
 
         if not self.event_conf:
             return discord.Embed(title="Missing configuration", color=discord.Color.red())
@@ -382,25 +389,36 @@ class EditChoiceView(discord.ui.View):
         rsvps = await database.get_rsvps(self.event_id)
         
         # Group users by their choices (Accepted, Tanks, etc)
-        status_map = {}
-        for user_id, status in rsvps:
-            if status not in status_map:
-                status_map[status] = []
-            status_map[status].append(f"<@{user_id}>")
+        status_map = {opt["id"]: [] for opt in self.active_set["options"]}
+        
+        total_positive_count = 0
+        positive_statuses = []
+        if "positive" in self.active_set:
+            positive_statuses = self.active_set["positive"]
+        elif "positive_count" in self.active_set:
+            cnt = self.active_set["positive_count"]
+            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
 
-        # Set the color of the strip on the side
-        color_hex = str(self.event_conf.get("color", "0x3498db"))
-        if color_hex.startswith("0x"):
-            color = int(color_hex, 16)
-        elif color_hex.startswith("#"):
-            color = int(color_hex[1:], 16)
-        else:
-            color = discord.Color.blue()
+        for user_id, status in rsvps:
+            if status in status_map:
+                tag = f"<@{user_id}>"
+                status_map[status].append(tag)
+                
+                if status in positive_statuses:
+                    total_positive_count += 1
+
+        max_acc = self.event_conf.get("max_accepted", 0)
+        is_full = (max_acc > 0 and total_positive_count >= max_acc)
+
+        desc = self.event_conf.get("description", "")
+        if is_full:
+            full_text = t("EMBED_FULL") or "ESEMÉNY BETELT"
+            desc = f"### ⚠️ {full_text}\n{desc}"
 
         embed = discord.Embed(
             title=self.event_conf.get("title", "Event"),
-            description=self.event_conf.get("description", ""),
-            color=color
+            description=desc,
+            color=int(str(self.event_conf.get("color") or "0x3498db"), 16)
         )
         
         # Add the start time (Discord makes this pretty automatically)

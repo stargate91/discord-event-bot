@@ -597,7 +597,45 @@ class EventWizardView(ui.View):
             view = DynamicEventView(self.bot, event_id, self.data)
             embed = await view.generate_embed()
             
-            await interaction.followup.send(t("MSG_SAVED_PREVIEW"), embed=embed, ephemeral=True)
+            # Check for limit mismatch warning
+            global_max = int(self.data.get("max_accepted") or 0)
+            role_sum = 0
+            
+            from cogs.event_ui import get_active_set
+            icon_set_key = self.data.get("icon_set", "standard")
+            active_set = get_active_set(icon_set_key)
+            
+            extra_data = self.data.get("extra_data")
+            role_limits_overrides = {}
+            if extra_data:
+                try:
+                    d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
+                    role_limits_overrides = d.get("role_limits", {})
+                except: pass
+            
+            # Identify "positive" statuses that count towards the limit
+            pos_statuses = []
+            if "positive" in active_set:
+                pos_statuses = active_set["positive"]
+            elif "positive_count" in active_set:
+                cnt = active_set["positive_count"]
+                pos_statuses = [o["id"] for o in active_set["options"][:cnt]]
+            
+            for opt in active_set.get("options", []):
+                rid = opt["id"]
+                if rid in pos_statuses:
+                    limit = role_limits_overrides.get(rid, opt.get("max_slots", 0))
+                    role_sum += (limit or 0)
+            
+            warning = ""
+            if global_max > 0 and role_sum > 0 and global_max != role_sum:
+                warning = f"\n\n⚠️ **Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**)."
+                if role_sum < global_max:
+                    warning += f"\nAz esemény már **{role_sum}** főnél meg fog telni, mert a szerepkörök betelnek."
+                else:
+                    warning += f"\nNéhány szerepkör gombja váratlanul kikapcsolhat **{global_max}** főnél."
+
+            await interaction.followup.send(t("MSG_SAVED_PREVIEW") + warning, embed=embed, ephemeral=True)
             await self.update_message(interaction)
         except Exception as e:
             log.error(f"Error in save_preview_btn: {e}")
