@@ -13,7 +13,8 @@
   "ERR_DATE_FMT": "Invalid date format. Please use YYYY-MM-DD HH:MM",
   "ERR_REC_FMT": "Invalid recurrence. Use none, daily, or weekly.",
   "MSG_EV_CREATED_EPHEMERAL": "Event Created!",
-  "MSG_EV_CREATED_PUBLIC": "**New Event Created!**",
+  "MSG_EV_CREATED_PUBLIC": "Event successfully created in the public channel!",
+  "MSG_REM_DESC": "Reminder for event: **{title}**",
   "BTN_ACCEPT": "Accept",
   "BTN_DECLINE": "Decline",
   "BTN_TENTATIVE": "Tentative",
@@ -80,5 +81,11 @@
   "SEL_TRIG_AFTER_S": "After Start",
   "SEL_TRIG_AFTER_E": "After End",
   "LBL_WIZ_TZ": "Timezone (e.g. Europe/Budapest)",
-  "LBL_WIZ_OFFSET": "Offset (e.g. 1h, 30m, 1d)"
+  "LBL_WIZ_OFFSET": "Offset (e.g. 1h, 30m, 1d)",
+  "LBL_WIZ_REMINDER_TYPE": "Reminder Type",
+  "LBL_WIZ_REMINDER_OFFSET": "Reminder Offset (e.g. 15m)",
+  "SEL_REM_NONE": "None",
+  "SEL_REM_PING": "Only Ping (in channel)",
+  "SEL_REM_DM": "Only DM (private message)",
+  "SEL_REM_BOTH": "Both (Ping + DM)"
 }

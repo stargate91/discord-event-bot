@@ -24,7 +24,10 @@ async def init_db():
                 repost_trigger TEXT,
                 repost_offset TEXT,
                 timezone TEXT DEFAULT 'Europe/Budapest',
-                creator_id TEXT
+                creator_id TEXT,
+                reminder_type TEXT DEFAULT 'none',
+                reminder_offset TEXT DEFAULT '15m',
+                reminder_sent INTEGER DEFAULT 0
             )
         """)
         
@@ -66,6 +69,10 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
     repost_offset = data.get("repost_offset", "1h")
     timezone = data.get("timezone", "Europe/Budapest")
     creator_id = str(data.get("creator_id") or "System")
+    
+    reminder_type = data.get("reminder_type", "none")
+    reminder_offset = data.get("reminder_offset", "15m")
+    reminder_sent = int(data.get("reminder_sent") or 0)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -73,15 +80,17 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
                 event_id, config_name, channel_id, start_time,
                 title, description, image_urls, color, max_accepted, 
                 ping_role, end_time, recurrence_type, repost_trigger, 
-                repost_offset, timezone, creator_id
+                repost_offset, timezone, creator_id,
+                reminder_type, reminder_offset, reminder_sent
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_id, config_name, channel_id, start_time,
             title, description, image_urls,
             color, max_acc, ping_role,
             end_time, recurrence, repost_trigger,
-            repost_offset, timezone, creator_id
+            repost_offset, timezone, creator_id,
+            reminder_type, reminder_offset, reminder_sent
         ))
         await db.commit()
 
@@ -111,6 +120,10 @@ async def update_active_event(event_id, data):
     repost_offset = data.get("repost_offset", "1h")
     timezone = data.get("timezone", "Europe/Budapest")
     creator_id = str(data.get("creator_id") or "System")
+    
+    reminder_type = data.get("reminder_type", "none")
+    reminder_offset = data.get("reminder_offset", "15m")
+    reminder_sent = int(data.get("reminder_sent") or 0)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -119,13 +132,15 @@ async def update_active_event(event_id, data):
                 color = ?, max_accepted = ?, ping_role = ?, 
                 start_time = ?, end_time = ?, recurrence_type = ?, 
                 repost_trigger = ?, repost_offset = ?, timezone = ?,
-                creator_id = ?
+                creator_id = ?, reminder_type = ?, reminder_offset = ?,
+                reminder_sent = ?
             WHERE event_id = ?
         """, (
             title, description, image_urls,
             color, max_acc, ping_role,
             start_time, end_time, recurrence,
-            repost_trigger, repost_offset, timezone, creator_id, event_id
+            repost_trigger, repost_offset, timezone, creator_id,
+            reminder_type, reminder_offset, reminder_sent, event_id
         ))
         await db.commit()
 
@@ -133,6 +148,17 @@ async def set_event_message(event_id, message_id):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("UPDATE active_events SET message_id = ? WHERE event_id = ?", (message_id, event_id))
         await db.commit()
+
+async def mark_reminder_sent(event_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE active_events SET reminder_sent = 1 WHERE event_id = ?", (event_id,))
+        await db.commit()
+
+async def get_event_rsvps(event_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT user_id, status FROM rsvps WHERE event_id = ?", (event_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return [{"user_id": r[0], "status": r[1]} for r in rows]
 
 async def get_active_event(event_id):
     async with aiosqlite.connect(DB_PATH) as db:

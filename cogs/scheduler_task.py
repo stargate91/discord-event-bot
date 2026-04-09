@@ -15,7 +15,7 @@ from utils.logger import log
 
 def parse_offset(offset_str):
     """Parse offset like '5m', '3h', '6d' into timedelta."""
-    match = re.match(r'^(\d+)([mhd])$', offset_str.strip())
+    match = re.match(r'^(\d+)([mhd])$', str(offset_str).strip())
     if not match:
         return datetime.timedelta(hours=1)
     val, unit = int(match.group(1)), match.group(2)
@@ -65,15 +65,20 @@ class SchedulerTask(commands.Cog):
         active_events = await database.get_all_active_events()
 
         for db_event in active_events:
+            # 1. Handle Reminders
+            try:
+                await self.handle_reminders(db_event, now)
+            except Exception as e:
+                log.error(f"[Scheduler] Error handling reminders for {db_event['event_id']}: {e}")
+
+            # 2. Handle Reposting / Recurrence
             config_name = db_event["config_name"]
             event_conf = get_event_conf(config_name)
             if not event_conf:
                 continue
 
-            # Skip disabled events — close them so they don't keep looping
             if not event_conf.get("enabled", True):
                 await database.set_event_status(db_event["event_id"], "disabled")
-                log.info(f"[Scheduler] Event '{config_name}' is disabled in config, skipping repost.")
                 continue
 
             rec_type = event_conf.get("recurrence_type", "once")
@@ -91,11 +96,10 @@ class SchedulerTask(commands.Cog):
                     continue
                 repost_at = next_start - offset.total_seconds()
             elif trigger == "after_end":
-                end_str = event_conf.get("end", "")
-                if end_str:
-                    local_tz = dttz.gettz(event_conf.get("timezone", "UTC"))
-                    end_dt = dtparser.parse(end_str).replace(tzinfo=local_tz)
-                    repost_at = end_dt.timestamp() + offset.total_seconds()
+                # Fallback if end_time column is used instead of end string
+                end_ts = db_event.get("end_time")
+                if end_ts:
+                    repost_at = end_ts + offset.total_seconds()
                 else:
                     repost_at = start_ts + offset.total_seconds()
             elif trigger == "after_start":
@@ -119,9 +123,10 @@ class SchedulerTask(commands.Cog):
                         view = discord.ui.View.from_message(old_msg)
                         for child in view.children:
                             child.disabled = True
-                        embed = old_msg.embeds[0]
-                        embed.title = f"{t('TAG_PAST')} {embed.title}"
-                        await old_msg.edit(embed=embed, view=view)
+                        if old_msg.embeds:
+                            embed = old_msg.embeds[0]
+                            embed.title = f"{t('TAG_PAST')} {embed.title}"
+                            await old_msg.edit(embed=embed, view=view)
             except Exception as e:
                 log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}")
 
@@ -137,7 +142,8 @@ class SchedulerTask(commands.Cog):
                 event_id=new_event_id,
                 config_name=config_name,
                 channel_id=channel_id,
-                start_time=next_start
+                start_time=next_start,
+                data=event_conf
             )
 
             channel = self.bot.get_channel(channel_id)
@@ -153,6 +159,66 @@ class SchedulerTask(commands.Cog):
                 new_msg = await channel.send(content=content, embed=embed, view=view)
                 await database.set_event_message(new_event_id, new_msg.id)
                 self.bot.add_view(view)
+
+    async def handle_reminders(self, db_event, now):
+        rem_type = db_event.get("reminder_type", "none")
+        if rem_type == "none" or db_event.get("reminder_sent", 0) == 1:
+            return
+
+        start_ts = db_event["start_time"]
+        offset = parse_offset(db_event.get("reminder_offset", "15m"))
+        rem_ts = start_ts - offset.total_seconds()
+
+        if now < rem_ts:
+            return
+
+        # It's time!
+        event_id = db_event["event_id"]
+        rsvps = await database.get_event_rsvps(event_id)
+        # Filters participants who accepted
+        participants = [r for r in rsvps if r["status"] == "accepted"]
+        
+        if not participants:
+            # No one to remind, but mark as sent anyway
+            await database.mark_reminder_sent(event_id)
+            return
+
+        mentions = [f"<@{p['user_id']}>" for p in participants]
+        
+        # Determine notification channels
+        send_ping = rem_type in ["ping", "both"]
+        send_dm = rem_type in ["dm", "both"]
+
+        # Send Ping in channel
+        if send_ping:
+            channel = self.bot.get_channel(db_event["channel_id"])
+            if channel:
+                mention_str = ", ".join(mentions)
+                embed = discord.Embed(
+                    title=f"🔔 Emlékeztető / Reminder",
+                    description=f"{t('MSG_REM_DESC', title=db_event['title'])}",
+                    color=discord.Color.orange()
+                )
+                embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
+                await channel.send(content=mention_str, embed=embed)
+
+        # Send DM to each participant
+        if send_dm:
+            for p in participants:
+                try:
+                    user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
+                    if user:
+                        embed = discord.Embed(
+                            title=f"🔔 Emlékeztető / Reminder",
+                            description=f"{t('MSG_REM_DESC', title=db_event['title'])}",
+                            color=discord.Color.orange()
+                        )
+                        embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
+                        await user.send(embed=embed)
+                except Exception as e:
+                    log.error(f"Could not send DM to {p['user_id']}: {e}")
+
+        await database.mark_reminder_sent(event_id)
 
     @check_events.before_loop
     async def before_check_events(self):

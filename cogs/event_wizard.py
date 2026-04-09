@@ -72,16 +72,31 @@ class Step3Modal(ui.Modal):
         self.wizard_view = wizard_view
         data = wizard_view.data
 
+        self.timezone_input = ui.TextInput(
+            label=t("LBL_WIZ_TZ"),
+            default=str(data.get("timezone") or "Europe/Budapest"),
+            required=True
+        )
         self.offset_input = ui.TextInput(
             label=t("LBL_WIZ_OFFSET"), 
             placeholder="pl. 4h, 30m, 1d", 
             default=str(data.get("repost_offset") or "1h"), 
             required=True
         )
+        self.reminder_offset_input = ui.TextInput(
+            label=t("LBL_WIZ_REMINDER_OFFSET"),
+            placeholder="pl. 15m, 1h",
+            default=str(data.get("reminder_offset") or "15m"),
+            required=True
+        )
+        self.add_item(self.timezone_input)
         self.add_item(self.offset_input)
+        self.add_item(self.reminder_offset_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["repost_offset"] = str(self.offset_input.value)
+        self.wizard_view.data["reminder_offset"] = str(self.reminder_offset_input.value)
         self.wizard_view.steps_completed["step3"] = True
         await self.wizard_view.update_message(interaction)
 
@@ -112,6 +127,10 @@ class EventWizardView(ui.View):
         current_trig = self.data.get("repost_trigger", "before_start")
         for opt in self.trigger_select.options:
             opt.default = (opt.value == current_trig)
+            
+        current_rem = self.data.get("reminder_type", "none")
+        for opt in self.reminder_type_select.options:
+            opt.default = (opt.value == current_rem)
 
     def get_status_text(self):
         s1 = t("WIZARD_STATUS_OK") if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT")
