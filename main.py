@@ -30,7 +30,20 @@ class EventBot(commands.Bot):
         super().__init__(command_prefix=prefix, intents=intents)
 
     async def setup_hook(self):
-        await database.init_db()
+        dsn = os.getenv("DATABASE_URL")
+        if not dsn:
+            log.error("DATABASE_URL is not set in .env! Cannot start bot.")
+            exit(1)
+            
+        import asyncpg
+        try:
+            pool = await asyncpg.create_pool(dsn)
+            await database.set_pool(pool)
+            await database.init_db()
+            log.info("Successfully connected to PostgreSQL.")
+        except Exception as e:
+            log.error(f"Failed to connect to PostgreSQL: {e}")
+            exit(1)
         
         # Apply global logging level from config
         from utils.logger import set_log_level
