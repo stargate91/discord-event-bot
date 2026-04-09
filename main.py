@@ -38,32 +38,46 @@ class EventBot(commands.Bot):
         if "logging_level" in globals_cfg:
             set_log_level(globals_cfg["logging_level"])
 
-        # Load cogs
-        await self.load_extension("cogs.event_commands")
-        await self.load_extension("cogs.scheduler_task")
-        await self.load_extension("cogs.emoji_set_commands")
-        
-        # Load custom emoji sets into cache before persistent views
-        await load_custom_sets()
-        
-        # Load persistent views for existing active events
-        from cogs.event_ui import get_event_conf
-        active_events = await database.get_all_active_events()
-        for event in active_events:
-            conf = get_event_conf(event['config_name'])
-            self.add_view(DynamicEventView(self, event['event_id'], conf))
-            
-        # Sync slash commands
         try:
+            # Load cogs
+            extensions = [
+                "cogs.event_commands",
+                "cogs.scheduler_task",
+                "cogs.emoji_set_commands"
+            ]
+            
+            for ext in extensions:
+                try:
+                    await self.load_extension(ext)
+                    log.info(f"Loaded extension: {ext}")
+                except Exception as e:
+                    log.error(f"Failed to load extension {ext}: {e}", exc_info=True)
+            
+            # Load custom emoji sets into cache before persistent views
+            await load_custom_sets()
+            
+            # Load persistent views for existing active events
+            from cogs.event_ui import get_event_conf, DynamicEventView
+            active_events = await database.get_all_active_events()
+            for event in active_events:
+                try:
+                    conf = get_event_conf(event['config_name'])
+                    self.add_view(DynamicEventView(self, event['event_id'], conf))
+                except Exception as e:
+                    log.error(f"Failed to load persistent view for event {event.get('event_id')}: {e}")
+                
+            # Sync slash commands
             guild_id = self.config.get("guild_id")
             if guild_id:
                 guild = discord.Object(id=guild_id)
                 self.tree.copy_global_to(guild=guild)
-                await self.tree.sync(guild=guild)
+                synced = await self.tree.sync(guild=guild)
+                log.info(f"Synced {len(synced)} commands to guild {guild_id}")
             else:
-                await self.tree.sync()
+                synced = await self.tree.sync()
+                log.info(f"Synced {len(synced)} commands globally")
         except Exception as e:
-            log.error(f"Failed to sync commands: {e}")
+            log.error(f"Critical error during setup_hook: {e}", exc_info=True)
 
         # Start dynamic presence task
         self.loop.create_task(self.status_task())

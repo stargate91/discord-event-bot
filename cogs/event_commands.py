@@ -6,8 +6,8 @@ import time
 import uuid
 import datetime
 import json
-from cogs.event_ui import DynamicEventView
-from cogs.event_wizard import EventWizardView
+import json
+# imports moved inside methods to prevent circular dependency
 from utils.i18n import t
 from dateutil import parser
 from dateutil import tz
@@ -51,9 +51,11 @@ class EventCommands(commands.GroupCog, name="event"):
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="create", description="Start the wizard to create a new event")
+    @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
-        # Open the multi-step form (Wizard) for a new event
+        # Open the multi-step UI
+        from cogs.event_wizard import EventWizardView
+        await interaction.response.defer(ephemeral=True)
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -73,9 +75,12 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.followup.send(f"❌ Hiba történt a varázsló megnyitásakor: `{e}`", ephemeral=True)
 
 
-    @app_commands.command(name="edit", description="Edit an event that already exists")
-    @app_commands.describe(event_id="The ID of the event you want to change")
+    @app_commands.command(name="edit", description="Edit an existing event")
+    @app_commands.describe(event_id="The short ID of the event to edit")
     async def edit_event(self, interaction: discord.Interaction, event_id: str):
+        # Start editing process
+        from cogs.event_wizard import EventWizardView
+        await interaction.response.defer(ephemeral=True)
         # Open the Wizard for a specific event to change its details
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
