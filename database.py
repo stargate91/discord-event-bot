@@ -85,6 +85,12 @@ async def init_db():
             )
         """)
 
+async def check_config_exists(guild_id, config_name):
+    """Returns True if a config_name already exists in active_events for this guild."""
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT 1 FROM active_events WHERE guild_id = $1 AND config_name = $2 LIMIT 1", str(guild_id), config_name)
+    return row is not None
+
 async def create_active_event(guild_id, event_id, config_name, channel_id, start_time, data=None):
     if data is None:
         data = {}

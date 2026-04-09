@@ -9,6 +9,7 @@ import time
 import json
 from dateutil import parser
 from dateutil import tz
+from utils.text_utils import slugify
 
 class Step1Modal(ui.Modal):
     # This pop-up handles the basic info like the name and title
@@ -16,14 +17,13 @@ class Step1Modal(ui.Modal):
         super().__init__(title=(t("BTN_STEP_1")[:45]))
         self.wizard_view = wizard_view
         data = wizard_view.data
-
-        self.name_input = ui.TextInput(label=t("LBL_WIZ_NAME"), default=str(data.get("config_name") or ""), required=True)
+        
+        # We no longer ask for config_name (ID), it's auto-generated from the title
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE"), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC"), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES"), default=str(data.get("image_urls") or ""), required=False)
         self.channel_id_input = ui.TextInput(label="Channel ID (Optional)", placeholder="Default: current channel", default=str(data.get("channel_id") or ""), required=False)
         
-        self.add_item(self.name_input)
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
         self.add_item(self.images_input)
@@ -31,8 +31,24 @@ class Step1Modal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         # Save things to our data dictionary
-        self.wizard_view.data["config_name"] = str(self.name_input.value)
-        self.wizard_view.data["title"] = str(self.title_input.value)
+        title = str(self.title_input.value)
+        self.wizard_view.data["title"] = title
+        
+        # Automatically generate config_name (slug) if missing or manual
+        # If it's an existing series, we keep the old name to avoid breaking things
+        if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
+            base_slug = slugify(title) or "event"
+            final_slug = base_slug
+            
+            # Check for collisions in the DB (only for NEW events)
+            if not self.wizard_view.is_edit:
+                counter = 2
+                while await database.check_config_exists(self.wizard_view.guild_id, final_slug):
+                    final_slug = f"{base_slug}-{counter}"
+                    counter += 1
+            
+            self.wizard_view.data["config_name"] = final_slug
+
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
