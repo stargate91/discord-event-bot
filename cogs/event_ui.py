@@ -158,7 +158,7 @@ class DynamicEventView(discord.ui.View):
             self.add_item(delete_btn)
 
     async def edit_callback(self, interaction: discord.Interaction):
-        # When an admin clicks Edit, we open the Wizard again
+        # When an admin clicks Edit, we check if it's part of a series
         if not is_admin_user(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -169,12 +169,31 @@ class DynamicEventView(discord.ui.View):
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
-        # We need to turn timestamps into readable text for the wizard
+        config_name = db_event.get("config_name")
+        if config_name and config_name != "manual":
+            # Check if there are other instances of this series
+            series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
+            if len(series_events) > 1:
+                # Show choice view
+                view = EditChoiceView(self.bot, self.event_id, db_event, series_events)
+                await interaction.followup.send(
+                    "💡 Ez az esemény egy ismétlődő sorozat része. Mit szeretnél szerkeszteni?",
+                    view=view,
+                    ephemeral=True
+                )
+                return
+
+        # If not a series or logic above falls through, open wizard directly
+        await self._open_wizard(interaction, db_event)
+
+    async def _open_wizard(self, interaction, db_event, bulk_ids=None):
+        # Helper to turn timestamps into readable text for the wizard
         from dateutil import tz
         import datetime
         local_tz = tz.gettz(db_event.get("timezone", "Europe/Budapest"))
-        start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
-        db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
+        if db_event.get("start_time"):
+            start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
+            db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
         
         if db_event.get("end_time"):
             end_dt = datetime.datetime.fromtimestamp(db_event["end_time"], tz=local_tz)
@@ -184,15 +203,50 @@ class DynamicEventView(discord.ui.View):
 
         # Open the Wizard view in "edit" mode
         from cogs.event_wizard import EventWizardView
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
+        view = EventWizardView(
+            self.bot, 
+            interaction.user.id, 
+            existing_data=db_event, 
+            is_edit=True, 
+            guild_id=interaction.guild_id,
+            bulk_ids=bulk_ids
+        )
         
-        from utils.i18n import t
+        title = t("WIZARD_TITLE")
+        if bulk_ids:
+            title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
+
         embed = discord.Embed(
-            title=t("WIZARD_TITLE"), 
+            title=title, 
             description=t("WIZARD_DESC", status=view.get_status_text()), 
             color=discord.Color.gold()
         )
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+class EditChoiceView(discord.ui.View):
+    """Small popup view to choose between editing one instance or the whole series."""
+    def __init__(self, bot, event_id, db_event, series_events):
+        super().__init__(timeout=180)
+        self.bot = bot
+        self.event_id = event_id
+        self.db_event = db_event
+        self.series_events = series_events
+
+    @discord.ui.button(label="Csak ezt a példányt", style=discord.ButtonStyle.secondary)
+    async def edit_single(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        # We need the parent view's logic, but since it's a callback we just call open_wizard
+        # or we could make _open_wizard a standalone helper.
+        dummy_view = DynamicEventView(self.bot, self.event_id) 
+        await dummy_view._open_wizard(interaction, self.db_event)
+
+    @discord.ui.button(label="Az egész sorozatot (Tömeges)", style=discord.ButtonStyle.primary)
+    async def edit_series(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        bulk_ids = [ev['event_id'] for ev in self.series_events]
+        dummy_view = DynamicEventView(self.bot, self.event_id)
+        await dummy_view._open_wizard(interaction, self.db_event, bulk_ids=bulk_ids)
+
 
     async def calendar_callback(self, interaction: discord.Interaction):
         # Shows links to Google Calendar, Yahoo, etc.
