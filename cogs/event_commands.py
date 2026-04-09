@@ -97,20 +97,51 @@ class EventCommands(commands.GroupCog, name="event"):
     async def admin_setup(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
-        from utils.i18n import load_guild_translations
-        await load_guild_translations(guild_id)
-        
-        if not await is_admin(interaction):
-            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
             
-        from cogs.server_setup import ServerSetupView
-        view = ServerSetupView(self.bot, guild_id)
-        embed = discord.Embed(
-            title="⚙️ Server Setup & Defaults",
-            description="Itt állíthatod be a szerver alapértelmezett értékeit (időzóna, színek, nyelv) és az admin jogosultságokat.",
-            color=discord.Color.blue()
-        )
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            log.info(f"[Guild: {guild_id}] Opening Admin Setup...")
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+                
+            from cogs.server_setup import ServerSetupView
+            view = ServerSetupView(self.bot, guild_id)
+            embed = discord.Embed(
+                title="⚙️ " + t("BTN_GENERAL", guild_id=guild_id),
+                description=t("SETUP_GENERAL_DESC", guild_id=guild_id),
+                color=discord.Color.blue()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"[Guild: {guild_id}] ERROR in admin_setup: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Kritikus hiba a beállítások megnyitásakor: `{e}`", ephemeral=True)
+
+    @admin_group.command(name="emojis", description="Create or manage custom emoji/reaction sets")
+    async def admin_emojis(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
+            
+            log.info(f"[Guild: {guild_id}] Opening Emoji Manager...")
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+            from cogs.emoji_wizard import EmojiWizardView
+            view = EmojiWizardView(self.bot, interaction.guild_id)
+            embed = discord.Embed(
+                title="✨ " + t("LBL_WIZ_ICON_SET", guild_id=guild_id),
+                description=t("SETUP_GENERAL_DESC", guild_id=guild_id),
+                color=discord.Color.purple()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"[Guild: {guild_id}] ERROR in admin_emojis: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Kritikus hiba az emoji kezelő megnyitásakor: `{e}`", ephemeral=True)
 
     @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
