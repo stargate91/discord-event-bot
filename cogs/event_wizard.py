@@ -61,6 +61,7 @@ class Step2Modal(ui.Modal):
             self.wizard_view.data["start_str"] = str(self.start_input.value)
             self.wizard_view.data["end_str"] = str(self.end_input.value)
             self.wizard_view.steps_completed["step2"] = True
+            await self.wizard_view.save_to_draft()
             await self.wizard_view.update_message(interaction)
         except Exception as e:
             if not interaction.response.is_done():
@@ -306,3 +307,6 @@ class EventWizardView(ui.View):
             child.disabled = True
         await interaction.edit_original_response(view=self)
         self.stop()
+
+        # Delete draft from database upon successful publication
+        await database.delete_draft(self.draft_id)

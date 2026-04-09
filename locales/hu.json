@@ -93,5 +93,13 @@
   "SEL_REM_NONE": "Nincs",
   "SEL_REM_PING": "Csak Ping (csatornán)",
   "SEL_REM_DM": "Csak DM (privát üzenet)",
-  "SEL_REM_BOTH": "Mindkettő (Ping + DM)"
+  "SEL_REM_BOTH": "Mindkettő (Ping + DM)",
+  "MSG_DRAFT_SAVED": "Piszkozat mentve!",
+  "BTN_CONTINUE_DRAFT": "Piszkozat folytatása",
+  "BTN_DELETE_DRAFT": "Piszkozat törlése",
+  "MSG_DRAFTS_CLEARED": "Minden piszkozatodat töröltem.",
+  "LBL_UNTITLED_DRAFT": "Névtelen piszkozat",
+  "DESC_CONT_DRAFT": "Félbehagyott esemény folytatása",
+  "DESC_DEL_DRAFT": "Piszkozat végleges törlése",
+  "DESC_CLR_DRAFTS": "Minden saját piszkozat törlése"
 }

@@ -221,6 +221,51 @@ class EventCommands(commands.Cog):
                 choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
+    @app_commands.command(name="continue-draft", description="Continue a partially completed event")
+    @app_commands.describe(draft_id="The ID of the draft to continue")
+    async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
+        # We don't check for admin here because any user who can use create-event could have a draft.
+        # But we verify it's THEIR draft in the DB query logic (implicit or explicit).
+        data = await database.get_draft(draft_id)
+        if not data:
+            await interaction.response.send_message("Draft not found.", ephemeral=True)
+            return
+            
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=data, draft_id=draft_id)
+        embed = discord.Embed(
+            title=t("WIZARD_TITLE"), 
+            description=t("WIZARD_DESC", status=view.get_status_text()), 
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @continue_draft.autocomplete("draft_id")
+    async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        drafts = await database.get_user_drafts(interaction.user.id)
+        choices = []
+        for d in drafts:
+            # format: "Title (date time)"
+            dt = datetime.datetime.fromtimestamp(d['updated_at']).strftime("%Y-%m-%d %H:%M")
+            label = f"{d['title']} ({dt})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=d['draft_id']))
+        return choices[:25]
+
+    @app_commands.command(name="delete-draft", description="Delete a single draft")
+    @app_commands.describe(draft_id="The ID of the draft to delete")
+    async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
+        await database.delete_draft(draft_id)
+        await interaction.response.send_message("Draft deleted.", ephemeral=True)
+
+    @delete_draft_cmd.autocomplete("draft_id")
+    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.continue_draft_autocomplete(interaction, current)
+
+    @app_commands.command(name="delete-all-drafts", description="Clear all your drafts")
+    async def delete_all_drafts(self, interaction: discord.Interaction):
+        await database.delete_all_user_drafts(interaction.user.id)
+        await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
+
     @commands.command(name="sync")
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):

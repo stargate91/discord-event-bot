@@ -93,5 +93,13 @@
   "SEL_REM_NONE": "None",
   "SEL_REM_PING": "Only Ping (in channel)",
   "SEL_REM_DM": "Only DM (private message)",
-  "SEL_REM_BOTH": "Both (Ping + DM)"
+  "SEL_REM_BOTH": "Both (Ping + DM)",
+  "MSG_DRAFT_SAVED": "Draft saved!",
+  "BTN_CONTINUE_DRAFT": "Continue Draft",
+  "BTN_DELETE_DRAFT": "Delete Draft",
+  "MSG_DRAFTS_CLEARED": "All your drafts have been cleared.",
+  "LBL_UNTITLED_DRAFT": "Untitled Draft",
+  "DESC_CONT_DRAFT": "Continue a partially completed event",
+  "DESC_DEL_DRAFT": "Permanently delete a draft",
+  "DESC_CLR_DRAFTS": "Clear all your personal drafts"
 }

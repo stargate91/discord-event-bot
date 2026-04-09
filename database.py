@@ -1,5 +1,7 @@
 import aiosqlite
 import os
+import json
+import time
 
 DB_PATH = os.path.join("data", "events.db")
 
@@ -37,6 +39,16 @@ async def init_db():
                 user_id INTEGER,
                 status TEXT,
                 PRIMARY KEY (event_id, user_id)
+            )
+        """)
+
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS event_drafts (
+                draft_id TEXT PRIMARY KEY,
+                creator_id TEXT,
+                title TEXT,
+                data TEXT,
+                updated_at REAL
             )
         """)
         await db.commit()
@@ -199,4 +211,39 @@ async def delete_active_event(event_id):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM active_events WHERE event_id = ?", (event_id,))
         await db.execute("DELETE FROM rsvps WHERE event_id = ?", (event_id,))
+        await db.commit()
+
+async def save_draft(draft_id, creator_id, title, data):
+    import json
+    data_json = json.dumps(data)
+    now = time.time()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT OR REPLACE INTO event_drafts (draft_id, creator_id, title, data, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+        """, (draft_id, str(creator_id), title or "Untitled Draft", data_json, now))
+        await db.commit()
+
+async def get_user_drafts(creator_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT draft_id, title, updated_at FROM event_drafts WHERE creator_id = ? ORDER BY updated_at DESC", (str(creator_id),)) as cursor:
+            rows = await cursor.fetchall()
+            return [{"draft_id": r[0], "title": r[1], "updated_at": r[2]} for r in rows]
+
+async def get_draft(draft_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT data FROM event_drafts WHERE draft_id = ?", (draft_id,)) as cursor:
+            row = await cursor.fetchone()
+            if row:
+                return json.loads(row[0])
+            return None
+
+async def delete_draft(draft_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM event_drafts WHERE draft_id = ?", (draft_id,))
+        await db.commit()
+
+async def delete_all_user_drafts(creator_id):
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("DELETE FROM event_drafts WHERE creator_id = ?", (str(creator_id),))
         await db.commit()
