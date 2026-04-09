@@ -200,32 +200,42 @@ class EventCommands(commands.GroupCog, name="event"):
             creator_val = str(interaction.user.id)
         event_conf["creator_id"] = creator_val
         
-        await database.create_active_event(
-            guild_id=interaction.guild_id,
-            event_id=event_id,
-            config_name=name,
-            channel_id=channel_id,
-            start_time=start_timestamp,
-            data=event_conf
-        )
+        try:
+            await database.create_active_event(
+                guild_id=interaction.guild_id,
+                event_id=event_id,
+                config_name=name,
+                channel_id=channel_id,
+                start_time=start_timestamp,
+                data=event_conf
+            )
+        except Exception as e:
+            log.error(f"DB Error while creating event: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Adatbázis hiba történt a mentéskor: `{e}`", ephemeral=True)
+            return
 
-        view = DynamicEventView(self.bot, event_id, event_conf)
-        embed = await view.generate_embed()
+        try:
+            view = DynamicEventView(self.bot, event_id, event_conf)
+            embed = await view.generate_embed()
 
-        await interaction.followup.send(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
-        
-        target_channel = self.bot.get_channel(channel_id)
-        if not target_channel:
-            target_channel = interaction.channel
+            await interaction.followup.send(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
             
-        content = t("MSG_EV_CREATED_PUBLIC")
-        ping_role = event_conf.get("ping_role", "")
-        if ping_role:
-            content += f" <@&{ping_role}>"
-            
-        msg = await target_channel.send(content=content, embed=embed, view=view)
-        await database.set_event_message(event_id, msg.id, interaction.guild_id)
-        self.bot.add_view(view)
+            target_channel = self.bot.get_channel(channel_id)
+            if not target_channel:
+                target_channel = interaction.channel
+                
+            content = t("MSG_EV_CREATED_PUBLIC")
+            ping_role = event_conf.get("ping_role", "")
+            if ping_role:
+                content += f" <@&{ping_role}>"
+                
+            msg = await target_channel.send(content=content, embed=embed, view=view)
+            await database.set_event_message(event_id, msg.id, interaction.guild_id)
+            self.bot.add_view(view)
+        except Exception as e:
+            log.error(f"UI Error while publishing event: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Hiba történt a közzététel során: `{e}`", ephemeral=True)
+            return
 
     @event_publish.autocomplete("name")
     async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
