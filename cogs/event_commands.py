@@ -223,8 +223,8 @@ class EventCommands(commands.GroupCog, name="event"):
     async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
         choices = []
         for e in EVENTS_CONFIG:
-            e_name = str(e.get("name", ""))
-            if current.lower() in e_name.lower():
+            e_name = str(e.get("config_name") or e.get("name") or "")
+            if current.lower() in e_name.lower() and e_name:
                 choices.append(app_commands.Choice(name=e_name, value=e_name))
         return choices[:25]
 
