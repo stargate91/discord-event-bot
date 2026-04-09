@@ -294,16 +294,16 @@ class EventCommands(commands.GroupCog, name="event"):
                 choices.append(app_commands.Choice(name=label, value=d['draft_id']))
         return choices[:25]
 
-    @delete_draft_cmd.autocomplete("draft_id")
-    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.continue_draft_autocomplete(interaction, current)
-
     @app_commands.command(name="delete-draft", description="Delete one of your drafts")
     @app_commands.describe(draft_id="Select which draft to delete")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
         # Delete a specific draft
         await database.delete_draft(draft_id, interaction.guild_id)
         await interaction.response.send_message("Draft deleted.", ephemeral=True)
+
+    @delete_draft_cmd.autocomplete("draft_id")
+    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.continue_draft_autocomplete(interaction, current)
 
     @app_commands.command(name="delete-all-drafts", description="Delete all your drafts at once")
     async def delete_all_drafts(self, interaction: discord.Interaction):
