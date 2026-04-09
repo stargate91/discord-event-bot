@@ -528,7 +528,7 @@ class EditChoiceView(discord.ui.View):
                         user = None
                 
                 if user:
-                    creator_text = user.display_name
+                    creator_text = f"@{user.display_name}"
                 else:
                     # If it's a number but no user found, fallback to System
                     creator_text = "System"
