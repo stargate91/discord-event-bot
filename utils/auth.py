@@ -1,4 +1,5 @@
 import discord
+from discord.ext import commands
 import database
 
 async def is_admin(ctx_or_int):
@@ -12,19 +13,23 @@ async def is_admin(ctx_or_int):
         user = ctx_or_int.user
         guild_id = ctx_or_int.guild_id
         channel_id = ctx_or_int.channel_id
-    elif isinstance(ctx_or_int, (discord.ext.commands.Context, object)):
-        # Fallback for Context or other objects that might have author/guild/channel
+        bot = ctx_or_int.client
+    elif isinstance(ctx_or_int, commands.Context):
+        user = ctx_or_int.author
+        guild_id = ctx_or_int.guild.id if ctx_or_int.guild else None
+        channel_id = ctx_or_int.channel.id
+        bot = ctx_or_int.bot
+    else:
+        # Fallback for generic objects with enough context
         try:
             user = ctx_or_int.author
             guild_id = ctx_or_int.guild.id if ctx_or_int.guild else None
             channel_id = ctx_or_int.channel.id
+            bot = ctx_or_int.bot
         except:
             return False
-    else:
-        return False
 
     # 0. Bot Owner always has access and bypasses all restrictions
-    bot = ctx_or_int.client if isinstance(ctx_or_int, discord.Interaction) else ctx_or_int.bot
     if await bot.is_owner(user):
         return True
 
