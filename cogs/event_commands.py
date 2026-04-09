@@ -53,8 +53,9 @@ class EventCommands(commands.GroupCog, name="event"):
 
     @master_group.command(name="status", description="Manage the global bot presence status list")
     async def master_status(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         if not await self.bot.is_owner(interaction.user):
-            return await interaction.response.send_message("❌ Ez a parancs csak a Bot Owner számára érhető el.", ephemeral=True)
+            return await interaction.followup.send("❌ Ez a parancs csak a Bot Owner számára érhető el.", ephemeral=True)
 
         presence_json = await database.get_global_setting("bot_presence_list")
         presence_list = json.loads(presence_json) if presence_json else []
@@ -70,16 +71,17 @@ class EventCommands(commands.GroupCog, name="event"):
         embed.set_footer(text="Használd a gombokat a lista módosításához.")
 
         view = MasterPresenceView(presence_list)
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @admin_group.command(name="emojis", description="Manage server emoji sets via visual wizard")
     async def admin_emojis(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
         from utils.i18n import load_guild_translations
         await load_guild_translations(guild_id)
         
         if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
         
         from cogs.emoji_wizard import EmojiWizardView
         view = EmojiWizardView(self.bot, interaction.guild_id)
@@ -88,16 +90,17 @@ class EventCommands(commands.GroupCog, name="event"):
             description="Itt hozhatsz létre és módosíthatsz egyedi ikon-készleteket az eseményekhez.",
             color=discord.Color.purple()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @admin_group.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
         from utils.i18n import load_guild_translations
         await load_guild_translations(guild_id)
         
         if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
         
         from cogs.message_wizard import MessageWizardView
         view = MessageWizardView(self.bot, interaction.guild_id)
@@ -106,16 +109,17 @@ class EventCommands(commands.GroupCog, name="event"):
             description="Válaszd ki a kategóriát és a szöveget, amit módosítani szeretnél.",
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @admin_group.command(name="setup", description="Configure server-wide default values and admin settings")
     async def admin_setup(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
         from utils.i18n import load_guild_translations
         await load_guild_translations(guild_id)
         
         if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             
         from cogs.server_setup import ServerSetupView
         view = ServerSetupView(self.bot, guild_id)
@@ -124,7 +128,7 @@ class EventCommands(commands.GroupCog, name="event"):
             description="Itt állíthatod be a szerver alapértelmezett értékeit (időzóna, színek, nyelv) és az admin jogosultságokat.",
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
