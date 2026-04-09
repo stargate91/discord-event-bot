@@ -55,13 +55,16 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
         
+        await interaction.response.defer(ephemeral=True)
+
         view = EventWizardView(self.bot, interaction.user.id)
         embed = discord.Embed(
             title=t("WIZARD_TITLE"), 
             description=t("WIZARD_DESC", status=view.get_status_text()), 
             color=discord.Color.blue()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
 
     @app_commands.command(name="edit", description="Edit an event that already exists")
     @app_commands.describe(event_id="The ID of the event you want to change")
@@ -71,9 +74,11 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
             
+        await interaction.response.defer(ephemeral=True)
+
         db_event = await database.get_active_event(event_id)
         if not db_event:
-            await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
         # Prepare dates so the wizard can show them clearly
@@ -93,7 +98,7 @@ class EventCommands(commands.GroupCog, name="event"):
             description=t("WIZARD_DESC", status=view.get_status_text()), 
             color=discord.Color.gold()
         )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
