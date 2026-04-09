@@ -13,6 +13,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.logger import log
 
+# We load the config to know things like command suffixes and admin roles
 try:
     from utils.jsonc import load_jsonc
     config_data = load_jsonc('config.json')
@@ -27,13 +28,14 @@ except Exception:
     ADMIN_ROLE_ID = None
 
 def get_event_dict(name):
+    # Find event info by name in our config list
     for e in EVENTS_CONFIG:
         if e.get("name") == name:
             return e
     return None
 
 def is_admin(ctx_or_interaction):
-    """Check if user is server admin or has the configured admin role."""
+    # Check if the user is an administrator or has the special admin role
     user = ctx_or_interaction.author if hasattr(ctx_or_interaction, 'author') else ctx_or_interaction.user
     if user.guild_permissions.administrator:
         return True
@@ -42,11 +44,13 @@ def is_admin(ctx_or_interaction):
     return False
 
 class EventCommands(commands.Cog):
+    # This class holds all the slash commands for managing events
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="create-event", description="Új esemény létrehozása varázslóval")
+    @app_commands.command(name="create-event", description="Start the wizard to create a new event")
     async def create_event(self, interaction: discord.Interaction):
+        # Open the multi-step form (Wizard) for a new event
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -59,9 +63,10 @@ class EventCommands(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-    @app_commands.command(name="edit-event", description="Meglévő esemény szerkesztése")
-    @app_commands.describe(event_id="A szerkeszteni kívánt esemény azonosítója")
+    @app_commands.command(name="edit-event", description="Edit an event that already exists")
+    @app_commands.describe(event_id="The ID of the event you want to change")
     async def edit_event(self, interaction: discord.Interaction, event_id: str):
+        # Open the Wizard for a specific event to change its details
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -71,7 +76,7 @@ class EventCommands(commands.Cog):
             await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
-        # Prepare existing data for the wizard
+        # Prepare dates so the wizard can show them clearly
         local_tz = tz.gettz("Europe/Budapest")
         start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
         db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
@@ -92,6 +97,7 @@ class EventCommands(commands.Cog):
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
+        # Helps the user search for event IDs while they type
         active_events = await database.get_all_active_events()
         choices = []
         for ev in active_events:
@@ -100,9 +106,10 @@ class EventCommands(commands.Cog):
                 choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
-    @app_commands.command(name="event-publish", description="Publish a specific configured event template")
-    @app_commands.describe(name="Event configuration name")
+    @app_commands.command(name="event-publish", description="Post an event using a preset template")
+    @app_commands.describe(name="The name of the event in config.json")
     async def event_publish(self, interaction: discord.Interaction, name: str):
+        # Create an event immediately using a template from config.json
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -117,29 +124,27 @@ class EventCommands(commands.Cog):
 
         local_tz = tz.gettz(event_conf.get("timezone", "Europe/Budapest"))
         
-        # Parse start_time from config
+        # Turn the start and end strings into numbers (timestamps)
         try:
             start_str = event_conf.get("start_time")
             if not start_str:
-                await interaction.response.send_message("Hiba: 'start_time' hiányzik a konfigurációból!", ephemeral=True)
+                await interaction.response.send_message("Error: 'start_time' is missing!", ephemeral=True)
                 return
             start_dt = parser.parse(str(start_str)).replace(tzinfo=local_tz)
             start_timestamp = start_dt.timestamp()
-            event_conf["start_time"] = start_timestamp # Store as timestamp
+            event_conf["start_time"] = start_timestamp
 
-            # Parse end_time from config if present
             end_str = event_conf.get("end_time")
             if end_str:
                 end_dt = parser.parse(str(end_str)).replace(tzinfo=local_tz)
                 event_conf["end_time"] = end_dt.timestamp()
         except Exception as e:
-            await interaction.response.send_message(f"Hiba az időpontok beolvasásakor: {e}", ephemeral=True)
+            await interaction.response.send_message(f"Error reading dates: {e}", ephemeral=True)
             return
         
         channel_id = event_conf.get("channel_id") or interaction.channel_id
         event_id = str(uuid.uuid4())[:8]
         
-        # Determine creator identity
         creator_val = event_conf.get("creator_id")
         if not creator_val:
             creator_val = str(interaction.user.id)
@@ -171,16 +176,10 @@ class EventCommands(commands.Cog):
         await database.set_event_message(event_id, msg.id)
         self.bot.add_view(view)
 
-    @event_publish.autocomplete("name")
-    async def publish_autocomplete(self, interaction: discord.Interaction, current: str):
-        return [
-            app_commands.Choice(name=e["name"], value=e["name"])
-            for e in EVENTS_CONFIG if current.lower() in e["name"].lower() and e.get("enabled", True)
-        ][:25]
-
-    @app_commands.command(name="remove-event", description="Remove an active event")
-    @app_commands.describe(event_id="Select the active event to remove")
+    @app_commands.command(name="remove-event", description="Delete an active event message")
+    @app_commands.describe(event_id="The event you want to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
+        # Completely delete an event and clean up the message
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -190,6 +189,7 @@ class EventCommands(commands.Cog):
             await interaction.response.send_message(f"Event `{event_id}` not found.", ephemeral=True)
             return
 
+        # Try to disable buttons on the old message
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel and db_event.get("message_id"):
@@ -205,33 +205,21 @@ class EventCommands(commands.Cog):
                     else:
                         await old_msg.edit(view=view)
         except Exception as e:
-            log.warning(f"Could not update old message for event {event_id}: {e}")
+            log.warning(f"Could not update message for event {event_id}: {e}")
 
         await database.delete_active_event(event_id)
-        config_name = db_event.get('config_name', 'Unknown')
-        await interaction.response.send_message(f"✅ Event `{config_name}` (`{event_id}`) removed.", ephemeral=True)
+        await interaction.response.send_message(f"✅ Event removed.", ephemeral=True)
 
-    @remove_event.autocomplete("event_id")
-    async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
-        active_events = await database.get_all_active_events()
-        choices = []
-        for ev in active_events:
-            label = f"{ev.get('title') or ev['config_name']} ({ev['event_id']})"
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
-        return choices[:25]
-
-    @app_commands.command(name="continue-draft", description="Continue a partially completed event")
-    @app_commands.describe(draft_id="The ID of the draft to continue")
+    @app_commands.command(name="continue-draft", description="Finish an event you started earlier")
+    @app_commands.describe(draft_id="Select which draft to finish")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
-        # We don't check for admin here because any user who can use create-event could have a draft.
-        # But we verify it's THEIR draft in the DB query logic (implicit or explicit).
+        # Reload a draft from the database so you don't lose progress
         data = await database.get_draft(draft_id)
         if not data:
             await interaction.response.send_message("Draft not found.", ephemeral=True)
             return
             
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=data, draft_id=draft_id)
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=data)
         embed = discord.Embed(
             title=t("WIZARD_TITLE"), 
             description=t("WIZARD_DESC", status=view.get_status_text()), 
@@ -239,36 +227,23 @@ class EventCommands(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-    @continue_draft.autocomplete("draft_id")
-    async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        drafts = await database.get_user_drafts(interaction.user.id)
-        choices = []
-        for d in drafts:
-            # format: "Title (date time)"
-            dt = datetime.datetime.fromtimestamp(d['updated_at']).strftime("%Y-%m-%d %H:%M")
-            label = f"{d['title']} ({dt})"
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=d['draft_id']))
-        return choices[:25]
-
-    @app_commands.command(name="delete-draft", description="Delete a single draft")
-    @app_commands.describe(draft_id="The ID of the draft to delete")
+    @app_commands.command(name="delete-draft", description="Delete one of your drafts")
+    @app_commands.describe(draft_id="Select which draft to delete")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
+        # Delete a specific draft
         await database.delete_draft(draft_id)
         await interaction.response.send_message("Draft deleted.", ephemeral=True)
 
-    @delete_draft_cmd.autocomplete("draft_id")
-    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.continue_draft_autocomplete(interaction, current)
-
-    @app_commands.command(name="delete-all-drafts", description="Clear all your drafts")
+    @app_commands.command(name="delete-all-drafts", description="Delete all your drafts at once")
     async def delete_all_drafts(self, interaction: discord.Interaction):
+        # Wipe all drafts for the user
         await database.delete_all_user_drafts(interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
 
     @commands.command(name="sync")
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
+        # Traditional prefix command to sync slash commands with Discord
         if not is_admin(ctx):
             await ctx.send(t("ERR_ADMIN_ONLY"))
             return
@@ -292,6 +267,7 @@ class EventCommands(commands.Cog):
     @commands.command(name="clear_commands")
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
+        # Command to remove all slash commands (useful if something breaks)
         if not is_admin(ctx):
             await ctx.send(t("ERR_ADMIN_ONLY"))
             return
@@ -300,17 +276,16 @@ class EventCommands(commands.Cog):
             return
             
         await ctx.send(t("SYNC_CLEAR_START"))
-        # Clear Global
         self.bot.tree.clear_commands(guild=None)
         await self.bot.tree.sync(guild=None)
-        # Clear Guild
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
         await ctx.send(t("SYNC_CLEAR_SUCCESS"))
 
-    @app_commands.command(name="sync", description="Szinkronizálja a slash parancsokat.")
-    @app_commands.describe(mode="guild (azonnali), global (lassabb), vagy copy")
+    @app_commands.command(name="sync", description="Sync slash commands manually")
+    @app_commands.describe(mode="Choose: guild, global, or copy")
     async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
+        # Slash command version of the sync process
         if not is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -329,8 +304,8 @@ class EventCommands(commands.Cog):
             await interaction.followup.send(t("SYNC_SUCCESS_GUILD", count=len(synced)), ephemeral=True)
 
 async def setup(bot):
+    # This prepares the commands class and sets up dynamic command aliases
     cog = EventCommands(bot)
-    # Get suffix from bot config correctly
     config = getattr(bot, 'config', {})
     suffix = config.get('command_suffix', '')
     

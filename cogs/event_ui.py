@@ -7,6 +7,7 @@ from utils.logger import log
 import time
 import random
 
+# We try to load the config to see who is the boss (admin)
 try:
     from utils.jsonc import load_jsonc
     config_data = load_jsonc('config.json')
@@ -15,7 +16,7 @@ except Exception:
     ADMIN_ROLE_ID = None
 
 def is_admin_user(interaction):
-    """Check if user is server admin or has the configured admin role."""
+    # This checks if the person clicking a button has admin powers
     if interaction.user.guild_permissions.administrator:
         return True
     if ADMIN_ROLE_ID and discord.utils.get(interaction.user.roles, id=ADMIN_ROLE_ID):
@@ -23,6 +24,7 @@ def is_admin_user(interaction):
     return False
 
 def get_event_conf(name):
+    # This helper gets the settings for a specific event type from config.json
     try:
         from utils.jsonc import load_jsonc
         config_data = load_jsonc('config.json')
@@ -34,6 +36,7 @@ def get_event_conf(name):
         pass
     return None
 
+# Here we define the different button sets like MMO or Teams
 ICON_SETS = {
     "standard": {
         "options": [
@@ -79,28 +82,50 @@ ICON_SETS = {
     }
 }
 
+# This will hold sets loaded from the database
+CUSTOM_ICON_SETS = {}
+
+async def load_custom_sets():
+    """Fetch custom emoji sets from database and update the local cache."""
+    global CUSTOM_ICON_SETS
+    try:
+        sets = await database.get_all_custom_emoji_sets()
+        for s in sets:
+            CUSTOM_ICON_SETS[s["set_id"]] = s["data"]
+    except Exception as e:
+        log.error(f"Failed to load custom emoji sets: {e}")
+
+def get_active_set(key):
+    """Return the set config for a given key, searching presets then custom sets."""
+    if key in ICON_SETS:
+        return ICON_SETS[key]
+    return CUSTOM_ICON_SETS.get(key, ICON_SETS["standard"])
+
 class DynamicEventView(discord.ui.View):
+    # This class creates the buttons people see under the event message
     def __init__(self, bot, event_id: str, event_conf: dict = None):
         super().__init__(timeout=None)
         self.bot = bot
         self.event_id = event_id
         self.event_conf = event_conf
 
-        # Determine icon set
+        # We check which icon set this event should use
         icon_set_key = "standard"
         if event_conf:
             icon_set_key = event_conf.get("icon_set", "standard")
         
-        self.active_set = ICON_SETS.get(icon_set_key, ICON_SETS["standard"])
+        self.active_set = get_active_set(icon_set_key)
 
-        # Dynamic RSVP Buttons
+        # We loop through the options and make a button for each one
         for opt in self.active_set["options"]:
+            label = opt.get("label") if "label" in opt else ""
             btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
-                emoji=opt["emoji"], 
+                emoji=opt["emoji"] or None,
+                label=label or None,
                 custom_id=f"{opt['id']}_{event_id}"
             )
-            # Create a closure for the callback
+            # This little trick helps us remember which status the button is for
             def create_callback(status_id):
                 async def callback(interaction: discord.Interaction):
                     await self.handle_rsvp(interaction, status_id)
@@ -109,12 +134,12 @@ class DynamicEventView(discord.ui.View):
             btn.callback = create_callback(opt["id"])
             self.add_item(btn)
 
-        # Calendar always available
+        # We add the calendar icon so people can save the date
         calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}")
         calendar_btn.callback = self.calendar_callback
         self.add_item(calendar_btn)
 
-        # Management Buttons (Admin only, only for Standard set)
+        # If it's the standard set, we also show Edit and Delete buttons for admins
         if self.active_set["show_mgmt"]:
             edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}")
             edit_btn.callback = self.edit_callback
@@ -125,6 +150,7 @@ class DynamicEventView(discord.ui.View):
             self.add_item(delete_btn)
 
     async def edit_callback(self, interaction: discord.Interaction):
+        # When an admin clicks Edit, we open the Wizard again
         if not is_admin_user(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
@@ -135,7 +161,7 @@ class DynamicEventView(discord.ui.View):
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
-        # Prepare existing data for the wizard
+        # We need to turn timestamps into readable text for the wizard
         from dateutil import tz
         import datetime
         local_tz = tz.gettz(db_event.get("timezone", "Europe/Budapest"))
@@ -148,6 +174,7 @@ class DynamicEventView(discord.ui.View):
         else:
             db_event["end_str"] = ""
 
+        # Open the Wizard view in "edit" mode
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
         
@@ -160,6 +187,7 @@ class DynamicEventView(discord.ui.View):
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     async def calendar_callback(self, interaction: discord.Interaction):
+        # Shows links to Google Calendar, Yahoo, etc.
         await interaction.response.defer(ephemeral=True)
         db_event = await database.get_active_event(self.event_id)
         if not db_event:
@@ -184,17 +212,8 @@ class DynamicEventView(discord.ui.View):
 
         await interaction.followup.send(t("MSG_CHOOSE_CALENDAR"), view=view, ephemeral=True)
 
-    async def accept_callback(self, interaction: discord.Interaction):
-        await self.handle_rsvp(interaction, "accepted")
-
-    async def decline_callback(self, interaction: discord.Interaction):
-        await self.handle_rsvp(interaction, "declined")
-
-    async def tentative_callback(self, interaction: discord.Interaction):
-        await self.handle_rsvp(interaction, "tentative")
-
     async def delete_callback(self, interaction: discord.Interaction):
-        # Allow anyone with Administrator rights to delete
+        # Only admins can delete the event
         if not interaction.user.guild_permissions.administrator:
             await interaction.response.send_message(t("ERR_NO_PERM"), ephemeral=True)
             return
@@ -202,10 +221,12 @@ class DynamicEventView(discord.ui.View):
         await interaction.response.defer()
         await database.delete_active_event(self.event_id)
         
+        # We change the embed look to show it's deleted
         embed = interaction.message.embeds[0]
         embed.title = f"{t('TAG_DELETED')} {embed.title}"
         embed.color = discord.Color.red()
         
+        # Turn off all buttons
         for child in self.children:
             child.disabled = True
             
@@ -213,12 +234,11 @@ class DynamicEventView(discord.ui.View):
         log.info(f"Event {self.event_id} deleted by {interaction.user}")
 
     async def generate_embed(self, db_event=None):
+        # This builds the main fancy rectangular message (Embed)
         if not db_event:
             db_event = await database.get_active_event(self.event_id)
             
-        # Preference: 1. Passed event_conf, 2. Database data, 3. Config.json template
         if not self.event_conf and db_event:
-            # Check if database has the data
             if db_event.get("title"):
                 self.event_conf = db_event
             else:
@@ -229,13 +249,14 @@ class DynamicEventView(discord.ui.View):
 
         rsvps = await database.get_rsvps(self.event_id)
         
-        # Organize RSVPs by status
+        # Group users by their choices (Accepted, Tanks, etc)
         status_map = {}
         for user_id, status in rsvps:
             if status not in status_map:
                 status_map[status] = []
             status_map[status].append(f"<@{user_id}>")
 
+        # Set the color of the strip on the side
         color_hex = str(self.event_conf.get("color", "0x3498db"))
         if color_hex.startswith("0x"):
             color = int(color_hex, 16)
@@ -250,43 +271,60 @@ class DynamicEventView(discord.ui.View):
             color=color
         )
         
+        # Add the start time (Discord makes this pretty automatically)
         start_ts = db_event['start_time'] if db_event else time.time()
         embed.add_field(name=t("EMBED_START_TIME"), value=f"<t:{int(start_ts)}:F>", inline=False)
         
+        # Add repetition info if it repeats
         recurrence = self.event_conf.get('recurrence_type', 'none')
         if recurrence != 'none':
             embed.add_field(name=t("EMBED_RECURRENCE"), value=recurrence.capitalize(), inline=False)
             
-        # Build dynamic fields based on icon set
+        # Add lists of people for each status
         max_acc = self.event_conf.get('max_accepted', 0)
         
         for opt in self.active_set["options"]:
             users = status_map.get(opt["id"], [])
             
-            # Label logic: Use translated label key
-            label_text = t(opt["label_key"])
+            # Use literal label/list_label if available (for custom sets), or translation key
+            if "list_label" in opt:
+                label_text = opt["list_label"]
+            elif "label_key" in opt:
+                label_text = t(opt["label_key"])
+            else:
+                label_text = opt.get("label", "")
             
-            # Handle count/max for the primary "accept" status if applicable
-            # (Usually 'accepted' for standard, 'tank'/'heal'/'dps' for MMO)
-            # For simplicity, we only show max limit on the FIRST option 
-            # OR we could just show count for all. 
-            # User request didn't specify, so we'll show count for all.
-            # But for 'accepted', we keep the special count/max label.
-            
+            # Show how many people joined (and max limit if set)
             count_text = str(len(users))
-            if opt["id"] == "accepted" and max_acc > 0:
+            # Support both "accepted" ID and first N options via positive_count
+            is_positive = False
+            if "positive" in self.active_set:
+                is_positive = (opt["id"] in self.active_set["positive"])
+            elif "positive_count" in self.active_set:
+                # Find index of opt in options
+                idx = self.active_set["options"].index(opt)
+                is_positive = (idx < self.active_set["positive_count"])
+
+            if is_positive and max_acc > 0:
                 count_text = f"{len(users)}/{max_acc}"
             
-            field_name = f"{opt['emoji']} {label_text} ({count_text})"
+            # Format field name: Emoji Label (Count) or just Label or just Emoji
+            name_parts = []
+            if opt.get("emoji"):
+                name_parts.append(opt["emoji"])
+            if label_text:
+                name_parts.append(label_text)
+            
+            field_name = f"{' '.join(name_parts)} ({count_text})"
             embed.add_field(name=field_name, value="\n".join(users) or t("EMBED_NONE"), inline=True)
 
+        # Handle images (we can pick a random one if there are many)
         image_urls_val = self.event_conf.get("image_urls")
         if image_urls_val:
             if isinstance(image_urls_val, list):
                 embed.set_image(url=random.choice(image_urls_val))
             elif isinstance(image_urls_val, str) and "," in image_urls_val:
                 urls = [u.strip() for u in image_urls_val.split(",")]
-                # If recurring, send random.
                 if recurrence != "none":
                     embed.set_image(url=random.choice(urls))
                 else:
@@ -294,13 +332,12 @@ class DynamicEventView(discord.ui.View):
             else:
                 embed.set_image(url=image_urls_val)
             
-        # Creator logic
+        # Add footer with IDs and Creator name
         creator_text = "System"
         creator_id_val = self.event_conf.get("creator_id")
         
         if creator_id_val:
             if str(creator_id_val).isdigit():
-                # It's a User ID, try to get the user name
                 user = self.bot.get_user(int(creator_id_val))
                 if not user:
                     try:
@@ -313,7 +350,6 @@ class DynamicEventView(discord.ui.View):
                 else:
                     creator_text = f"ID: {creator_id_val}"
             else:
-                # It's some custom string like "System" or "Dota Master"
                 creator_text = str(creator_id_val)
 
         embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
@@ -321,6 +357,7 @@ class DynamicEventView(discord.ui.View):
         return embed
 
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):
+        # This handles when someone clicks an RSVP button
         db_event = await database.get_active_event(self.event_id)
         if not db_event:
             await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
@@ -335,15 +372,20 @@ class DynamicEventView(discord.ui.View):
             if not self.event_conf:
                 self.event_conf = db_event
 
-        # Generic Capacity Check
-        positive_statuses = self.active_set.get("positive", ["accepted"])
+        # Check if there is still room left (Capacity Check)
+        positive_statuses = []
+        if "positive" in self.active_set:
+            positive_statuses = self.active_set["positive"]
+        elif "positive_count" in self.active_set:
+            cnt = self.active_set["positive_count"]
+            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
+
         if status in positive_statuses:
             max_acc = self.event_conf.get('max_accepted', 0)
             if max_acc > 0:
                 rsvps = await database.get_rsvps(self.event_id)
                 current_acc = sum(1 for _, s in rsvps if s in positive_statuses)
                 
-                # If changing status to a positive one, check capacity
                 already_has_positive = False
                 for uid, s in rsvps:
                     if uid == interaction.user.id and s in positive_statuses:
@@ -354,6 +396,7 @@ class DynamicEventView(discord.ui.View):
                     await interaction.response.send_message("Sajnálom, de ez az esemény már betelt!", ephemeral=True)
                     return
 
+        # Save the new status and refresh the message
         await interaction.response.defer()
         await database.update_rsvp(self.event_id, interaction.user.id, status)
         
@@ -362,4 +405,5 @@ class DynamicEventView(discord.ui.View):
         log.info(f"User {interaction.user} (ID: {interaction.user.id}) RSVP'd {status} for event {self.event_id}")
 
 async def setup(bot):
-    pass
+    # This is for discord.py to load this extension
+    await load_custom_sets()

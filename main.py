@@ -36,6 +36,7 @@ class EventBot(commands.Bot):
         # Load cogs
         await self.load_extension("cogs.event_commands")
         await self.load_extension("cogs.scheduler_task")
+        await self.load_extension("cogs.emoji_set_commands")
         
         # Load persistent views for existing active events
         from cogs.event_ui import get_event_conf

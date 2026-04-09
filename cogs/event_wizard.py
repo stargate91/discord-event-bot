@@ -9,6 +9,7 @@ from dateutil import parser
 from dateutil import tz
 
 class Step1Modal(ui.Modal):
+    # This pop-up handles the basic info like the name and title
     def __init__(self, wizard_view):
         super().__init__(title=(t("BTN_STEP_1")[:45]))
         self.wizard_view = wizard_view
@@ -27,6 +28,7 @@ class Step1Modal(ui.Modal):
         self.add_item(self.creator_input)
 
     async def on_submit(self, interaction: discord.Interaction):
+        # Save things to our data dictionary
         self.wizard_view.data["config_name"] = str(self.name_input.value)
         self.wizard_view.data["title"] = str(self.title_input.value)
         self.wizard_view.data["description"] = str(self.desc_input.value)
@@ -36,6 +38,7 @@ class Step1Modal(ui.Modal):
         await self.wizard_view.update_message(interaction)
 
 class Step2Modal(ui.Modal):
+    # This pop-up handles technical things like colors and dates
     def __init__(self, wizard_view):
         super().__init__(title=(t("BTN_STEP_2")[:45]))
         self.wizard_view = wizard_view
@@ -61,13 +64,15 @@ class Step2Modal(ui.Modal):
             self.wizard_view.data["start_str"] = str(self.start_input.value)
             self.wizard_view.data["end_str"] = str(self.end_input.value)
             self.wizard_view.steps_completed["step2"] = True
+            # Save our progress as a draft automatically
             await self.wizard_view.save_to_draft()
             await self.wizard_view.update_message(interaction)
         except Exception as e:
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"Hiba: {e}", ephemeral=True)
+                await interaction.response.send_message(f"Oops! Something went wrong: {e}", ephemeral=True)
 
 class Step3Modal(ui.Modal):
+    # This pop-up handles notifications and limits
     def __init__(self, wizard_view):
         super().__init__(title=(t("SEL_TRIG_TYPE")[:45]))
         self.wizard_view = wizard_view
@@ -80,19 +85,19 @@ class Step3Modal(ui.Modal):
         )
         self.offset_input = ui.TextInput(
             label=t("LBL_WIZ_OFFSET"), 
-            placeholder="pl. 4h, 30m, 1d", 
+            placeholder="e.g. 4h, 30m, 1d", 
             default=str(data.get("repost_offset") or "1h"), 
             required=True
         )
         self.reminder_offset_input = ui.TextInput(
             label=t("LBL_WIZ_REMINDER_OFFSET"),
-            placeholder="pl. 15m, 1h",
+            placeholder="e.g. 15m, 1h",
             default=str(data.get("reminder_offset") or "15m"),
             required=True
         )
         self.rec_limit_input = ui.TextInput(
             label=t("LBL_WIZ_REC_LIMIT"),
-            placeholder="0 = végtelen",
+            placeholder="0 = forever",
             default=str(data.get("recurrence_limit") or 0),
             required=True
         )
@@ -113,6 +118,7 @@ class Step3Modal(ui.Modal):
         await self.wizard_view.update_message(interaction)
 
 class EventWizardView(ui.View):
+    # This is the main view with all the buttons and select menus
     def __init__(self, bot, creator_id, existing_data=None, is_edit=False):
         super().__init__(timeout=600)
         self.bot = bot
@@ -121,17 +127,18 @@ class EventWizardView(ui.View):
         self.data = existing_data or {}
         self.can_publish = False
         
-        # Ensure we check both singular and plural for pre-filling
+        # We check images data correctly
         if not self.data.get("image_urls") and self.data.get("image_url"):
             self.data["image_urls"] = self.data["image_url"]
 
+        # Track which steps the user finished
         self.steps_completed = {
             "step1": bool(self.data.get("title") or self.data.get("config_name")),
             "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
             "step3": bool(self.data.get("repost_offset"))
         }
 
-        # Pre-select values in Select menus if we have them
+        # Pre-select things if we are editing or resuming
         current_rec = self.data.get("recurrence_type", "none")
         for opt in self.recurrence_select.options:
             opt.default = (opt.value == current_rec)
@@ -144,13 +151,39 @@ class EventWizardView(ui.View):
         for opt in self.reminder_type_select.options:
             opt.default = (opt.value == current_rem)
 
+        current_set = self.data.get("icon_set", "standard")
+        
+        # Dynamically populate icon_set_select options
+        self.icon_set_select.options = [
+            discord.SelectOption(label="Standard (✅, ❌, ❔)", value="standard", emoji="💠", default=(current_set == "standard")),
+            discord.SelectOption(label="MMO / Raid (🛡️, 🏥, ⚔️)", value="mmo", emoji="⚔️", default=(current_set == "mmo")),
+            discord.SelectOption(label="Teams (🅰️, 🅱️, 👁️)", value="team", emoji="🚩", default=(current_set == "team")),
+            discord.SelectOption(label="Timing (✅, ⏰, 🏃)", value="timing", emoji="⏰", default=(current_set == "timing"))
+        ]
+        
+        # Add custom sets if they exist in event_ui cache or we fetch them
+        from cogs.event_ui import CUSTOM_ICON_SETS
+        for set_id, sdata in CUSTOM_ICON_SETS.items():
+            opts = sdata.get("options", [])
+            preview = " ".join([o["emoji"] or o["label"] for o in opts[:3]])
+            self.icon_set_select.options.append(
+                discord.SelectOption(
+                    label=set_id[:25], # discord limit
+                    description=f"{preview}...",
+                    value=set_id,
+                    default=(current_set == set_id)
+                )
+            )
+
     def get_status_text(self):
+        # Build the status checklist for the user
         s1 = t("WIZARD_STATUS_OK") if self.steps_completed["step1"] else t("WIZARD_STATUS_WAIT")
         s2 = t("WIZARD_STATUS_OK") if self.steps_completed["step2"] else t("WIZARD_STATUS_WAIT")
         s3 = t("WIZARD_STATUS_OK") if self.steps_completed["step3"] else t("WIZARD_STATUS_WAIT")
         return f"- {t('BTN_STEP_1')}: {s1}\n- {t('BTN_STEP_2')}: {s2}\n- Offset: {s3}"
 
     async def update_message(self, interaction: discord.Interaction):
+        # Refresh the main Wizard message
         status = self.get_status_text()
         embed = discord.Embed(
             title=t("WIZARD_TITLE"), 
@@ -158,13 +191,11 @@ class EventWizardView(ui.View):
             color=discord.Color.blue() if not self.is_edit else discord.Color.gold()
         )
         
-        # Add publish button if saved
+        # Show "PUBLISH" button only after first save
         if self.can_publish:
             publish_btn = ui.Button(label=t("BTN_PUBLISH"), style=discord.ButtonStyle.green, row=4, custom_id="wiz_publish")
             publish_btn.callback = self.publish_btn
             self.add_item(publish_btn)
-            # Remove the save button or change its style? 
-            # Let's just find and update it
             for child in self.children:
                 if getattr(child, "custom_id", "") == "wiz_save":
                     child.disabled = True
@@ -175,26 +206,18 @@ class EventWizardView(ui.View):
         else:
             await interaction.edit_original_response(embed=embed, view=self)
 
-    @ui.button(label="1. Alapadatok / Basic Info", style=discord.ButtonStyle.gray, custom_id="wiz_step_1", row=0)
+    # Step buttons to open modals
+    @ui.button(label="1. Info", style=discord.ButtonStyle.gray, custom_id="wiz_step_1", row=0)
     async def step1_btn(self, interaction: discord.Interaction, button: ui.Button):
-        try:
-            await interaction.response.send_modal(Step1Modal(self))
-        except Exception as e:
-            log.error(f"Error opening Step1Modal: {e}")
+        await interaction.response.send_modal(Step1Modal(self))
 
-    @ui.button(label="2. Részletek / Details", style=discord.ButtonStyle.gray, custom_id="wiz_step_2", row=0)
+    @ui.button(label="2. Details", style=discord.ButtonStyle.gray, custom_id="wiz_step_2", row=0)
     async def step2_btn(self, interaction: discord.Interaction, button: ui.Button):
-        try:
-            await interaction.response.send_modal(Step2Modal(self))
-        except Exception as e:
-            log.error(f"Error opening Step2Modal: {e}")
+        await interaction.response.send_modal(Step2Modal(self))
 
-    @ui.button(label="3. Értesítés / Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
+    @ui.button(label="3. Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
     async def step3_btn(self, interaction: discord.Interaction, button: ui.Button):
-        try:
-            await interaction.response.send_modal(Step3Modal(self))
-        except Exception as e:
-            log.error(f"Error opening Step3Modal: {e}")
+        await interaction.response.send_modal(Step3Modal(self))
 
     @ui.select(
         placeholder="Icon Set (Presets)",
@@ -240,11 +263,12 @@ class EventWizardView(ui.View):
 
     @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
     async def save_preview_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # We need step 1 and 2 before saving
         if not self.steps_completed["step1"] or not self.steps_completed["step2"]:
-            await interaction.response.send_message("Kérlek töltsd ki az 1. és 2. lépést!", ephemeral=True)
+            await interaction.response.send_message("Please fill Step 1 and 2 first!", ephemeral=True)
             return
 
-        # DATA CLEANING: Ensure no non-serializable objects (like TextInput) are in self.data
+        # Make sure we don't save weird objects to data
         clean_data = {}
         for k, v in self.data.items():
             if isinstance(v, (str, int, float, bool)) or v is None:
@@ -256,6 +280,7 @@ class EventWizardView(ui.View):
                 clean_data[k] = str(v)
         self.data = clean_data
 
+        # Try to parse the dates
         try:
             local_tz = tz.gettz(str(self.data.get("timezone") or "Europe/Budapest"))
             start_dt = parser.parse(str(self.data["start_str"])).replace(tzinfo=local_tz)
@@ -267,7 +292,7 @@ class EventWizardView(ui.View):
             else:
                 self.data["end_time"] = None
         except Exception as e:
-            await interaction.response.send_message(f"Dátum vagy időzóna hiba: {e}", ephemeral=True)
+            await interaction.response.send_message(f"Date or Timezone error: {e}", ephemeral=True)
             return
 
         await interaction.response.defer(ephemeral=True)
@@ -296,7 +321,7 @@ class EventWizardView(ui.View):
         # Update state to allow publication
         self.can_publish = True
         
-        # Generate preview
+        # Show what the event will look like
         view = DynamicEventView(self.bot, event_id, self.data)
         embed = await view.generate_embed()
         
@@ -304,6 +329,7 @@ class EventWizardView(ui.View):
         await self.update_message(interaction)
 
     async def publish_btn(self, interaction: discord.Interaction):
+        # This actually shows the event to everyone in the channel
         await interaction.response.defer(ephemeral=True)
         
         from cogs.event_ui import DynamicEventView
@@ -321,20 +347,20 @@ class EventWizardView(ui.View):
                         await msg.edit(embed=embed, view=view)
                     except Exception as e:
                         log.error(f"Error updating message: {e}")
-            await interaction.followup.send("Esemény sikeresen frissítve!", ephemeral=True)
+            await interaction.followup.send("Updated!", ephemeral=True)
         else:
             view = DynamicEventView(self.bot, event_id, self.data)
             embed = await view.generate_embed()
             msg = await interaction.channel.send(content=t("MSG_EV_CREATED_PUBLIC"), embed=embed, view=view)
             await database.set_event_message(event_id, msg.id)
             self.bot.add_view(view)
-            await interaction.followup.send("Esemény sikeresen közzétéve!", ephemeral=True)
+            await interaction.followup.send("Published!", ephemeral=True)
 
-        # Clean up wizard
+        # Stop the wizard
         for child in self.children:
             child.disabled = True
         await interaction.edit_original_response(view=self)
         self.stop()
 
-        # Delete draft from database upon successful publication
-        await database.delete_draft(self.draft_id)
+        # Delete draft once published
+        await database.delete_draft(self.data.get("draft_id"))

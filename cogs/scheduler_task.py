@@ -14,7 +14,7 @@ from dateutil.relativedelta import relativedelta
 from utils.logger import log
 
 def parse_offset(offset_str):
-    """Parse offset like '5m', '3h', '6d' into timedelta."""
+    # This turns strings like "5m" or "3h" into actual time durations
     match = re.match(r'^(\d+)([mhd])$', str(offset_str).strip())
     if not match:
         return datetime.timedelta(hours=1)
@@ -28,7 +28,7 @@ def parse_offset(offset_str):
     return datetime.timedelta(hours=1)
 
 def calc_next_start(current_start_ts, event_conf):
-    """Calculate the next start timestamp based on recurrence_type."""
+    # This calculates when the same event should happen next (Daily, Weekly, etc)
     local_tz = dttz.gettz(event_conf.get("timezone", "UTC"))
     dt = datetime.datetime.fromtimestamp(current_start_ts, tz=local_tz)
     rec = event_conf.get("recurrence_type", "once")
@@ -48,30 +48,34 @@ def calc_next_start(current_start_ts, event_conf):
     return dt.timestamp()
 
 class SchedulerTask(commands.Cog):
+    # This part of the bot runs in the background and checks things every minute
     def __init__(self, bot):
         self.bot = bot
         self.check_events.start()
 
     def cog_unload(self):
+        # Stop the background loop when the bot stops
         self.check_events.cancel()
 
     def _load_config(self):
+        # Helper to load the config file
         from utils.jsonc import load_jsonc
         return load_jsonc('config.json')
 
     @tasks.loop(minutes=1.0)
     async def check_events(self):
+        # This is the main loop that checks all events
         now = time.time()
         active_events = await database.get_all_active_events()
 
         for db_event in active_events:
-            # 1. Handle Reminders
+            # 1. We check if anyone needs a reminder
             try:
                 await self.handle_reminders(db_event, now)
             except Exception as e:
                 log.error(f"[Scheduler] Error handling reminders for {db_event['event_id']}: {e}")
 
-            # 2. Handle Reposting / Recurrence
+            # 2. We check if it's time to repost a recurring event
             config_name = db_event["config_name"]
             event_conf = get_event_conf(config_name)
             if not event_conf:
@@ -89,14 +93,13 @@ class SchedulerTask(commands.Cog):
             trigger = event_conf.get("repost_trigger", "after_start")
             offset = parse_offset(event_conf.get("repost_offset", "1h"))
 
-            # Determine the repost moment
+            # We calculate EXACTLY when we should make the next message
             if trigger == "before_start":
                 next_start = calc_next_start(start_ts, event_conf)
                 if next_start is None:
                     continue
                 repost_at = next_start - offset.total_seconds()
             elif trigger == "after_end":
-                # Fallback if end_time column is used instead of end string
                 end_ts = db_event.get("end_time")
                 if end_ts:
                     repost_at = end_ts + offset.total_seconds()
@@ -110,11 +113,11 @@ class SchedulerTask(commands.Cog):
             if now < repost_at:
                 continue
 
-            # --- Time to repost! ---
+            # --- Okay, it's time to repost! ---
             old_event_id = db_event["event_id"]
             await database.set_event_status(old_event_id, "closed")
 
-            # Disable buttons on old message
+            # We disable the buttons on the old message so people don't click them
             try:
                 channel = self.bot.get_channel(db_event["channel_id"])
                 if channel and db_event.get("message_id"):
@@ -130,26 +133,24 @@ class SchedulerTask(commands.Cog):
             except Exception as e:
                 log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}")
 
-            # Calculate next start
+            # Find the new start time
             next_start = calc_next_start(start_ts, event_conf)
             if next_start is None:
                 continue
 
-            # --- Recurrence Limit Check ---
+            # Check if we already reached the repetition limit
             rec_limit = int(db_event.get("recurrence_limit") or 0)
             rec_count = int(db_event.get("recurrence_count") or 0)
             
-            # If limit is set (>0) and we've reached it, don't create next
             if rec_limit > 0 and (rec_count + 1) >= rec_limit:
-                log.info(f"[Scheduler] Recurrence limit ({rec_limit}) reached for {old_event_id}. Stopping chain.")
+                log.info(f"[Scheduler] Limit ({rec_limit}) reached. No more events for today.")
                 continue
 
+            # Create the brand new event in the database
             new_event_id = str(uuid.uuid4())[:8]
             channel_id = event_conf.get("channel_id") or db_event["channel_id"]
 
-            # Increment count for the next event
             event_conf["recurrence_count"] = rec_count + 1
-            # Ensure limit is passed along
             event_conf["recurrence_limit"] = rec_limit
 
             await database.create_active_event(
@@ -160,6 +161,7 @@ class SchedulerTask(commands.Cog):
                 data=event_conf
             )
 
+            # Send the new message to the channel
             channel = self.bot.get_channel(channel_id)
             if channel:
                 view = DynamicEventView(self.bot, new_event_id, event_conf)
@@ -175,6 +177,7 @@ class SchedulerTask(commands.Cog):
                 self.bot.add_view(view)
 
     async def handle_reminders(self, db_event, now):
+        # This function checks if we need to send a "Hey, it starts soon!" message
         rem_type = db_event.get("reminder_type", "none")
         if rem_type == "none" or db_event.get("reminder_sent", 0) == 1:
             return
@@ -186,24 +189,22 @@ class SchedulerTask(commands.Cog):
         if now < rem_ts:
             return
 
-        # It's time!
+        # Time to remind people!
         event_id = db_event["event_id"]
         rsvps = await database.get_event_rsvps(event_id)
-        # Filters participants who accepted
+        # We only remind those who said they are coming
         participants = [r for r in rsvps if r["status"] == "accepted"]
         
         if not participants:
-            # No one to remind, but mark as sent anyway
             await database.mark_reminder_sent(event_id)
             return
 
         mentions = [f"<@{p['user_id']}>" for p in participants]
         
-        # Determine notification channels
         send_ping = rem_type in ["ping", "both"]
         send_dm = rem_type in ["dm", "both"]
 
-        # Send Ping in channel
+        # Send a message in the channel
         if send_ping:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel:
@@ -216,7 +217,7 @@ class SchedulerTask(commands.Cog):
                 embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
                 await channel.send(content=mention_str, embed=embed)
 
-        # Send DM to each participant
+        # Send a private message (DM) to everyone
         if send_dm:
             for p in participants:
                 try:
@@ -236,7 +237,9 @@ class SchedulerTask(commands.Cog):
 
     @check_events.before_loop
     async def before_check_events(self):
+        # Wait until the bot is logged in before starting the loop
         await self.bot.wait_until_ready()
 
 async def setup(bot):
+    # Load this cog into the bot
     await bot.add_cog(SchedulerTask(bot))
