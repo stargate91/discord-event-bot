@@ -530,8 +530,10 @@ class EditChoiceView(discord.ui.View):
                 if user:
                     creator_text = user.display_name
                 else:
-                    creator_text = f"ID: {creator_id_val}"
+                    # If it's a number but no user found, fallback to System
+                    creator_text = "System"
             else:
+                # If it's not a number, it's a manual name (e.g. "The Bot God")
                 creator_text = str(creator_id_val)
 
         embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
