@@ -28,9 +28,17 @@ except Exception:
     ADMIN_ROLE_ID = None
 
 def get_event_dict(name):
-    # Find event info by name in our config list
-    for e in EVENTS_CONFIG:
-        if e.get("name") == name:
+    # Live load to avoid bot restarts
+    try:
+        from utils.jsonc import load_jsonc
+        config_data = load_jsonc('config.json')
+        events = config_data.get("events_config", [])
+    except Exception:
+        events = EVENTS_CONFIG
+        
+    # Find event info by name or config_name
+    for e in events:
+        if e.get("config_name") == name or e.get("name") == name:
             return e
     return None
 
@@ -222,7 +230,14 @@ class EventCommands(commands.GroupCog, name="event"):
     @event_publish.autocomplete("name")
     async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
         choices = []
-        for e in EVENTS_CONFIG:
+        try:
+            from utils.jsonc import load_jsonc
+            config_data = load_jsonc('config.json')
+            events = config_data.get("events_config", [])
+        except Exception:
+            events = EVENTS_CONFIG
+            
+        for e in events:
             e_name = str(e.get("config_name") or e.get("name") or "")
             if current.lower() in e_name.lower() and e_name:
                 choices.append(app_commands.Choice(name=e_name, value=e_name))
