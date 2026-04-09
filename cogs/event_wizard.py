@@ -1,3 +1,4 @@
+import discord
 from discord import ui
 import uuid
 import database
