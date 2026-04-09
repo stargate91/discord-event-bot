@@ -157,6 +157,76 @@ class DynamicEventView(discord.ui.View):
             delete_btn.callback = self.delete_callback
             self.add_item(delete_btn)
 
+    def update_button_states(self, rsvps_list, event_conf):
+        """Disables buttons if limits are reached and waiting list is off."""
+        use_waiting = event_conf.get("use_waiting_list", True)
+        if use_waiting:
+            # If waiting list is ON, we don't disable buttons (people can join waitlist)
+            for child in self.children:
+                if isinstance(child, discord.ui.Button) and not hasattr(child, "_original_disabled"):
+                    # Don't touch utility buttons (edit/delete)
+                    if "_" in child.custom_id and not child.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                        child.disabled = False
+            return
+
+        # 1. Get Limits
+        max_acc = event_conf.get("max_accepted", 0)
+        positive_statuses = []
+        if "positive" in self.active_set:
+            positive_statuses = self.active_set["positive"]
+        elif "positive_count" in self.active_set:
+            cnt = self.active_set["positive_count"]
+            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
+
+        extra_data = event_conf.get("extra_data")
+        role_limits = {}
+        if extra_data:
+            try:
+                d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
+                role_limits = d.get("role_limits", {})
+            except: pass
+
+        # 2. Current counts
+        total_pos = sum(1 for _, s in rsvps_list if s in positive_statuses)
+        status_counts = {}
+        for _, s in rsvps_list:
+            status_counts[s] = status_counts.get(s, 0) + 1
+
+        # 3. Update Buttons
+        for child in self.children:
+            if not isinstance(child, discord.ui.Button) or not child.custom_id:
+                continue
+            
+            # Skip utility buttons
+            if child.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                continue
+
+            # Extract role_id from custom_id (role_id_event_id)
+            parts = child.custom_id.split("_")
+            if len(parts) < 2: continue
+            role_id = "_".join(parts[:-1]) # Handles roles with underscores
+
+            # Default to enabled
+            child.disabled = False
+
+            # Check Global Limit
+            if role_id in positive_statuses and max_acc > 0:
+                if total_pos >= max_acc:
+                    child.disabled = True
+
+            # Check Per-Role Limit
+            role_limit = role_limits.get(role_id)
+            if role_limit is None:
+                # Check global set default
+                opt = next((o for o in self.active_set.get("options", []) if o["id"] == role_id), None)
+                if opt:
+                    role_limit = opt.get("max_slots")
+
+            if role_limit and role_limit > 0:
+                curr_role_count = status_counts.get(role_id, 0)
+                if curr_role_count >= role_limit:
+                    child.disabled = True
+
     async def edit_callback(self, interaction: discord.Interaction):
         # When an admin clicks Edit, we check if it's part of a series
         if not is_admin_user(interaction):
@@ -447,6 +517,9 @@ class EditChoiceView(discord.ui.View):
                 creator_text = str(creator_id_val)
 
         embed.set_footer(text=t("EMBED_FOOTER", event_id=self.event_id, creator_id=creator_text))
+
+        # Update visual button states based on current counts
+        self.update_button_states(rsvps_list, self.event_conf)
 
         return embed
 
