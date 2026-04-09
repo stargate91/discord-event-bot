@@ -7,6 +7,21 @@ from utils.logger import log
 import time
 import random
 
+try:
+    from utils.jsonc import load_jsonc
+    config_data = load_jsonc('config.json')
+    ADMIN_ROLE_ID = config_data.get("admin_role_id")
+except Exception:
+    ADMIN_ROLE_ID = None
+
+def is_admin_user(interaction):
+    """Check if user is server admin or has the configured admin role."""
+    if interaction.user.guild_permissions.administrator:
+        return True
+    if ADMIN_ROLE_ID and discord.utils.get(interaction.user.roles, id=ADMIN_ROLE_ID):
+        return True
+    return False
+
 def get_event_conf(name):
     try:
         from utils.jsonc import load_jsonc
@@ -42,6 +57,50 @@ class DynamicEventView(discord.ui.View):
         calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}")
         calendar_btn.callback = self.calendar_callback
         self.add_item(calendar_btn)
+
+        # Management Buttons (Admin only)
+        edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}")
+        edit_btn.callback = self.edit_callback
+        self.add_item(edit_btn)
+
+        delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}")
+        delete_btn.callback = self.delete_callback
+        self.add_item(delete_btn)
+
+    async def edit_callback(self, interaction: discord.Interaction):
+        if not is_admin_user(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        db_event = await database.get_active_event(self.event_id)
+        if not db_event:
+            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+            return
+
+        # Prepare existing data for the wizard
+        from dateutil import tz
+        import datetime
+        local_tz = tz.gettz(db_event.get("timezone", "Europe/Budapest"))
+        start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
+        db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
+        
+        if db_event.get("end_time"):
+            end_dt = datetime.datetime.fromtimestamp(db_event["end_time"], tz=local_tz)
+            db_event["end_str"] = end_dt.strftime("%Y-%m-%d %H:%M")
+        else:
+            db_event["end_str"] = ""
+
+        from cogs.event_wizard import EventWizardView
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
+        
+        from utils.i18n import t
+        embed = discord.Embed(
+            title=t("WIZARD_TITLE"), 
+            description=t("WIZARD_DESC", status=view.get_status_text()), 
+            color=discord.Color.gold()
+        )
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     async def calendar_callback(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
