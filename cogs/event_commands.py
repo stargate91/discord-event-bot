@@ -693,7 +693,7 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         # Traditional prefix command to sync slash commands with Discord
-        if not is_admin(ctx):
+        if not await is_admin(ctx):
             await ctx.send(t("ERR_ADMIN_ONLY"))
             return
         if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
@@ -721,7 +721,7 @@ class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         # Command to remove all slash commands (useful if something breaks)
-        if not is_admin(ctx):
+        if not await is_admin(ctx):
             await ctx.send(t("ERR_ADMIN_ONLY"))
             return
         if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID:
