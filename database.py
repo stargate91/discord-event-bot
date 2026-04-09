@@ -73,6 +73,15 @@ async def init_db():
         """)
         await db.commit()
 
+    # Dynamic Migration: Add extra_data column to active_events if it doesn't exist
+    async with aiosqlite.connect(DB_PATH) as db:
+        try:
+            await db.execute("ALTER TABLE active_events ADD COLUMN extra_data TEXT")
+            await db.commit()
+            log.info("[DB] Migrated active_events: added extra_data column.")
+        except:
+            pass # Column already exists
+
 async def create_active_event(event_id, config_name, channel_id, start_time, data=None):
     # This function saves a brand new event to the database
     if data is None:
@@ -235,6 +244,13 @@ async def get_all_active_events():
             rows = await cursor.fetchall()
             columns = [desc[0] for desc in cursor.description]
             return [dict(zip(columns, row)) for row in rows]
+
+async def get_active_event_count():
+    # Counts how many events are currently active for the bot's status
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT COUNT(*) FROM active_events WHERE status = 'active'") as cursor:
+            row = await cursor.fetchone()
+            return row[0] if row else 0
 
 async def update_rsvp(event_id, user_id, status):
     # Save or update a user's reaction (Yes/No/Maybe etc)
