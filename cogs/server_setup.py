@@ -10,37 +10,47 @@ class ServerSetupView(ui.View):
         super().__init__(timeout=600)
         self.bot = bot
         self.guild_id = guild_id
+        
+        # Dynamically set button labels based on current language
+        self.general_btn.label = t("BTN_GENERAL", guild_id=guild_id)
+        self.local_btn.label = t("BTN_LOCAL", guild_id=guild_id)
+        self.color_btn.label = t("BTN_COLOR", guild_id=guild_id)
+        self.reminder_btn.label = t("BTN_REMINDERS", guild_id=guild_id)
 
     @ui.button(label="🌐 General", style=discord.ButtonStyle.primary, row=0)
     async def general_btn(self, interaction: discord.Interaction, button: ui.Button):
         view = GeneralSetupView(self.bot, self.guild_id)
         embed = discord.Embed(
-            title="🌐 General Settings",
-            description="Manage bot language, admin roles, and restricted channels.",
+            title=t("SETUP_GENERAL_TITLE", guild_id=self.guild_id),
+            description=t("SETUP_GENERAL_DESC", guild_id=self.guild_id),
             color=discord.Color.blue()
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     @ui.button(label="🌍 Timezone & Localization", style=discord.ButtonStyle.secondary, row=0)
     async def local_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "timezone", "Default Timezone", placeholder="e.g. Europe/Budapest")
+        modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder="e.g. Europe/Budapest")
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🎨 Aesthetics (Color)", style=discord.ButtonStyle.secondary, row=1)
     async def color_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "default_color", "Default Embed Color", placeholder="e.g. 0x5865f2 or #5865f2")
+        modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder="e.g. 0x5865f2 or #5865f2")
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🔔 Reminders", style=discord.ButtonStyle.secondary, row=1)
     async def reminder_btn(self, interaction: discord.Interaction, button: ui.Button):
         view = ReminderSetupView(self.bot, self.guild_id)
-        await interaction.response.send_message("🔔 **Reminder Settings**", view=view, ephemeral=True)
+        await interaction.response.send_message(f"🔔 **{t('BTN_REMINDERS', guild_id=self.guild_id)}**", view=view, ephemeral=True)
 
 class GeneralSetupView(ui.View):
     def __init__(self, bot, guild_id):
         super().__init__(timeout=300)
         self.bot = bot
         self.guild_id = guild_id
+        
+        # Localization
+        self.roles_btn.label = t("BTN_ADMIN_ROLES", guild_id=guild_id)
+        self.channels_btn.label = t("BTN_ADMIN_CHANNELS", guild_id=guild_id)
 
     @ui.button(label="🇭🇺 Hungarian", style=discord.ButtonStyle.success)
     async def lang_hu(self, interaction: discord.Interaction, button: ui.Button):
@@ -52,13 +62,13 @@ class GeneralSetupView(ui.View):
 
     @ui.button(label="👥 Admin Roles", style=discord.ButtonStyle.gray)
     async def roles_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "admin_role_ids", "Authorized Admin Roles", 
+        modal = SimpleConfigModal(self.guild_id, "admin_role_ids", t("SETTING_ADMIN_ROLES", guild_id=self.guild_id), 
                                  placeholder="ID1, ID2, ID3...", is_long=True)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="📺 Admin Channels", style=discord.ButtonStyle.gray)
     async def channels_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", "Allowed Admin Channels", 
+        modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", t("SETTING_ADMIN_CHANNELS", guild_id=self.guild_id), 
                                  placeholder="ID_A, ID_B...", is_long=True)
         await interaction.response.send_modal(modal)
 

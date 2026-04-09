@@ -13,19 +13,15 @@ from dateutil import tz
 from utils.auth import is_admin
 from utils.logger import log
 
-# We load the config to know things like command suffixes and admin roles
+# We load the config for command suffixes
 try:
     from utils.jsonc import load_jsonc
     config_data = load_jsonc('config.json')
     SUFFIX = config_data.get("command_suffix", "")
     EVENTS_CONFIG = config_data.get("events_config", [])
-    ADMIN_CHANNEL_ID = config_data.get("admin_channel_id")
-    ADMIN_ROLE_ID = config_data.get("admin_role_id")
 except Exception:
     SUFFIX = ""
     EVENTS_CONFIG = []
-    ADMIN_CHANNEL_ID = None
-    ADMIN_ROLE_ID = None
 
 
 class EventCommands(commands.GroupCog, name="event"):
