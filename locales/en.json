@@ -90,6 +90,7 @@
   "LBL_WIZ_OFFSET": "Offset (e.g. 1h, 30m, 1d)",
   "LBL_WIZ_REMINDER_TYPE": "Reminder Type",
   "LBL_WIZ_REMINDER_OFFSET": "Reminder Offset (e.g. 15m)",
+  "LBL_WIZ_REC_LIMIT": "Recurrence Limit (0 = infinite)",
   "SEL_REM_NONE": "None",
   "SEL_REM_PING": "Only Ping (in channel)",
   "SEL_REM_DM": "Only DM (private message)",

@@ -135,8 +135,22 @@ class SchedulerTask(commands.Cog):
             if next_start is None:
                 continue
 
+            # --- Recurrence Limit Check ---
+            rec_limit = int(db_event.get("recurrence_limit") or 0)
+            rec_count = int(db_event.get("recurrence_count") or 0)
+            
+            # If limit is set (>0) and we've reached it, don't create next
+            if rec_limit > 0 and (rec_count + 1) >= rec_limit:
+                log.info(f"[Scheduler] Recurrence limit ({rec_limit}) reached for {old_event_id}. Stopping chain.")
+                continue
+
             new_event_id = str(uuid.uuid4())[:8]
             channel_id = event_conf.get("channel_id") or db_event["channel_id"]
+
+            # Increment count for the next event
+            event_conf["recurrence_count"] = rec_count + 1
+            # Ensure limit is passed along
+            event_conf["recurrence_limit"] = rec_limit
 
             await database.create_active_event(
                 event_id=new_event_id,

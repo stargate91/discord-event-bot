@@ -90,15 +90,26 @@ class Step3Modal(ui.Modal):
             default=str(data.get("reminder_offset") or "15m"),
             required=True
         )
+        self.rec_limit_input = ui.TextInput(
+            label=t("LBL_WIZ_REC_LIMIT"),
+            placeholder="0 = végtelen",
+            default=str(data.get("recurrence_limit") or 0),
+            required=True
+        )
+
         self.add_item(self.timezone_input)
         self.add_item(self.offset_input)
         self.add_item(self.reminder_offset_input)
+        self.add_item(self.rec_limit_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["repost_offset"] = str(self.offset_input.value)
         self.wizard_view.data["reminder_offset"] = str(self.reminder_offset_input.value)
+        self.wizard_view.data["recurrence_limit"] = int(self.rec_limit_input.value) if str(self.rec_limit_input.value).isdigit() else 0
+        
         self.wizard_view.steps_completed["step3"] = True
+        await self.wizard_view.save_to_draft()
         await self.wizard_view.update_message(interaction)
 
 class EventWizardView(ui.View):

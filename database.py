@@ -29,7 +29,9 @@ async def init_db():
                 creator_id TEXT,
                 reminder_type TEXT DEFAULT 'none',
                 reminder_offset TEXT DEFAULT '15m',
-                reminder_sent INTEGER DEFAULT 0
+                reminder_sent INTEGER DEFAULT 0,
+                recurrence_limit INTEGER DEFAULT 0,
+                recurrence_count INTEGER DEFAULT 0
             )
         """)
         
@@ -85,6 +87,9 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
     reminder_type = data.get("reminder_type", "none")
     reminder_offset = data.get("reminder_offset", "15m")
     reminder_sent = int(data.get("reminder_sent") or 0)
+    
+    recurrence_limit = int(data.get("recurrence_limit") or 0)
+    recurrence_count = int(data.get("recurrence_count") or 0)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -93,16 +98,18 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
                 title, description, image_urls, color, max_accepted, 
                 ping_role, end_time, recurrence_type, repost_trigger, 
                 repost_offset, timezone, creator_id,
-                reminder_type, reminder_offset, reminder_sent
+                reminder_type, reminder_offset, reminder_sent,
+                recurrence_limit, recurrence_count
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_id, config_name, channel_id, start_time,
             title, description, image_urls,
             color, max_acc, ping_role,
             end_time, recurrence, repost_trigger,
             repost_offset, timezone, creator_id,
-            reminder_type, reminder_offset, reminder_sent
+            reminder_type, reminder_offset, reminder_sent,
+            recurrence_limit, recurrence_count
         ))
         await db.commit()
 
@@ -136,6 +143,9 @@ async def update_active_event(event_id, data):
     reminder_type = data.get("reminder_type", "none")
     reminder_offset = data.get("reminder_offset", "15m")
     reminder_sent = int(data.get("reminder_sent") or 0)
+    
+    recurrence_limit = int(data.get("recurrence_limit") or 0)
+    recurrence_count = int(data.get("recurrence_count") or 0)
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -145,14 +155,15 @@ async def update_active_event(event_id, data):
                 start_time = ?, end_time = ?, recurrence_type = ?, 
                 repost_trigger = ?, repost_offset = ?, timezone = ?,
                 creator_id = ?, reminder_type = ?, reminder_offset = ?,
-                reminder_sent = ?
+                reminder_sent = ?, recurrence_limit = ?, recurrence_count = ?
             WHERE event_id = ?
         """, (
             title, description, image_urls,
             color, max_acc, ping_role,
             start_time, end_time, recurrence,
             repost_trigger, repost_offset, timezone, creator_id,
-            reminder_type, reminder_offset, reminder_sent, event_id
+            reminder_type, reminder_offset, reminder_sent,
+            recurrence_limit, recurrence_count, event_id
         ))
         await db.commit()
 
