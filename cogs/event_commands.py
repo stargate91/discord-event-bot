@@ -280,7 +280,8 @@ class EventCommands(commands.Cog):
         await self.bot.tree.sync(guild=None)
         self.bot.tree.clear_commands(guild=ctx.guild)
         await self.bot.tree.sync(guild=ctx.guild)
-        await ctx.send(t("SYNC_CLEAR_SUCCESS"))
+        suffix = self.bot.config.get("command_suffix", "")
+        await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix))
 
     @app_commands.command(name="sync", description="Sync slash commands manually")
     @app_commands.describe(mode="Choose: guild, global, or copy")

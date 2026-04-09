@@ -37,7 +37,7 @@
   "SYNC_SUCCESS_COPY": "Globális parancsok másolva és {count} parancs szinkronizálva erre a szerverre.",
   "SYNC_SUCCESS_GUILD": "{count} parancs szinkronizálva erre a szerverre.",
   "SYNC_CLEAR_START": "Parancsok törlése folyamatban... ⏳ (Ez eltarthat egy kis ideig)",
-  "SYNC_CLEAR_SUCCESS": "Minden slash parancs törölve ezen a szerveren és globálisan is.",
+  "SYNC_CLEAR_SUCCESS": "Minden slash parancs törölve. Indítsd újra a botot, és használd a !sync{suffix} copy parancsot!",
   "SYNC_START_MSG": "Szinkronizálás folyamatban... ⏳",
   "ERR_ADMIN_ONLY": "🛡️ Nincs jogosultságod a parancsok szinkronizálásához!",
   "ERR_CHANNEL_ONLY": "Ezt a parancsot csak az admin csatornában használhatod.",

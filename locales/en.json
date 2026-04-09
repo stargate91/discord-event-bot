@@ -37,7 +37,7 @@
   "SYNC_SUCCESS_COPY": "Copied global and synced {count} commands to this guild.",
   "SYNC_SUCCESS_GUILD": "Synced {count} commands to this guild.",
   "SYNC_CLEAR_START": "Clearing slash commands... ⏳ (This may take a while)",
-  "SYNC_CLEAR_SUCCESS": "All slash commands cleared globally and for this guild.",
+  "SYNC_CLEAR_SUCCESS": "All slash commands cleared. Restart the bot and use the !sync{suffix} copy command!",
   "SYNC_START_MSG": "Synchronization in progress... ⏳",
   "ERR_ADMIN_ONLY": "🛡️ You do not have permission to synchronize commands.",
   "ERR_CHANNEL_ONLY": "This command can only be used in the admin channel.",
