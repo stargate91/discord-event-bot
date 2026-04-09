@@ -65,10 +65,9 @@ class EventCommands(commands.GroupCog, name="event"):
         from cogs.event_wizard import EventWizardView
         await interaction.response.defer(ephemeral=True)
         if not is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            await interaction.followup.send(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
-        
-        await interaction.response.defer(ephemeral=True)
+
 
         try:
             view = EventWizardView(self.bot, interaction.user.id, guild_id=interaction.guild_id)
