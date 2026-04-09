@@ -34,6 +34,51 @@ def get_event_conf(name):
         pass
     return None
 
+ICON_SETS = {
+    "standard": {
+        "options": [
+            {"id": "accepted", "emoji": "✅", "label_key": "RSVP_ACCEPTED"},
+            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"},
+            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"}
+        ],
+        "positive": ["accepted"],
+        "show_mgmt": True
+    },
+    "mmo": {
+        "options": [
+            {"id": "tank", "emoji": "🛡️", "label_key": "RSVP_TANK"},
+            {"id": "heal", "emoji": "🏥", "label_key": "RSVP_HEAL"},
+            {"id": "dps", "emoji": "⚔️", "label_key": "RSVP_DPS"},
+            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
+            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+        ],
+        "positive": ["tank", "heal", "dps"],
+        "show_mgmt": False
+    },
+    "team": {
+        "options": [
+            {"id": "team_a", "emoji": "🅰️", "label_key": "RSVP_TEAM_A"},
+            {"id": "team_b", "emoji": "🅱️", "label_key": "RSVP_TEAM_B"},
+            {"id": "spectator", "emoji": "👁️", "label_key": "RSVP_SPECTATOR"},
+            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
+            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+        ],
+        "positive": ["team_a", "team_b", "spectator"],
+        "show_mgmt": False
+    },
+    "timing": {
+        "options": [
+            {"id": "on_time", "emoji": "✅", "label_key": "RSVP_ON_TIME"},
+            {"id": "late", "emoji": "⏰", "label_key": "RSVP_LATE"},
+            {"id": "interim", "emoji": "🏃", "label_key": "RSVP_INTERIM"},
+            {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
+            {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+        ],
+        "positive": ["on_time", "late", "interim"],
+        "show_mgmt": False
+    }
+}
+
 class DynamicEventView(discord.ui.View):
     def __init__(self, bot, event_id: str, event_conf: dict = None):
         super().__init__(timeout=None)
@@ -41,31 +86,43 @@ class DynamicEventView(discord.ui.View):
         self.event_id = event_id
         self.event_conf = event_conf
 
-        # Setup buttons
-        accept_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="✅", custom_id=f"accept_{event_id}")
-        accept_btn.callback = self.accept_callback
-        self.add_item(accept_btn)
+        # Determine icon set
+        icon_set_key = "standard"
+        if event_conf:
+            icon_set_key = event_conf.get("icon_set", "standard")
+        
+        self.active_set = ICON_SETS.get(icon_set_key, ICON_SETS["standard"])
 
-        decline_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="❌", custom_id=f"decline_{event_id}")
-        decline_btn.callback = self.decline_callback
-        self.add_item(decline_btn)
+        # Dynamic RSVP Buttons
+        for opt in self.active_set["options"]:
+            btn = discord.ui.Button(
+                style=discord.ButtonStyle.secondary, 
+                emoji=opt["emoji"], 
+                custom_id=f"{opt['id']}_{event_id}"
+            )
+            # Create a closure for the callback
+            def create_callback(status_id):
+                async def callback(interaction: discord.Interaction):
+                    await self.handle_rsvp(interaction, status_id)
+                return callback
+            
+            btn.callback = create_callback(opt["id"])
+            self.add_item(btn)
 
-        tentative_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="❔", custom_id=f"tentative_{event_id}")
-        tentative_btn.callback = self.tentative_callback
-        self.add_item(tentative_btn)
-
+        # Calendar always available
         calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}")
         calendar_btn.callback = self.calendar_callback
         self.add_item(calendar_btn)
 
-        # Management Buttons (Admin only)
-        edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}")
-        edit_btn.callback = self.edit_callback
-        self.add_item(edit_btn)
+        # Management Buttons (Admin only, only for Standard set)
+        if self.active_set["show_mgmt"]:
+            edit_btn = discord.ui.Button(label=t("BTN_EDIT"), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}")
+            edit_btn.callback = self.edit_callback
+            self.add_item(edit_btn)
 
-        delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}")
-        delete_btn.callback = self.delete_callback
-        self.add_item(delete_btn)
+            delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}")
+            delete_btn.callback = self.delete_callback
+            self.add_item(delete_btn)
 
     async def edit_callback(self, interaction: discord.Interaction):
         if not is_admin_user(interaction):
@@ -172,18 +229,12 @@ class DynamicEventView(discord.ui.View):
 
         rsvps = await database.get_rsvps(self.event_id)
         
-        accepted = []
-        declined = []
-        tentative = []
-        
+        # Organize RSVPs by status
+        status_map = {}
         for user_id, status in rsvps:
-            user_mention = f"<@{user_id}>"
-            if status == "accepted":
-                accepted.append(user_mention)
-            elif status == "declined":
-                declined.append(user_mention)
-            elif status == "tentative":
-                tentative.append(user_mention)
+            if status not in status_map:
+                status_map[status] = []
+            status_map[status].append(f"<@{user_id}>")
 
         color_hex = str(self.event_conf.get("color", "0x3498db"))
         if color_hex.startswith("0x"):
@@ -206,12 +257,28 @@ class DynamicEventView(discord.ui.View):
         if recurrence != 'none':
             embed.add_field(name=t("EMBED_RECURRENCE"), value=recurrence.capitalize(), inline=False)
             
+        # Build dynamic fields based on icon set
         max_acc = self.event_conf.get('max_accepted', 0)
-        acc_label = f"{len(accepted)}/{max_acc}" if max_acc > 0 else f"{len(accepted)}"
+        
+        for opt in self.active_set["options"]:
+            users = status_map.get(opt["id"], [])
             
-        embed.add_field(name=t("EMBED_ACC", count=acc_label), value="\n".join(accepted) or t("EMBED_NONE"), inline=True)
-        embed.add_field(name=t("EMBED_DEC", count=len(declined)), value="\n".join(declined) or t("EMBED_NONE"), inline=True)
-        embed.add_field(name=t("EMBED_TEN", count=len(tentative)), value="\n".join(tentative) or t("EMBED_NONE"), inline=True)
+            # Label logic: Use translated label key
+            label_text = t(opt["label_key"])
+            
+            # Handle count/max for the primary "accept" status if applicable
+            # (Usually 'accepted' for standard, 'tank'/'heal'/'dps' for MMO)
+            # For simplicity, we only show max limit on the FIRST option 
+            # OR we could just show count for all. 
+            # User request didn't specify, so we'll show count for all.
+            # But for 'accepted', we keep the special count/max label.
+            
+            count_text = str(len(users))
+            if opt["id"] == "accepted" and max_acc > 0:
+                count_text = f"{len(users)}/{max_acc}"
+            
+            field_name = f"{opt['emoji']} {label_text} ({count_text})"
+            embed.add_field(name=field_name, value="\n".join(users) or t("EMBED_NONE"), inline=True)
 
         image_urls_val = self.event_conf.get("image_urls")
         if image_urls_val:
@@ -265,21 +332,25 @@ class DynamicEventView(discord.ui.View):
             
         if not self.event_conf:
             self.event_conf = get_event_conf(db_event["config_name"])
-            
-        if status == 'accepted' and self.event_conf:
+            if not self.event_conf:
+                self.event_conf = db_event
+
+        # Generic Capacity Check
+        positive_statuses = self.active_set.get("positive", ["accepted"])
+        if status in positive_statuses:
             max_acc = self.event_conf.get('max_accepted', 0)
             if max_acc > 0:
                 rsvps = await database.get_rsvps(self.event_id)
-                current_acc = sum(1 for _, s in rsvps if s == 'accepted')
+                current_acc = sum(1 for _, s in rsvps if s in positive_statuses)
                 
-                # If changing status to accepted, check capacity
-                already_accepted = False
+                # If changing status to a positive one, check capacity
+                already_has_positive = False
                 for uid, s in rsvps:
-                    if uid == interaction.user.id and s == 'accepted':
-                        already_accepted = True
+                    if uid == interaction.user.id and s in positive_statuses:
+                        already_has_positive = True
                         break
                         
-                if not already_accepted and current_acc >= max_acc:
+                if not already_has_positive and current_acc >= max_acc:
                     await interaction.response.send_message("Sajnálom, de ez az esemény már betelt!", ephemeral=True)
                     return
 

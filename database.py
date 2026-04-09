@@ -90,6 +90,7 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
     
     recurrence_limit = int(data.get("recurrence_limit") or 0)
     recurrence_count = int(data.get("recurrence_count") or 0)
+    icon_set = str(data.get("icon_set") or "standard")
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -99,9 +100,9 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
                 ping_role, end_time, recurrence_type, repost_trigger, 
                 repost_offset, timezone, creator_id,
                 reminder_type, reminder_offset, reminder_sent,
-                recurrence_limit, recurrence_count
+                recurrence_limit, recurrence_count, icon_set
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             event_id, config_name, channel_id, start_time,
             title, description, image_urls,
@@ -109,7 +110,7 @@ async def create_active_event(event_id, config_name, channel_id, start_time, dat
             end_time, recurrence, repost_trigger,
             repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent,
-            recurrence_limit, recurrence_count
+            recurrence_limit, recurrence_count, icon_set
         ))
         await db.commit()
 
@@ -146,6 +147,7 @@ async def update_active_event(event_id, data):
     
     recurrence_limit = int(data.get("recurrence_limit") or 0)
     recurrence_count = int(data.get("recurrence_count") or 0)
+    icon_set = str(data.get("icon_set") or "standard")
 
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("""
@@ -155,7 +157,8 @@ async def update_active_event(event_id, data):
                 start_time = ?, end_time = ?, recurrence_type = ?, 
                 repost_trigger = ?, repost_offset = ?, timezone = ?,
                 creator_id = ?, reminder_type = ?, reminder_offset = ?,
-                reminder_sent = ?, recurrence_limit = ?, recurrence_count = ?
+                reminder_sent = ?, recurrence_limit = ?, recurrence_count = ?,
+                icon_set = ?
             WHERE event_id = ?
         """, (
             title, description, image_urls,
@@ -163,7 +166,7 @@ async def update_active_event(event_id, data):
             start_time, end_time, recurrence,
             repost_trigger, repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent,
-            recurrence_limit, recurrence_count, event_id
+            recurrence_limit, recurrence_count, icon_set, event_id
         ))
         await db.commit()
 

@@ -102,5 +102,22 @@
   "LBL_UNTITLED_DRAFT": "Untitled Draft",
   "DESC_CONT_DRAFT": "Continue a partially completed event",
   "DESC_DEL_DRAFT": "Permanently delete a draft",
-  "DESC_CLR_DRAFTS": "Clear all your personal drafts"
+  "DESC_CLR_DRAFTS": "Clear all your personal drafts",
+  "LBL_WIZ_ICON_SET": "Choose Icon Set",
+  "SET_STANDARD": "Standard (✅, ❌, ❔)",
+  "SET_MMO": "Gaming / Raid (🛡️, 🏥, ⚔️)",
+  "SET_TEAM": "Teams (🅰️, 🅱️, 👁️)",
+  "SET_TIMING": "Timing (✅, ⏰, 🏃)",
+  "RSVP_ACCEPTED": "Participants",
+  "RSVP_DECLINED": "Not Coming",
+  "RSVP_TENTATIVE": "Tentative",
+  "RSVP_TANK": "Tank",
+  "RSVP_HEAL": "Healer",
+  "RSVP_DPS": "DPS",
+  "RSVP_TEAM_A": "Team A",
+  "RSVP_TEAM_B": "Team B",
+  "RSVP_SPECTATOR": "Spectator",
+  "RSVP_ON_TIME": "On Time",
+  "RSVP_LATE": "Late",
+  "RSVP_INTERIM": "Interim"
 }

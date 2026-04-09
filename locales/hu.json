@@ -102,5 +102,22 @@
   "LBL_UNTITLED_DRAFT": "Névtelen piszkozat",
   "DESC_CONT_DRAFT": "Félbehagyott esemény folytatása",
   "DESC_DEL_DRAFT": "Piszkozat végleges törlése",
-  "DESC_CLR_DRAFTS": "Minden saját piszkozat törlése"
+  "DESC_CLR_DRAFTS": "Minden saját piszkozat törlése",
+  "LBL_WIZ_ICON_SET": "Ikon készlet kiválasztása",
+  "SET_STANDARD": "Standard (✅, ❌, ❔)",
+  "SET_MMO": "Gaming / Raid (🛡️, 🏥, ⚔️)",
+  "SET_TEAM": "Csapatok (🅰️, 🅱️, 👁️)",
+  "SET_TIMING": "Időzítés (✅, ⏰, 🏃)",
+  "RSVP_ACCEPTED": "Résztvevők",
+  "RSVP_DECLINED": "Nem jönnek",
+  "RSVP_TENTATIVE": "Bizonytalanok",
+  "RSVP_TANK": "Páncélos (Tank)",
+  "RSVP_HEAL": "Gyógyító (Healer)",
+  "RSVP_DPS": "Támadó (DPS)",
+  "RSVP_TEAM_A": "A csapat",
+  "RSVP_TEAM_B": "B csapat",
+  "RSVP_SPECTATOR": "Néző",
+  "RSVP_ON_TIME": "Ott lesz időben",
+  "RSVP_LATE": "Késni fog",
+  "RSVP_INTERIM": "Részben van ott"
 }

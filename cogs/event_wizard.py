@@ -197,16 +197,33 @@ class EventWizardView(ui.View):
             log.error(f"Error opening Step3Modal: {e}")
 
     @ui.select(
+        placeholder="Icon Set (Presets)",
+        options=[
+            discord.SelectOption(label="Standard (✅, ❌, ❔)", value="standard", emoji="💠"),
+            discord.SelectOption(label="MMO / Raid (🛡️, 🏥, ⚔️)", value="mmo", emoji="⚔️"),
+            discord.SelectOption(label="Teams (🅰️, 🅱️, 👁️)", value="team", emoji="🚩"),
+            discord.SelectOption(label="Timing (✅, ⏰, 🏃)", value="timing", emoji="⏰")
+        ],
+        row=2
+    )
+    async def icon_set_select(self, interaction: discord.Interaction, select: ui.Select):
+        self.data["icon_set"] = str(select.values[0])
+        await self.save_to_draft()
+        await self.update_message(interaction)
+
+    @ui.select(
         placeholder="Recurrence Type",
         options=[
             discord.SelectOption(label="None", value="none", emoji="❌"),
             discord.SelectOption(label="Daily", value="daily", emoji="📅"),
             discord.SelectOption(label="Weekly", value="weekly", emoji="🗓️"),
             discord.SelectOption(label="Monthly", value="monthly", emoji="📊")
-        ]
+        ],
+        row=3
     )
     async def recurrence_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["recurrence_type"] = str(select.values[0])
+        await self.save_to_draft()
         await self.update_message(interaction)
 
     @ui.select(
