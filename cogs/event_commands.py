@@ -215,6 +215,7 @@ class EventCommands(commands.GroupCog, name="event"):
             return
 
         try:
+            from cogs.event_ui import DynamicEventView
             view = DynamicEventView(self.bot, event_id, event_conf)
             embed = await view.generate_embed()
 
