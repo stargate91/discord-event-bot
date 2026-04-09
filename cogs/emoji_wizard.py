@@ -26,7 +26,8 @@ class EmojiWizardView(ui.View):
             options.append(discord.SelectOption(
                 label=s["name"], 
                 value=s["set_id"], 
-                description=preview if preview else "No preview"
+                description=preview if preview else "No preview",
+                default=(s["set_id"] == self.selected_set_id)
             ))
             
         if not options:
@@ -37,9 +38,21 @@ class EmojiWizardView(ui.View):
     async def refresh_message(self, interaction: discord.Interaction):
         await self.prepare()
         
+        desc = "Válaszd ki a szerkeszteni kívánt készletet, vagy hozz létre újat."
+        if self.selected_set_id:
+            # Try to find the selected set for preview
+            sets = await database.get_emoji_sets(self.guild_id)
+            current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
+            if current:
+                s_data = current["data"]
+                sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
+                opts = sdata.get("options", [])
+                preview = " ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts])
+                desc = f"**Kiválasztott készlet: {current['name']}**\n\nIkonok:\n{preview}\n\n*Használd az alábbi gombokat a szett kezeléséhez.*"
+
         embed = discord.Embed(
             title="✨ Emoji & Role Kezelő",
-            description="Válaszd ki a szerkeszteni kívánt készletet, vagy hozz létre újat.",
+            description=desc,
             color=discord.Color.purple()
         )
         
