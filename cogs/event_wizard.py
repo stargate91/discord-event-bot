@@ -237,16 +237,17 @@ class NotificationSettingsModal(ui.Modal):
         await interaction.response.send_message("✅ Üzenetek mentve!", ephemeral=True)
 
 class EventWizardView(ui.View):
-    # This is the main view with all the buttons and select menus
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False):
-        # Allow custom timeout from config
-        globals_cfg = bot.config.get("globals", {})
-        timeout = globals_cfg.get("wizard_timeout", 600)
-        super().__init__(timeout=timeout)
+    # This is the main class that controls the whole multi-step process
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None):
+        super().__init__(timeout=600)
         self.bot = bot
-        self.creator_id = creator_id
+        self.creator_id = str(creator_id)
+        self.guild_id = str(guild_id)
         self.is_edit = is_edit
-        self.data = existing_data or {}
+        self.data = existing_data or {
+            "creator_id": self.creator_id,
+            "guild_id": self.guild_id
+        }
         self.can_publish = False
         
         # We check images data correctly
@@ -313,11 +314,15 @@ class EventWizardView(ui.View):
 
     async def save_to_draft(self):
         """Saves the current state of the wizard to the drafts table."""
-        # Ensure we have a draft ID
+        # Ensure we have a draft ID and guild ID
         if not self.data.get("draft_id"):
             self.data["draft_id"] = str(uuid.uuid4())[:8]
+        
+        if not self.data.get("guild_id"):
+            self.data["guild_id"] = self.guild_id
             
         await database.save_draft(
+            guild_id=self.data["guild_id"],
             draft_id=self.data["draft_id"],
             creator_id=self.creator_id,
             title=self.data.get("title") or self.data.get("config_name"),
@@ -479,7 +484,9 @@ class EventWizardView(ui.View):
                 await database.update_active_event(event_id, self.data)
             else:
                 self.data["creator_id"] = str(self.creator_id)
+                self.data["guild_id"] = self.guild_id
                 await database.create_active_event(
+                    guild_id=self.guild_id,
                     event_id=event_id,
                     config_name=str(self.data.get("config_name") or "manual"),
                     channel_id=interaction.channel_id,
@@ -506,7 +513,7 @@ class EventWizardView(ui.View):
         
         from cogs.event_ui import DynamicEventView
         event_id = self.data["event_id"]
-        db_event = await database.get_active_event(event_id)
+        db_event = await database.get_active_event(event_id, self.guild_id)
         
         if self.is_edit:
             if db_event and db_event.get("message_id") and db_event.get("channel_id"):
@@ -535,4 +542,4 @@ class EventWizardView(ui.View):
         self.stop()
 
         # Delete draft once published
-        await database.delete_draft(self.data.get("draft_id"))
+        await database.delete_draft(self.data.get("draft_id"), self.guild_id)

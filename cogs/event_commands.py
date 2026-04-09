@@ -44,6 +44,9 @@ def is_admin(ctx_or_interaction):
     return False
 
 class EventCommands(commands.GroupCog, name="event"):
+    # Subgroup for administrative tasks
+    admin_group = app_commands.Group(name="admin", description="Administrative commands for server management")
+
     # This class holds all the slash commands for managing events under /event
     def __init__(self, bot):
         self.bot = bot
@@ -58,7 +61,7 @@ class EventCommands(commands.GroupCog, name="event"):
         await interaction.response.defer(ephemeral=True)
 
         try:
-            view = EventWizardView(self.bot, interaction.user.id)
+            view = EventWizardView(self.bot, interaction.user.id, guild_id=interaction.guild_id)
             embed = discord.Embed(
                 title=t("WIZARD_TITLE"), 
                 description=t("WIZARD_DESC", status=view.get_status_text()), 
@@ -97,7 +100,7 @@ class EventCommands(commands.GroupCog, name="event"):
             db_event["end_str"] = ""
 
         try:
-            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True)
+            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id)
             embed = discord.Embed(
                 title=t("WIZARD_TITLE"), 
                 description=t("WIZARD_DESC", status=view.get_status_text()), 
@@ -111,7 +114,7 @@ class EventCommands(commands.GroupCog, name="event"):
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
         # Helps the user search for event IDs while they type
-        active_events = await database.get_all_active_events()
+        active_events = await database.get_all_active_events(interaction.guild_id)
         choices = []
         for ev in active_events:
             label = f"{ev.get('title') or ev['config_name']} ({ev['event_id']})"
@@ -126,7 +129,7 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
-        events = await database.get_all_active_events()
+        events = await database.get_all_active_events(interaction.guild_id)
         if not events:
             await interaction.response.send_message("Nincsenek aktív események.", ephemeral=True)
             return
@@ -185,6 +188,7 @@ class EventCommands(commands.GroupCog, name="event"):
         event_conf["creator_id"] = creator_val
         
         await database.create_active_event(
+            guild_id=interaction.guild_id,
             event_id=event_id,
             config_name=name,
             channel_id=channel_id,
@@ -207,7 +211,7 @@ class EventCommands(commands.GroupCog, name="event"):
             content += f" <@&{ping_role}>"
             
         msg = await target_channel.send(content=content, embed=embed, view=view)
-        await database.set_event_message(event_id, msg.id)
+        await database.set_event_message(event_id, msg.id, interaction.guild_id)
         self.bot.add_view(view)
 
     @app_commands.command(name="remove", description="Delete an active event message")
@@ -220,7 +224,7 @@ class EventCommands(commands.GroupCog, name="event"):
 
         await interaction.response.defer(ephemeral=True)
 
-        db_event = await database.get_active_event(event_id)
+        db_event = await database.get_active_event(event_id, interaction.guild_id)
         if not db_event:
             await interaction.followup.send(f"Event `{event_id}` not found.", ephemeral=True)
             return
@@ -243,13 +247,13 @@ class EventCommands(commands.GroupCog, name="event"):
         except Exception as e:
             log.warning(f"Could not update message for event {event_id}: {e}")
 
-        await database.delete_active_event(event_id)
+        await database.delete_active_event(event_id, interaction.guild_id)
         await interaction.followup.send(f"✅ Event removed.", ephemeral=True)
 
     @remove_event.autocomplete("event_id")
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
         # Same autocomplete logic as edit
-        active_events = await database.get_all_active_events()
+        active_events = await database.get_all_active_events(interaction.guild_id)
         choices = []
         for ev in active_events:
             label = f"{ev.get('title') or ev.get('config_name')} ({ev['event_id']})"
@@ -261,12 +265,12 @@ class EventCommands(commands.GroupCog, name="event"):
     @app_commands.describe(draft_id="Select which draft to finish")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
         # Reload a draft from the database so you don't lose progress
-        data = await database.get_draft(draft_id)
+        data = await database.get_draft(draft_id, interaction.guild_id)
         if not data:
             await interaction.response.send_message("Draft not found.", ephemeral=True)
             return
             
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=data)
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
         embed = discord.Embed(
             title=t("WIZARD_TITLE"), 
             description=t("WIZARD_DESC", status=view.get_status_text()), 
@@ -274,18 +278,84 @@ class EventCommands(commands.GroupCog, name="event"):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
+    @continue_draft.autocomplete("draft_id")
+    async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        # Helps the user search for draft IDs while they type
+        drafts = await database.get_user_drafts(interaction.guild_id, interaction.user.id)
+        choices = []
+        for d in drafts:
+            label = f"{d['title']} ({d['draft_id']})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label, value=d['draft_id']))
+        return choices[:25]
+
+    @delete_draft_cmd.autocomplete("draft_id")
+    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.continue_draft_autocomplete(interaction, current)
+
     @app_commands.command(name="delete-draft", description="Delete one of your drafts")
     @app_commands.describe(draft_id="Select which draft to delete")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
         # Delete a specific draft
-        await database.delete_draft(draft_id)
+        await database.delete_draft(draft_id, interaction.guild_id)
         await interaction.response.send_message("Draft deleted.", ephemeral=True)
 
     @app_commands.command(name="delete-all-drafts", description="Delete all your drafts at once")
     async def delete_all_drafts(self, interaction: discord.Interaction):
         # Wipe all drafts for the user
-        await database.delete_all_user_drafts(interaction.user.id)
+        await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
+
+    # --- ADMIN SUBGROUP ---
+
+    @admin_group.command(name="reset", description="WIPE ALL DATA for this server (Active events, RSVPs, drafts, custom symbols)")
+    async def reset_server(self, interaction: discord.Interaction):
+        """DANGER: Completely removes all database entries linked to this guild."""
+        if not is_admin(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return
+
+        # Simple confirmation check
+        class ConfirmReset(discord.ui.View):
+            def __init__(self):
+                super().__init__(timeout=30)
+                self.value = None
+
+            @discord.ui.button(label="YES, PERMANENTLY DELETE EVERYTHING", style=discord.ButtonStyle.danger)
+            async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+                self.value = True
+                self.stop()
+                await interaction.response.defer()
+
+            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+            async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
+                self.value = False
+                self.stop()
+                await interaction.response.send_message("Reset cancelled.", ephemeral=True)
+
+        confirm_view = ConfirmReset()
+        await interaction.response.send_message(
+            "⚠️ **DANGER ZONE** ⚠️\nThis will permanently delete all events, RSVPs, drafts, and custom icons for **THIS SERVER ONLY**.\nAre you absolutely sure?",
+            view=confirm_view,
+            ephemeral=True
+        )
+
+        await confirm_view.wait()
+
+        if confirm_view.value:
+            try:
+                guild_id = interaction.guild_id
+                await database.clear_guild_data(guild_id)
+                log.info(f"[Admin] Guild {guild_id} data was WIPED by {interaction.user}")
+                # We also need to reload custom sets in memory if some were deleted
+                try:
+                    from cogs.event_ui import load_custom_sets
+                    await load_custom_sets()
+                except: pass
+                await interaction.followup.send(f"✅ All data for this server has been successfully deleted.", ephemeral=True)
+            except Exception as e:
+                log.error(f"Error during guild reset: {e}")
+                await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
 
     @commands.command(name="sync")
     @commands.guild_only()

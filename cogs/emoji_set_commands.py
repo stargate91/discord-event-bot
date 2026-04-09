@@ -128,7 +128,7 @@ class EmojiSetCommands(commands.GroupCog, name="emoji"):
             "show_mgmt": False # As requested
         }
 
-        await database.save_custom_emoji_set(set_id, name, config, interaction.user.id)
+        await database.save_custom_emoji_set(interaction.guild_id, set_id, name, config, interaction.user.id)
         await interaction.response.send_message(f"✅ Sikerült menteni a készletet: **{name}** (ID: `{set_id}`)", ephemeral=True)
 
     @set_group.command(name="list", description="List all custom emoji sets")
@@ -137,21 +137,17 @@ class EmojiSetCommands(commands.GroupCog, name="emoji"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
-        from cogs.event_ui import CUSTOM_ICON_SETS
+        db_sets = await database.get_all_custom_emoji_sets(interaction.guild_id)
         
-        if not CUSTOM_ICON_SETS:
-            await interaction.response.send_message("Nincsenek egyedi szettek.", ephemeral=True)
+        if not db_sets:
+            await interaction.response.send_message("Nincsenek egyedi szettek ezen a szerveren.", ephemeral=True)
             return
 
         embed = discord.Embed(title="Egyedi Emoji Készletek", color=discord.Color.blue())
-        for set_id, data in CUSTOM_ICON_SETS.items():
-            opts = data.get("options", [])
-            # Try to find a name for the set (config might have it, or we use set_id)
-            # Database sets have a name field, but CUSTOM_ICON_SETS only stores the 'data' part usually.
-            # Wait, let's check load_custom_sets again.
-            
+        for s in db_sets:
+            opts = s["data"].get("options", [])
             preview = " ".join([o.get("emoji") or o.get("label") or "?" for o in opts[:5]])
-            embed.add_field(name=f"`{set_id}`", value=f"Opciók: {preview}...", inline=False)
+            embed.add_field(name=f"{s['name']}", value=f"ID: `{s['set_id']}`\nOpciók: {preview}...", inline=False)
 
         await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -162,17 +158,17 @@ class EmojiSetCommands(commands.GroupCog, name="emoji"):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
 
-        existing = await database.get_custom_emoji_set(set_id)
+        existing = await database.get_custom_emoji_set(set_id, interaction.guild_id)
         if not existing:
-            await interaction.response.send_message("Nincs ilyen készlet.", ephemeral=True)
+            await interaction.response.send_message("Nincs ilyen készlet ezen a szerveren.", ephemeral=True)
             return
 
-        await database.delete_custom_emoji_set(set_id)
+        await database.delete_custom_emoji_set(set_id, interaction.guild_id)
         await interaction.response.send_message(f"✅ Készlet törölve: `{set_id}`", ephemeral=True)
 
     @delete_set.autocomplete("set_id")
     async def delete_set_autocomplete(self, interaction: discord.Interaction, current: str):
-        sets = await database.get_all_custom_emoji_sets()
+        sets = await database.get_all_custom_emoji_sets(interaction.guild_id)
         return [
             app_commands.Choice(name=f"{s['name']} ({s['set_id']})", value=s['set_id'])
             for s in sets if current.lower() in s['name'].lower() or current.lower() in s['set_id'].lower()

@@ -154,6 +154,7 @@ class SchedulerTask(commands.Cog):
             event_conf["recurrence_limit"] = rec_limit
 
             await database.create_active_event(
+                guild_id=db_event.get("guild_id"),
                 event_id=new_event_id,
                 config_name=config_name,
                 channel_id=channel_id,
