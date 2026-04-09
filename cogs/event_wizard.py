@@ -1,5 +1,5 @@
-import discord
 from discord import ui
+import uuid
 import database
 from utils.i18n import t
 from utils.logger import log
@@ -298,6 +298,19 @@ class EventWizardView(ui.View):
             )
             
         self.icon_set_select.options = final_options
+
+    async def save_to_draft(self):
+        """Saves the current state of the wizard to the drafts table."""
+        # Ensure we have a draft ID
+        if not self.data.get("draft_id"):
+            self.data["draft_id"] = str(uuid.uuid4())[:8]
+            
+        await database.save_draft(
+            draft_id=self.data["draft_id"],
+            creator_id=self.creator_id,
+            title=self.data.get("title") or self.data.get("config_name"),
+            data=self.data
+        )
 
     def get_status_text(self):
         # Build the status checklist for the user
