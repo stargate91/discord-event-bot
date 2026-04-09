@@ -6,7 +6,7 @@
   "admin_channel_id": 1486516075905417216, // Only channel where !sync and !clear work (null = any)
   "admin_role_id": 1283594037802176546, // Role ID that can use admin commands (+ server admins always can)
   "globals": {
-    "logging_level": "INFO", 
+    "logging_level": "INFO",
     "wizard_timeout": 600,
     "bot_presence": [
       "watching {event_count} events",
@@ -16,12 +16,12 @@
     "event_defaults": {
       "timezone": "Europe/Budapest",
       "color": "0x5865f2",
-      "reminder_type": "both",
-      "reminder_offset": "15m",
+      "reminder_type": "none",
+      "reminder_offset": "0",
       "max_accepted": 0,
       "recurrence_limit": 0,
-      "use_waiting_list": true, // If true, people go to waitlist when role is full
-      "notify_promotion": "both" // "none", "channel", "dm", or "both"
+      "use_waiting_list": false, // If true, people go to waitlist when role is full
+      "notify_promotion": "none" // "none", "channel", "dm", or "both"
     }
   },
   "events_config": [
@@ -35,14 +35,14 @@
         "https://i.imgur.com/9EtrgHi.jpeg",
         "https://i.imgur.com/It7nYyq.jpeg"
       ],
-      "creator_id": "System",
+      "creator_id": "The Bot God",
       "ping_role": "1491072788507660518",
       "start_time": "2026-04-11 19:00",
       "end_time": "2026-04-11 22:00",
       "recurrence_type": "weekly",
       "repost_trigger": "before_start",
       "repost_offset": "4h",
-      "icon_set": "wow_raid"
+      "icon_set": "standard"
     }
   ],
   "emoji_sets": [
@@ -51,13 +51,27 @@
       "name": "Standard (✅, ❌, ❔)",
       "data": {
         "options": [
-          {"id": "accepted", "emoji": "✅", "label_key": "RSVP_ACCEPTED"},
-          {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"},
-          {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"}
+          {
+            "id": "accepted",
+            "emoji": "✅",
+            "label_key": "RSVP_ACCEPTED"
+          },
+          {
+            "id": "declined",
+            "emoji": "❌",
+            "label_key": "RSVP_DECLINED"
+          },
+          {
+            "id": "tentative",
+            "emoji": "❔",
+            "label_key": "RSVP_TENTATIVE"
+          }
         ],
-        "positive": ["accepted"],
+        "positive": [
+          "accepted"
+        ],
         "show_mgmt": true,
-        "buttons_per_row": 5 
+        "buttons_per_row": 5
       }
     },
     {
@@ -65,15 +79,42 @@
       "name": "MMO / Raid (🛡️, 🏥, ⚔️)",
       "data": {
         "options": [
-          {"id": "tank", "emoji": "🛡️", "label_key": "RSVP_TANK", "max_slots": 2},
-          {"id": "heal", "emoji": "🏥", "label_key": "RSVP_HEAL", "max_slots": 5},
-          {"id": "dps", "emoji": "⚔️", "label_key": "RSVP_DPS", "max_slots": 18},
-          {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-          {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+          {
+            "id": "tank",
+            "emoji": "🛡️",
+            "label_key": "RSVP_TANK",
+            "max_slots": 2
+          },
+          {
+            "id": "heal",
+            "emoji": "🏥",
+            "label_key": "RSVP_HEAL",
+            "max_slots": 5
+          },
+          {
+            "id": "dps",
+            "emoji": "⚔️",
+            "label_key": "RSVP_DPS",
+            "max_slots": 18
+          },
+          {
+            "id": "tentative",
+            "emoji": "❔",
+            "label_key": "RSVP_TENTATIVE"
+          },
+          {
+            "id": "declined",
+            "emoji": "❌",
+            "label_key": "RSVP_DECLINED"
+          }
         ],
-        "positive": ["tank", "heal", "dps"],
+        "positive": [
+          "tank",
+          "heal",
+          "dps"
+        ],
         "show_mgmt": false,
-        "buttons_per_row": 3 
+        "buttons_per_row": 3
       }
     },
     {
@@ -81,13 +122,37 @@
       "name": "Teams (🅰️, 🅱️, 👁️)",
       "data": {
         "options": [
-          {"id": "team_a", "emoji": "🅰️", "label_key": "RSVP_TEAM_A"},
-          {"id": "team_b", "emoji": "🅱️", "label_key": "RSVP_TEAM_B"},
-          {"id": "spectator", "emoji": "👁️", "label_key": "RSVP_SPECTATOR"},
-          {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-          {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+          {
+            "id": "team_a",
+            "emoji": "🅰️",
+            "label_key": "RSVP_TEAM_A"
+          },
+          {
+            "id": "team_b",
+            "emoji": "🅱️",
+            "label_key": "RSVP_TEAM_B"
+          },
+          {
+            "id": "spectator",
+            "emoji": "👁️",
+            "label_key": "RSVP_SPECTATOR"
+          },
+          {
+            "id": "tentative",
+            "emoji": "❔",
+            "label_key": "RSVP_TENTATIVE"
+          },
+          {
+            "id": "declined",
+            "emoji": "❌",
+            "label_key": "RSVP_DECLINED"
+          }
         ],
-        "positive": ["team_a", "team_b", "spectator"],
+        "positive": [
+          "team_a",
+          "team_b",
+          "spectator"
+        ],
         "show_mgmt": false,
         "buttons_per_row": 5
       }
@@ -97,13 +162,37 @@
       "name": "Timing (✅, ⏰, 🏃)",
       "data": {
         "options": [
-          {"id": "on_time", "emoji": "✅", "label_key": "RSVP_ON_TIME"},
-          {"id": "late", "emoji": "⏰", "label_key": "RSVP_LATE"},
-          {"id": "interim", "emoji": "🏃", "label_key": "RSVP_INTERIM"},
-          {"id": "tentative", "emoji": "❔", "label_key": "RSVP_TENTATIVE"},
-          {"id": "declined", "emoji": "❌", "label_key": "RSVP_DECLINED"}
+          {
+            "id": "on_time",
+            "emoji": "✅",
+            "label_key": "RSVP_ON_TIME"
+          },
+          {
+            "id": "late",
+            "emoji": "⏰",
+            "label_key": "RSVP_LATE"
+          },
+          {
+            "id": "interim",
+            "emoji": "🏃",
+            "label_key": "RSVP_INTERIM"
+          },
+          {
+            "id": "tentative",
+            "emoji": "❔",
+            "label_key": "RSVP_TENTATIVE"
+          },
+          {
+            "id": "declined",
+            "emoji": "❌",
+            "label_key": "RSVP_DECLINED"
+          }
         ],
-        "positive": ["on_time", "late", "interim"],
+        "positive": [
+          "on_time",
+          "late",
+          "interim"
+        ],
         "show_mgmt": false,
         "buttons_per_row": 5
       }
@@ -113,13 +202,31 @@
       "name": "WoW Raid",
       "data": {
         "options": [
-          {"id": "tank", "emoji": "🛡️", "label": "Tank", "list_label": "Main Tank", "max_slots": 2},
-          {"id": "heal", "emoji": "🏥", "label": "Heal", "list_label": "Main Healer", "max_slots": 2},
-          {"id": "dps", "emoji": "⚔️", "label": "DPS", "list_label": "Damage Dealer", "max_slots": 6}
+          {
+            "id": "tank",
+            "emoji": "🛡️",
+            "label": "Tank",
+            "list_label": "Main Tank",
+            "max_slots": 2
+          },
+          {
+            "id": "heal",
+            "emoji": "🏥",
+            "label": "Heal",
+            "list_label": "Main Healer",
+            "max_slots": 2
+          },
+          {
+            "id": "dps",
+            "emoji": "⚔️",
+            "label": "DPS",
+            "list_label": "Damage Dealer",
+            "max_slots": 6
+          }
         ],
         "positive_count": 3,
         "show_mgmt": false,
-        "buttons_per_row": 1 // Vertical Raid layout
+        "buttons_per_row": 5 // Vertical Raid layout
       }
     }
   ]
