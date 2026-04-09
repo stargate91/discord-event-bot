@@ -238,12 +238,13 @@ class NotificationSettingsModal(ui.Modal):
 
 class EventWizardView(ui.View):
     # This is the main class that controls the whole multi-step process
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None):
         super().__init__(timeout=600)
         self.bot = bot
         self.creator_id = str(creator_id)
         self.guild_id = str(guild_id)
         self.is_edit = is_edit
+        self.bulk_ids = bulk_ids # List of event_ids for bulk editing
         self.data = existing_data or {
             "creator_id": self.creator_id,
             "guild_id": self.guild_id
@@ -374,6 +375,9 @@ class EventWizardView(ui.View):
 
     @ui.button(label="3. Offset", style=discord.ButtonStyle.gray, custom_id="wiz_step_3", row=0)
     async def step3_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if self.bulk_ids:
+            await interaction.response.send_message("💡 Tömeges szerkesztésnél az időzítési beállítások le vannak tiltva a dátumok védelme érdekében.", ephemeral=True)
+            return
         await interaction.response.send_modal(Step3Modal(self))
 
     @ui.button(label="Role Limits", style=discord.ButtonStyle.gray, custom_id="wiz_role_limits", row=0)
@@ -481,7 +485,11 @@ class EventWizardView(ui.View):
                 # Keep existing creator_id if not present
                 if "creator_id" not in self.data:
                     self.data["creator_id"] = str(self.creator_id)
-                await database.update_active_event(event_id, self.data)
+
+                if self.bulk_ids:
+                    await database.update_active_events_metadata_bulk(self.bulk_ids, self.data)
+                else:
+                    await database.update_active_event(event_id, self.data)
             else:
                 self.data["creator_id"] = str(self.creator_id)
                 self.data["guild_id"] = self.guild_id
@@ -516,17 +524,24 @@ class EventWizardView(ui.View):
         db_event = await database.get_active_event(event_id, self.guild_id)
         
         if self.is_edit:
-            if db_event and db_event.get("message_id") and db_event.get("channel_id"):
-                channel = self.bot.get_channel(db_event["channel_id"])
-                if channel:
-                    try:
-                        msg = await channel.fetch_message(db_event["message_id"])
-                        view = DynamicEventView(self.bot, event_id, self.data)
-                        embed = await view.generate_embed(db_event)
-                        await msg.edit(embed=embed, view=view)
-                    except Exception as e:
-                        log.error(f"Error updating message: {e}")
-            await interaction.followup.send("Updated!", ephemeral=True)
+            target_ids = self.bulk_ids if self.bulk_ids else [event_id]
+            
+            for eid in target_ids:
+                curr_db_event = await database.get_active_event(eid, self.guild_id)
+                if curr_db_event and curr_db_event.get("message_id") and curr_db_event.get("channel_id"):
+                    channel = self.bot.get_channel(curr_db_event["channel_id"])
+                    if channel:
+                        try:
+                            msg = await channel.fetch_message(curr_db_event["message_id"])
+                            # Need fresh view for each to bind to unique event_id
+                            view = DynamicEventView(self.bot, eid, self.data)
+                            embed = await view.generate_embed(curr_db_event)
+                            await msg.edit(embed=embed, view=view)
+                        except Exception as e:
+                            log.error(f"Error updating message {eid}: {e}")
+            
+            msg_text = "Tömeges frissítés kész!" if self.bulk_ids else "Updated!"
+            await interaction.followup.send(msg_text, ephemeral=True)
         else:
             view = DynamicEventView(self.bot, event_id, self.data)
             embed = await view.generate_embed()

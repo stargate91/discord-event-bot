@@ -84,27 +84,54 @@ class EventCommands(commands.GroupCog, name="event"):
 
 
     @app_commands.command(name="edit", description="Edit an existing event")
-    @app_commands.describe(event_id="The short ID of the event to edit")
-    async def edit_event(self, interaction: discord.Interaction, event_id: str):
+    @app_commands.describe(
+        event_id="The short ID or series name of the event to edit",
+        occurrence="Optional: which occurrence number of a series to edit (1, 2, 3...)"
+    )
+    async def edit_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         # Start editing process
         from cogs.event_wizard import EventWizardView
         await interaction.response.defer(ephemeral=True)
         # Open the Wizard for a specific event to change its details
         if not is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            await interaction.followup.send(t("ERR_ADMIN_ONLY"), ephemeral=True)
             return
             
-        await interaction.response.defer(ephemeral=True)
+        db_event = None
+        bulk_ids = None
 
-        db_event = await database.get_active_event(event_id)
+        if event_id.startswith("series:"):
+            config_name = event_id.replace("series:", "")
+            series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
+            if not series_events:
+                await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+                return
+            
+            if occurrence is not None:
+                # Select a specific Nth occurrence (1-based index)
+                idx = occurrence - 1
+                if 0 <= idx < len(series_events):
+                    db_event = series_events[idx]
+                else:
+                    await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) aktív esemény ebben a sorozatban.", ephemeral=True)
+                    return
+            else:
+                # Bulk mode: Load first one for template, track all IDs
+                db_event = series_events[0]
+                bulk_ids = [ev['event_id'] for ev in series_events]
+        else:
+            # Normal single ID search
+            db_event = await database.get_active_event(event_id)
+
         if not db_event:
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
         # Prepare dates so the wizard can show them clearly
         local_tz = tz.gettz("Europe/Budapest")
-        start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
-        db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
+        if db_event.get("start_time"):
+            start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
+            db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
         
         if db_event.get("end_time"):
             end_dt = datetime.datetime.fromtimestamp(db_event["end_time"], tz=local_tz)
@@ -113,9 +140,21 @@ class EventCommands(commands.GroupCog, name="event"):
             db_event["end_str"] = ""
 
         try:
-            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id)
+            view = EventWizardView(
+                self.bot, 
+                interaction.user.id, 
+                existing_data=db_event, 
+                is_edit=True, 
+                guild_id=interaction.guild_id,
+                bulk_ids=bulk_ids
+            )
+            
+            title = t("WIZARD_TITLE")
+            if bulk_ids:
+                title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
+            
             embed = discord.Embed(
-                title=t("WIZARD_TITLE"), 
+                title=title, 
                 description=t("WIZARD_DESC", status=view.get_status_text()), 
                 color=discord.Color.gold()
             )
@@ -128,11 +167,29 @@ class EventCommands(commands.GroupCog, name="event"):
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
         # Helps the user search for event IDs while they type
         active_events = await database.get_all_active_events(interaction.guild_id)
-        choices = []
+        
+        # Group by config_name
+        groups = {}
         for ev in active_events:
-            label = f"{ev.get('title') or ev['config_name']} ({ev['event_id']})"
-            if current.lower() in label.lower():
-                choices.append(app_commands.Choice(name=label, value=ev['event_id']))
+            cfg = ev.get('config_name') or 'manual'
+            if cfg not in groups:
+                groups[cfg] = []
+            groups[cfg].append(ev)
+
+        choices = []
+        for cfg, evs in groups.items():
+            if cfg != 'manual':
+                # Offer as a series
+                title = evs[0].get('title') or cfg
+                label = f"📦 [SOROZAT] {title} ({len(evs)} aktív)"
+                if current.lower() in label.lower():
+                    choices.append(app_commands.Choice(name=label, value=f"series:{cfg}"))
+            else:
+                # Manual events are shown individually
+                for ev in evs:
+                    label = f"📝 {ev.get('title') or 'Unnamed'} ({ev['event_id']})"
+                    if current.lower() in label.lower():
+                        choices.append(app_commands.Choice(name=label, value=ev['event_id']))
         return choices[:25]
 
     @app_commands.command(name="list", description="Show all active events")

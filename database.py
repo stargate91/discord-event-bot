@@ -146,6 +146,43 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
         str(guild_id)
     )
 
+async def update_active_events_metadata_bulk(event_ids, data):
+    """Update only non-date metadata for multiple events at once."""
+    if not event_ids:
+        return
+    
+    title = data.get("title")
+    description = data.get("description")
+    
+    raw_images = data.get("image_urls")
+    if isinstance(raw_images, list):
+        image_urls = ",".join(str(u) for u in raw_images)
+    else:
+        image_urls = str(raw_images) if raw_images else None
+
+    color = str(data.get("color") or "0x3498db")
+    max_acc = int(data.get("max_accepted") or 0)
+    
+    import re
+    ping_role_raw = str(data.get("ping_role") or "")
+    ping_digits = re.sub(r"\D", "", ping_role_raw)
+    ping_role = int(ping_digits) if ping_digits else 0
+    
+    icon_set = str(data.get("icon_set") or "standard")
+    extra_data = data.get("extra_data") # Should be JSON string or dict
+
+    pool = await get_pool()
+    await pool.execute("""
+        UPDATE active_events 
+        SET title = $1, description = $2, image_urls = $3, color = $4, 
+            max_accepted = $5, ping_role = $6, icon_set = $7, extra_data = $8
+        WHERE event_id = ANY($9)
+    """, 
+        title, description, image_urls, color, 
+        max_acc, ping_role, icon_set, extra_data,
+        list(event_ids)
+    )
+
 async def update_active_event(event_id, data):
     title = data.get("title")
     description = data.get("description")
@@ -243,6 +280,20 @@ async def get_all_active_events(guild_id=None):
         rows = await pool.fetch("SELECT * FROM active_events WHERE status = 'active' AND guild_id = $1", str(guild_id))
     else:
         rows = await pool.fetch("SELECT * FROM active_events WHERE status = 'active'")
+    return [dict(row) for row in rows]
+
+async def get_active_events_by_config(config_name, guild_id=None):
+    pool = await get_pool()
+    if guild_id:
+        rows = await pool.fetch(
+            "SELECT * FROM active_events WHERE config_name = $1 AND status = 'active' AND guild_id = $2 ORDER BY start_time ASC",
+            config_name, str(guild_id)
+        )
+    else:
+        rows = await pool.fetch(
+            "SELECT * FROM active_events WHERE config_name = $1 AND status = 'active' ORDER BY start_time ASC",
+            config_name
+        )
     return [dict(row) for row in rows]
 
 async def get_active_event_count(guild_id=None):
