@@ -6,13 +6,5 @@
   "globals": {
     "logging_level": "INFO",
     "wizard_timeout": 600
-  },
-  "events_config": [
-    {
-      "config_name": "solo",
-      "name": "Single Participant (Accepted/Declined)",
-      "enabled": true,
-      "icon_set": "standard"
-    }
-  ]
+  }
 }

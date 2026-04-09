@@ -27,20 +27,6 @@ except Exception:
     ADMIN_CHANNEL_ID = None
     ADMIN_ROLE_ID = None
 
-def get_event_dict(name):
-    # Live load to avoid bot restarts
-    try:
-        from utils.jsonc import load_jsonc
-        config_data = load_jsonc('config.json')
-        events = config_data.get("events_config", [])
-    except Exception:
-        events = EVENTS_CONFIG
-        
-    # Find event info by name or config_name
-    for e in events:
-        if e.get("config_name") == name or e.get("name") == name:
-            return e
-    return None
 
 class EventCommands(commands.GroupCog, name="event"):
     # Subgroup for administrative tasks
@@ -261,85 +247,6 @@ class EventCommands(commands.GroupCog, name="event"):
             title = ev.get('title') or ev.get('config_name') or "Unnamed"
             text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
         await interaction.response.send_message(text, ephemeral=True)
-
-    @app_commands.command(name="publish", description="Post an event using a preset template")
-    @app_commands.describe(name="The name of the event in config.json")
-    async def event_publish(self, interaction: discord.Interaction, name: str):
-        if not await is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-            return
-
-        await interaction.response.defer(ephemeral=True)
-        event_conf = get_event_dict(name)
-        if not event_conf:
-            await interaction.followup.send("Event not found in config.", ephemeral=True)
-            return
-            
-        if not event_conf.get("enabled"):
-            await interaction.followup.send("This event is disabled in config.", ephemeral=True)
-            return
-
-        local_tz = tz.gettz(event_conf.get("timezone", "Europe/Budapest"))
-        try:
-            start_str = event_conf.get("start_time")
-            if not start_str:
-                await interaction.followup.send("Error: 'start_time' is missing!", ephemeral=True)
-                return
-            start_dt = parser.parse(str(start_str)).replace(tzinfo=local_tz)
-            start_timestamp = start_dt.timestamp()
-            event_conf["start_time"] = start_timestamp
-
-            end_str = event_conf.get("end_time")
-            if end_str:
-                end_dt = parser.parse(str(end_str)).replace(tzinfo=local_tz)
-                event_conf["end_time"] = end_dt.timestamp()
-        except Exception as e:
-            await interaction.followup.send(f"Error reading dates: {e}", ephemeral=True)
-            return
-        
-        channel_id = event_conf.get("channel_id") or interaction.channel_id
-        event_id = str(uuid.uuid4())[:8]
-        
-        creator_val = event_conf.get("creator_id") or str(interaction.user.id)
-        event_conf["creator_id"] = creator_val
-        
-        try:
-            await database.create_active_event(guild_id=interaction.guild_id, event_id=event_id, config_name=name, channel_id=channel_id, start_time=start_timestamp, data=event_conf)
-        except Exception as e:
-            log.error(f"DB Error while creating event: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Adatbázis hiba történt a mentéskor: `{e}`", ephemeral=True)
-            return
-
-        try:
-            from cogs.event_ui import DynamicEventView
-            view = DynamicEventView(self.bot, event_id, event_conf)
-            embed = await view.generate_embed()
-            await interaction.followup.send(t("MSG_EV_CREATED_EPHEMERAL"), ephemeral=True)
-            
-            target_channel = self.bot.get_channel(channel_id) or interaction.channel
-            content = t("MSG_EV_CREATED_PUBLIC")
-            ping_role = event_conf.get("ping_role", "")
-            if ping_role: content += f" <@&{ping_role}>"
-                
-            msg = await target_channel.send(content=content, embed=embed, view=view)
-            await database.set_event_message(event_id, msg.id, interaction.guild_id)
-            self.bot.add_view(view)
-        except Exception as e:
-            log.error(f"UI Error while publishing event: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Hiba történt a közzététel során: `{e}`", ephemeral=True)
-
-    @event_publish.autocomplete("name")
-    async def event_publish_autocomplete(self, interaction: discord.Interaction, current: str):
-        choices = []
-        try:
-            from utils.jsonc import load_jsonc
-            config_data = load_jsonc('config.json')
-            events = config_data.get("events_config", [])
-            for e in events:
-                e_name = str(e.get("config_name") or e.get("name") or "")
-                if current.lower() in e_name.lower(): choices.append(app_commands.Choice(name=e_name[:100], value=e_name))
-        except: pass
-        return choices[:25]
 
     @app_commands.command(name="cancel", description="Mark an event as CANCELLED")
     @app_commands.describe(event_id="The short ID or series name", notify="How to notify participants", occurrence="Occurrence number for series")
