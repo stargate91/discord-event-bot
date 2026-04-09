@@ -388,7 +388,7 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="After Start", value="after_start"),
             discord.SelectOption(label="After End", value="after_end")
         ],
-        row=3
+        row=1
     )
     async def trigger_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["repost_trigger"] = str(select.values[0])
