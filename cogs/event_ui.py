@@ -158,7 +158,25 @@ class DynamicEventView(discord.ui.View):
             self.add_item(delete_btn)
 
     def update_button_states(self, rsvps_list, event_conf):
-        """Disables buttons if limits are reached and waiting list is off."""
+        """Disables buttons if limits are reached OR if status is inactive."""
+        status = event_conf.get("status", "active")
+        
+        # 1. Status Check
+        if status == "cancelled":
+            # All RSVP buttons are dead
+            for child in self.children:
+                if isinstance(child, discord.ui.Button) and not child.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                    child.disabled = True
+            return
+
+        if status == "postponed":
+            # If postponed WITHOUT a date update (or specific flag), freeze it
+            # For now, let's assume if status is 'postponed', it's frozen unless reactivation happens
+            for child in self.children:
+                if isinstance(child, discord.ui.Button) and not child.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                    child.disabled = True
+            return
+
         use_waiting = event_conf.get("use_waiting_list", True)
         if use_waiting:
             # If waiting list is ON, we don't disable buttons (people can join waitlist)
@@ -317,6 +335,81 @@ class EditChoiceView(discord.ui.View):
         dummy_view = DynamicEventView(self.bot, self.event_id)
         await dummy_view._open_wizard(interaction, self.db_event, bulk_ids=bulk_ids)
 
+class StatusChoiceView(discord.ui.View):
+    """Small popup view to choose between updating status for one instance or the whole series."""
+    def __init__(self, bot, event_id, db_event, series_events, new_status, notify_type="none"):
+        super().__init__(timeout=180)
+        self.bot = bot
+        self.event_id = event_id
+        self.db_event = db_event
+        self.series_events = series_events
+        self.new_status = new_status
+        self.notify_type = notify_type
+
+    @discord.ui.button(label="Csak ezt a példányt", style=discord.ButtonStyle.secondary)
+    async def status_single(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        await database.update_event_status(self.event_id, self.new_status)
+        await self.refresh_and_notify(interaction, [self.event_id])
+        await interaction.followup.send(f"✅ Esemény státusza: `{self.new_status}`", ephemeral=True)
+
+    @discord.ui.button(label="Az egész sorozatot (Tömeges)", style=discord.ButtonStyle.primary)
+    async def status_series(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.defer(ephemeral=True)
+        ids = [ev['event_id'] for ev in self.series_events]
+        await database.update_event_status_bulk(ids, self.new_status)
+        await self.refresh_and_notify(interaction, ids)
+        await interaction.followup.send(f"✅ Sorozat összes példánya mostantól: `{self.new_status}`", ephemeral=True)
+
+    async def refresh_and_notify(self, interaction, event_ids):
+        # 1. Update Messages
+        for eid in event_ids:
+            ev = await database.get_active_event(eid)
+            if ev and ev.get("message_id") and ev.get("channel_id"):
+                chan = self.bot.get_channel(ev["channel_id"])
+                if chan:
+                    try:
+                        msg = await chan.fetch_message(ev["message_id"])
+                        view = DynamicEventView(self.bot, eid, ev)
+                        embed = await view.generate_embed(ev)
+                        await msg.edit(embed=embed, view=view)
+                    except: pass
+        
+        # 2. Handle Notifications
+        if self.notify_type == "none":
+            return
+
+        participants = set()
+        for eid in event_ids:
+            rsvps = await database.get_rsvps(eid)
+            for uid, status in rsvps:
+                # Only notify people with a positive or maybe status
+                if not status.startswith("wait_"):
+                    participants.add(uid)
+
+        if not participants:
+            return
+
+        status_text = self.new_status.upper()
+        if self.new_status == "cancelled": status_text = t("TAG_CANCELLED") or "TÖRÖLVE"
+        if self.new_status == "postponed": status_text = t("TAG_POSTPONED") or "ELHALASZTVA"
+
+        title = self.db_event.get("title") or "Event"
+        msg_body = f"📢 **Esemény értesítés:**\nAz alábbi esemény állapota megváltozott: **{status_text}**\n📌 **{title}**"
+
+        if self.notify_type in ["dm", "both"]:
+            for uid in participants:
+                try:
+                    user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
+                    if user: await user.send(msg_body)
+                except: pass
+
+        if self.notify_type in ["chat", "both"]:
+            # Send to the channel where it was triggered or the event channel
+            channel = interaction.channel
+            mentions = " ".join([f"<@{uid}>" for uid in participants])
+            await channel.send(f"{msg_body}\n{mentions}")
+
 
     async def calendar_callback(self, interaction: discord.Interaction):
         # Shows links to Google Calendar, Yahoo, etc.
@@ -415,11 +508,23 @@ class EditChoiceView(discord.ui.View):
             full_text = t("EMBED_FULL") or "ESEMÉNY BETELT"
             desc = f"### ⚠️ {full_text}\n{desc}"
 
+        status = self.event_conf.get("status", "active")
+        title_prefix = ""
+        color_override = None
+        
+        if status == "cancelled":
+            title_prefix = f"[{t('TAG_CANCELLED') or 'TÖRÖLVE'}] "
+            color_override = 0xed4245 # Red
+        elif status == "postponed":
+            title_prefix = f"[{t('TAG_POSTPONED') or 'ELHALASZTVA'}] "
+            color_override = 0xfaa61a # Orange
+
         embed = discord.Embed(
-            title=self.event_conf.get("title", "Event"),
+            title=f"{title_prefix}{self.event_conf.get('title', 'Event')}",
             description=desc,
-            color=int(str(self.event_conf.get("color") or "0x3498db"), 16)
+            color=color_override or int(str(self.event_conf.get("color") or "0x3498db"), 16)
         )
+
         
         # Add the start time (Discord makes this pretty automatically)
         start_ts = db_event['start_time'] if db_event else time.time()

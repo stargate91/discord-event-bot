@@ -183,6 +183,23 @@ async def update_active_events_metadata_bulk(event_ids, data):
         list(event_ids)
     )
 
+async def update_event_status(event_id, status):
+    """Simple update for event status (active, cancelled, postponed)."""
+    pool = await get_pool()
+    await pool.execute("UPDATE active_events SET status = $1 WHERE event_id = $2", status, event_id)
+
+async def update_event_status_bulk(event_ids, status):
+    """Update status for multiple events at once."""
+    if not event_ids:
+        return
+    pool = await get_pool()
+    await pool.execute("UPDATE active_events SET status = $1 WHERE event_id = ANY($2)", status, list(event_ids))
+
+async def update_event_time(event_id, start_time):
+    """Update the start time for a specific event."""
+    pool = await get_pool()
+    await pool.execute("UPDATE active_events SET start_time = $1 WHERE event_id = $2", start_time, event_id)
+
 async def update_active_event(event_id, data):
     title = data.get("title")
     description = data.get("description")

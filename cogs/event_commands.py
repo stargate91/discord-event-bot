@@ -301,14 +301,135 @@ class EventCommands(commands.GroupCog, name="event"):
             from utils.jsonc import load_jsonc
             config_data = load_jsonc('config.json')
             events = config_data.get("events_config", [])
-        except Exception:
-            events = EVENTS_CONFIG
-            
-        for e in events:
-            e_name = str(e.get("config_name") or e.get("name") or "")
-            if current.lower() in e_name.lower() and e_name:
-                choices.append(app_commands.Choice(name=e_name, value=e_name))
+            for e in events:
+                e_name = str(e.get("config_name") or e.get("name") or "")
+                if current.lower() in e_name.lower():
+                    choices.append(app_commands.Choice(name=e_name[:100], value=e_name))
+        except: pass
         return choices[:25]
+
+    @app_commands.command(name="cancel", description="Mark an event as CANCELLED")
+    @app_commands.describe(
+        event_id="The short ID or series name",
+        notify="How to notify participants",
+        occurrence="Occurrence number for series"
+    )
+    @app_commands.choices(notify=[
+        app_commands.Choice(name="None", value="none"),
+        app_commands.Choice(name="DM only", value="dm"),
+        app_commands.Choice(name="Chat only", value="chat"),
+        app_commands.Choice(name="Both DM and Chat", value="both")
+    ])
+    async def cancel_event(self, interaction: discord.Interaction, event_id: str, notify: str = "none", occurrence: int = None):
+        await self._handle_status_change(interaction, event_id, "cancelled", notify, occurrence)
+
+    @app_commands.command(name="postpone", description="Mark an event as POSTPONED")
+    @app_commands.describe(
+        event_id="The short ID or series name",
+        new_time="Optional new date/time (e.g. 2026-05-10 18:00)",
+        notify="How to notify participants",
+        occurrence="Occurrence number for series"
+    )
+    @app_commands.choices(notify=[
+        app_commands.Choice(name="None", value="none"),
+        app_commands.Choice(name="DM only", value="dm"),
+        app_commands.Choice(name="Chat only", value="chat"),
+        app_commands.Choice(name="Both DM and Chat", value="both")
+    ])
+    async def postpone_event(self, interaction: discord.Interaction, event_id: str, new_time: str = None, notify: str = "none", occurrence: int = None):
+        await self._handle_status_change(interaction, event_id, "postponed", notify, occurrence, new_time)
+
+    @app_commands.command(name="activate", description="Set a cancelled/postponed event back to ACTIVE")
+    @app_commands.describe(
+        event_id="The short ID or series name",
+        occurrence="Occurrence number for series"
+    )
+    async def activate_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
+        await self._handle_status_change(interaction, event_id, "active", "none", occurrence)
+
+    async def _handle_status_change(self, interaction, event_id, status, notify, occurrence, new_time=None):
+        if not is_admin(interaction):
+            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        
+        db_event = None
+        series_events = []
+        is_series_target = event_id.startswith("series:")
+
+        if is_series_target:
+            config_name = event_id.replace("series:", "")
+            series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
+            if not series_events:
+                await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+                return
+            
+            if occurrence is not None:
+                idx = occurrence - 1
+                if 0 <= idx < len(series_events):
+                    db_event = series_events[idx]
+                    event_id = db_event["event_id"]
+                    is_series_target = False
+                else:
+                    await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) esemény.", ephemeral=True)
+                    return
+            else:
+                db_event = series_events[0]
+        else:
+            db_event = await database.get_active_event(event_id)
+
+        if not db_event:
+            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+            return
+
+        # Special logic for Postpone time update
+        if status == "postponed" and new_time:
+            try:
+                local_tz = tz.gettz("Europe/Budapest")
+                dt = parser.parse(new_time).replace(tzinfo=local_tz)
+                # Update only this instance for time
+                await database.update_event_time(event_id, dt.timestamp())
+            except Exception as e:
+                await interaction.followup.send(f"❌ Hibás időpont: {e}", ephemeral=True)
+                return
+
+        from cogs.event_ui import StatusChoiceView, DynamicEventView
+        
+        if is_series_target and not occurrence:
+             # Choice popup
+             view = StatusChoiceView(self.bot, event_id, db_event, series_events, status, notify)
+             await interaction.followup.send(
+                 f"💡 Ez egy sorozat része. Szeretnéd az ÖSSZES jövőbeli alkalmat **{status}** állapotra állítani?",
+                 view=view, ephemeral=True
+             )
+        else:
+            # Simple single update
+            await database.update_event_status(event_id, status)
+            
+            # Refresh UI
+            ev = await database.get_active_event(event_id)
+            if ev and ev.get("message_id") and ev.get("channel_id"):
+                chan = self.bot.get_channel(ev["channel_id"])
+                if chan:
+                    try:
+                        msg = await chan.fetch_message(ev["message_id"])
+                        dv = DynamicEventView(self.bot, event_id, ev)
+                        emb = await dv.generate_embed(ev)
+                        await msg.edit(embed=emb, view=dv)
+                    except: pass
+            
+            # Notifications helper (using the choice view's logic internally)
+            choice_view = StatusChoiceView(self.bot, event_id, ev, [], status, notify)
+            await choice_view.refresh_and_notify(interaction, [event_id])
+            
+            await interaction.followup.send(f"✅ Esemény mostantól: `{status}`", ephemeral=True)
+
+    @cancel_event.autocomplete("event_id")
+    @postpone_event.autocomplete("event_id")
+    @activate_event.autocomplete("event_id")
+    async def status_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.edit_event_autocomplete(interaction, current)
 
     @app_commands.command(name="remove", description="Delete an active event message")
     @app_commands.describe(event_id="The event you want to remove")
