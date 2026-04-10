@@ -69,18 +69,12 @@ class SingleEventModal(ui.Modal):
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
 
-        self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=guild_id), default=str(data.get("title") or ""), required=True)
-        self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
-        self.promo_msg = ui.TextInput(label=t("LBL_PROMO_MSG", guild_id=guild_id), placeholder=t("PH_PROMO_MSG", guild_id=guild_id), style=discord.TextStyle.paragraph, default=data.get("custom_promo_msg", ""), required=False)
-        self.rem_msg = ui.TextInput(label=t("LBL_REMINDER_MSG", guild_id=guild_id), placeholder=t("PH_REMINDER_MSG", guild_id=guild_id), style=discord.TextStyle.paragraph, default=data.get("custom_reminder_msg", ""), required=False)
         self.start_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("start_str") or ""), required=True)
         self.end_input = ui.TextInput(label=f"{t('LBL_WIZ_END', guild_id=guild_id)} {t('LBL_OPTIONAL', guild_id=guild_id)}", placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("end_str") or ""), required=False)
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
 
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
-        self.add_item(self.promo_msg)
-        self.add_item(self.rem_msg)
         self.add_item(self.start_input)
         self.add_item(self.end_input)
         self.add_item(self.images_input)
@@ -201,9 +195,9 @@ class Step3Modal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
-        self.wizard_view.data["repost_offset"] = str(self.offset_input.value)
-        self.wizard_view.data["reminder_offset"] = str(self.reminder_offset_input.value)
-        self.wizard_view.data["recurrence_limit"] = int(self.rec_limit_input.value) if str(self.rec_limit_input.value).isdigit() else 0
+        self.wizard_view.data["repost_offset"] = str(self.cleanup_offset.value)
+        self.wizard_view.data["reminder_offset"] = str(self.rem_offset.value)
+        self.wizard_view.data["recurrence_limit"] = int(self.rec_limit.value) if str(self.rec_limit.value).isdigit() else 0
         self.wizard_view.data["reminder_type"] = str(self.rem_type.value).lower()
         
         self.wizard_view.steps_completed["step3"] = True

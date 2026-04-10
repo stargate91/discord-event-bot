@@ -46,20 +46,27 @@ class EventCommands(commands.GroupCog, name="event"):
     async def admin_messages(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
-        from utils.i18n import load_guild_translations
-        await load_guild_translations(guild_id)
-        
-        if not await is_admin(interaction):
-            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
-        
-        from cogs.message_wizard import MessageWizardView
-        view = MessageWizardView(self.bot, interaction.guild.id)
-        embed = discord.Embed(
-            title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
-            description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
-            color=discord.Color.blue()
-        )
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+            from cogs.message_wizard import MessageWizardView
+            view = MessageWizardView(self.bot, interaction.guild.id)
+            await view.prepare()
+            
+            embed = discord.Embed(
+                title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
+                description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
+                color=discord.Color.blue()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            from utils.logger import log
+            log.error(f"Error in admin_messages: {e}")
+            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @admin_group.command(name="setup", description="Configure server-wide default values and admin settings")
     async def admin_setup(self, interaction: discord.Interaction):
