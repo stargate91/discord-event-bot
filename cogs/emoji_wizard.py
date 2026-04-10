@@ -21,6 +21,15 @@ def slugify(text: str) -> str:
     # Remove leading/trailing underscores
     return text.strip('_')
 
+async def send_emoji_help(interaction: discord.Interaction, guild_id):
+    """Sends an ephemeral embed explaining the emoji set configuration."""
+    embed = discord.Embed(
+        title=t("HELP_EMOJI_TITLE", guild_id=guild_id),
+        description=t("HELP_EMOJI_DESC", guild_id=guild_id),
+        color=discord.Color.blue()
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 class EmojiWizardView(ui.View):
     """Main management console for emoji sets."""
     def __init__(self, bot, guild_id, selected_set_id=None):
@@ -141,6 +150,10 @@ class EmojiWizardView(ui.View):
         self.selected_set_id = None
         await interaction.response.send_message(t("MSG_SET_DELETED", guild_id=self.guild_id), ephemeral=True)
         await self.refresh_message(interaction)
+
+    @ui.button(label="❓", style=discord.ButtonStyle.secondary, row=1)
+    async def help_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await send_emoji_help(interaction, self.guild_id)
 
 class TemplateChoiceView(ui.View):
     def __init__(self, wizard_view):
@@ -480,11 +493,14 @@ class GlobalEmojiWizardView(EmojiWizardView):
     async def delete_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not self.selected_set_id:
             return await interaction.response.send_message("❌ Select a set first.", ephemeral=True)
-        await database.delete_global_emoji_set(self.selected_set_id)
         from cogs.event_ui import load_custom_sets
         await load_custom_sets()
-        await interaction.response.send_message(t("MSG_GLOBAL_DELETED"), ephemeral=True)
+        await interaction.response.send_message(t("MSG_GLOBAL_DELETED", guild_id=self.guild_id), ephemeral=True)
         await self.refresh_message(interaction)
+
+    @ui.button(label="❓", style=discord.ButtonStyle.secondary, row=1)
+    async def help_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await send_emoji_help(interaction, self.guild_id)
 
     async def refresh_message(self, interaction: discord.Interaction):
         options = await self.get_sets_options()
