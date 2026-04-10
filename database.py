@@ -363,6 +363,11 @@ async def get_all_global_emoji_sets():
     pool = await get_pool()
     return await pool.fetch("SELECT set_id, name, data FROM global_emoji_sets")
 
+async def delete_global_emoji_set(set_id: str):
+    """Delete a global emoji set."""
+    pool = await get_pool()
+    await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", set_id)
+
 async def update_active_event(event_id, data):
     title = data.get("title")
     description = data.get("description")

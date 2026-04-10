@@ -132,6 +132,11 @@
   "LBL_EDIT_OPTIONS": "Ikonok (Emoji | Gomb | Embed | ID | Limit | Flagek: S, P, B/E/T, G/R/B/Y)",
   "PH_EDIT_OPTIONS": "Példa:\n✅ | Résztveszek | Résztvevők | accepted | 0 | SPBG",
   "PH_SHOW_MGMT": "Igen / Nem",
+  "MSG_GLOBAL_SAVED": "✅ Globális szett mentve!",
+  "MSG_GLOBAL_DELETED": "✅ Globális szett törölve!",
+  "LBL_GLOBAL_EMOJI_DESC": "🌍 **Globális Ikonok Kezelése**\nItt a bot központi alapértelmezett szettjeit módosíthatod. Minden változtatás az összes szerverre hatással lesz!",
+  "LBL_GLOBAL_TITLE": "Globális Ikonok",
+  "ERR_OWNER_ONLY": "❌ Ezt a parancsot csak a bot tulajdonosa használhatja.",
   "MSG_ADVANCED_SAVED": "✅ Haladó beállítások mentve!",
   "MSG_SET_CLONED": "✅ Szett sikeresen lemásolva!",
   "TEMP_BASIC": "Alap (Igen / Nem)",
@@ -253,5 +258,4 @@
   "WIZARD_STATUS_WAIT": "⏳ Kitöltésre vár",
   "WIZARD_TITLE": "Eseménykezelő Varázsló",
   "WIZARD_TYPE_DESC": "Kérlek válaszd ki az esemény típusát az indításhoz!",
-  "dynamic_status": "["
 }

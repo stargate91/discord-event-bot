@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord import ui
 import json
 import database
@@ -366,3 +367,166 @@ class EditEmojiSetModal(ui.Modal):
         msg = t("MSG_SET_CLONED") if getattr(self, "is_clone", False) else "✅ Done!"
         await interaction.response.send_message(msg, ephemeral=True)
         await self.wizard_view.refresh_message(interaction)
+
+class EditGlobalEmojiSetModal(EditEmojiSetModal):
+    def __init__(self, wizard_view, set_record):
+        super().__init__(wizard_view, set_record)
+        self.title = t("LBL_GLOBAL_TITLE")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # We reuse the parsing logic but save to the GLOBAL table
+        # We need to copy-paste the core parsing logic or refactor it. 
+        # For simplicity and to avoid deep inheritance issues in discord.py Modals, I'll repeat the core parsing but target the global save.
+        
+        # Parse settings
+        try:
+            row_l = int(self.row_limit.value)
+        except:
+             return await interaction.response.send_message("❌ Invalid number for Row Limit.", ephemeral=True)
+
+        lines = self.opts_input.value.strip().split("\n")
+        new_opts = []
+        positive_count = 0
+        color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
+
+        for i, line in enumerate(lines, 1):
+            line = line.strip()
+            if not line: continue
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) < 2: 
+                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error="Too few columns"), ephemeral=True)
+            
+            try:
+                emoji, btn_label = parts[0], parts[1]
+                list_label = parts[2] if len(parts) > 2 and parts[2] else ""
+                oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
+                limit = 0
+                if len(parts) > 4:
+                    try: limit = int(parts[4])
+                    except: pass
+                flags = parts[5].upper() if len(parts) > 5 else "SPB"
+                show_in_list = "S" in flags
+                is_positive = "P" in flags
+                if is_positive: positive_count += 1
+                style = "emoji" if "E" in flags else ("label" if "T" in flags else "both")
+                btn_color = "secondary"
+                for code, name in color_map.items():
+                    if code in flags: btn_color = name; break
+                
+                new_opts.append({
+                    "id": oid, "emoji": emoji, "label": btn_label, "list_label": list_label,
+                    "max_slots": limit, "button_style": style, "button_color": btn_color,
+                    "show_in_list": show_in_list, "positive": is_positive
+                })
+            except Exception as e:
+                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error=str(e)), ephemeral=True)
+
+        new_data = {
+            "options": new_opts,
+            "positive_count": positive_count,
+            "buttons_per_row": row_l,
+            "show_mgmt": True
+        }
+
+        tid = self.set_id
+        if getattr(self, "is_new", False):
+            tid = slugify(self.name_input.value)
+
+        await database.save_global_emoji_set(tid, self.name_input.value, new_data)
+        
+        # Refresh global cache
+        from cogs.event_ui import load_custom_sets
+        await load_custom_sets()
+        
+        await interaction.response.send_message(t("MSG_GLOBAL_SAVED"), ephemeral=True)
+        await self.wizard_view.refresh_message(interaction)
+
+class GlobalEmojiWizardView(EmojiWizardView):
+    def __init__(self, bot, guild_id):
+        super().__init__(bot, guild_id)
+        self.selected_set_id = None
+
+    async def get_sets_options(self):
+        sets = await database.get_all_global_emoji_sets()
+        if not sets:
+            return [discord.SelectOption(label="No sets found", value="none")]
+        return [discord.SelectOption(label=s["name"], value=s["set_id"]) for s in sets]
+
+    @ui.button(label="➕ Új Globális", style=discord.ButtonStyle.green, row=1)
+    async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
+        # Global templates or empty
+        modal = EditGlobalEmojiSetModal(self, {"set_id": "", "name": "", "data": "{}"})
+        modal.title = "Új Globális Szett"
+        modal.is_new = True
+        await interaction.response.send_modal(modal)
+
+    @ui.button(label="⚙️ Szerkesztés", style=discord.ButtonStyle.primary, row=1)
+    async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if not self.selected_set_id:
+            return await interaction.response.send_message("❌ Select a set first.", ephemeral=True)
+        sets = await database.get_all_global_emoji_sets()
+        current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
+        await interaction.response.send_modal(EditGlobalEmojiSetModal(self, current))
+
+    @ui.button(label="🗑️ Törlés", style=discord.ButtonStyle.danger, row=1)
+    async def delete_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if not self.selected_set_id:
+            return await interaction.response.send_message("❌ Select a set first.", ephemeral=True)
+        await database.delete_global_emoji_set(self.selected_set_id)
+        from cogs.event_ui import load_custom_sets
+        await load_custom_sets()
+        await interaction.response.send_message(t("MSG_GLOBAL_DELETED"), ephemeral=True)
+        await self.refresh_message(interaction)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        options = await self.get_sets_options()
+        self.clear_items()
+        
+        select = ui.Select(placeholder="Válassz globális szettet...", options=options, custom_id="global_set_select")
+        async def select_callback(interaction):
+            self.selected_set_id = select.values[0]
+            await interaction.response.defer()
+        select.callback = select_callback
+        self.add_item(select)
+        
+        self.add_item(self.add_btn)
+        self.add_item(self.edit_btn)
+        self.add_item(self.delete_btn)
+        
+        embed = discord.Embed(title=t("LBL_GLOBAL_TITLE"), description=t("LBL_GLOBAL_EMOJI_DESC"), color=discord.Color.blue())
+        if interaction.response.is_done():
+            await interaction.edit_original_response(embed=embed, view=self)
+        else:
+            await interaction.response.edit_message(embed=embed, view=self)
+
+class EmojiWizard(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+
+    admin_group = app_commands.Group(name="admin", description="Admin commands")
+
+    @admin_group.command(name="emojis", description="Manage customized emoji sets for this server")
+    async def manage_emojis(self, interaction: discord.Interaction):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
+        
+        view = EmojiWizardView(self.bot, interaction.guild_id)
+        options = await view.get_sets_options()
+        
+        embed = discord.Embed(
+            title="✨ Emoji Wizard",
+            description="Manage your server's custom emoji sets here.",
+            color=discord.Color.blue()
+        )
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @admin_group.command(name="global-emojis", description="Manage system-wide global emoji sets (Owner Only)")
+    async def manage_global_emojis(self, interaction: discord.Interaction):
+        if not await self.bot.is_owner(interaction.user):
+            return await interaction.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
+        
+        view = GlobalEmojiWizardView(self.bot, interaction.guild_id)
+        await view.refresh_message(interaction)
+
+async def setup(bot):
+    await bot.add_cog(EmojiWizard(bot))
