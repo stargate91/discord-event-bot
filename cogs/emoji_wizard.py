@@ -4,6 +4,20 @@ import json
 import database
 from utils.i18n import t
 from utils.auth import is_admin
+import unicodedata
+import re
+
+def slugify(text: str) -> str:
+    """Converts a string to a safe ASCII slug (lowercase, underscores, no accents)."""
+    # Normalize to NFD to separate accents (e.g. á -> a + ´)
+    text = unicodedata.normalize('NFD', text)
+    # Filter out non-ASCII characters (accents)
+    text = "".join([c for c in text if not unicodedata.combining(c)])
+    # Lowercase and replace anything non-alphanumeric with underscores
+    text = text.lower().strip()
+    text = re.sub(r'[^a-z0-9]+', '_', text)
+    # Remove leading/trailing underscores
+    return text.strip('_')
 
 class EmojiWizardView(ui.View):
     """Main management console for emoji sets."""
@@ -105,12 +119,23 @@ class CreateEmojiSetModal(ui.Modal):
         super().__init__(title=t("MODAL_NEW_SET_TITLE", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         self.name_input = ui.TextInput(label=t("LBL_SET_NAME", guild_id=wizard_view.guild_id), placeholder=t("PH_SET_NAME", guild_id=wizard_view.guild_id), required=True)
-        self.id_input = ui.TextInput(label=t("LBL_SET_ID", guild_id=wizard_view.guild_id), placeholder=t("PH_SET_ID", guild_id=wizard_view.guild_id), required=True)
         self.add_item(self.name_input)
-        self.add_item(self.id_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        set_id = self.id_input.value.lower().strip().replace(" ", "_")
+        base_id = slugify(self.name_input.value)
+        if not base_id:
+            base_id = "custom_set"
+            
+        # Collision handling
+        existing_sets = await database.get_emoji_sets(self.wizard_view.guild_id)
+        existing_ids = [s["set_id"] for s in existing_sets]
+        
+        set_id = base_id
+        counter = 2
+        while set_id in existing_ids:
+            set_id = f"{base_id}_{counter}"
+            counter += 1
+
         data = {
             "options": [
                 {"id": "accepted", "emoji": "✅", "label": t("LBL_YES", guild_id=self.wizard_view.guild_id)},
