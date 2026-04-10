@@ -48,6 +48,24 @@ class MasterCommands(commands.GroupCog, name="master"):
         view = MasterPresenceView(self.bot)
         await view.refresh_message(interaction)
 
+    @app_commands.command(name="global-sets")
+    async def global_emoji_sets(self, interaction: discord.Interaction):
+        """Manage system-wide global emoji sets used by all guilds."""
+        try:
+            from cogs.emoji_wizard import EmojiWizardView
+            view = EmojiWizardView(self.bot, interaction.guild_id, is_global=True)
+            await view.prepare()
+            
+            embed = discord.Embed(
+                title=f"🌍 Global Emoji Management",
+                description="Managing the central icon sets available to all servers.",
+                color=discord.Color.blue()
+            )
+            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"[Master] Error in global-sets: {e}")
+            await interaction.response.send_message(f"❌ Error opening Global Emoji Wizard: {e}", ephemeral=True)
+
 class MasterPresenceView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=300)
@@ -101,24 +119,6 @@ class MasterPresenceView(ui.View):
         await interaction.response.defer()
         await self.refresh_message(interaction)
 
-
-    @app_commands.command(name="global-sets")
-    async def global_emoji_sets(self, interaction: discord.Interaction):
-        """Manage system-wide global emoji sets used by all guilds."""
-        try:
-            from cogs.emoji_wizard import EmojiWizardView
-            view = EmojiWizardView(self.bot, interaction.guild_id, is_global=True)
-            await view.prepare()
-            
-            embed = discord.Embed(
-                title=f"🌍 Global Emoji Management",
-                description="Managing the central icon sets available to all servers.",
-                color=discord.Color.blue()
-            )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-        except Exception as e:
-            log.error(f"[Master] Error in global-sets: {e}")
-            await interaction.response.send_message(f"❌ Error opening Global Emoji Wizard: {e}", ephemeral=True)
-
 async def setup(bot):
     await bot.add_cog(MasterCommands(bot))
+
