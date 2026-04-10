@@ -124,7 +124,7 @@ class MasterPresenceView(ui.View):
 
     # These are for the Bot Owner to manage the command tree manually.
 
-    @commands.command(name="sync")
+    @commands.command(name="sync", aliases=["sync_nexus"])
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         """Manual sync: !sync (guild), !sync copy (copy global to guild), !sync global"""
@@ -146,7 +146,7 @@ class MasterPresenceView(ui.View):
         except Exception as e:
             await ctx.send(f"❌ Sync failed: `{e}`")
 
-    @commands.command(name="clear_commands")
+    @commands.command(name="clear_commands", aliases=["clear_commands_nexus"])
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         """Totally clear slash commands tree."""
@@ -166,15 +166,5 @@ class MasterPresenceView(ui.View):
             await ctx.send(f"❌ Clear failed: `{e}`")
 
 async def setup(bot):
-    cog = MasterCommands(bot)
-    
-    # Apply SUFFIX aliases from the already-loaded bot config
-    config = getattr(bot, 'config', {})
-    suffix = config.get('command_suffix', '')
-    if suffix:
-        cog.sync_prefix.aliases = [f"sync{suffix}"]
-        cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
-        log.info(f"[Master] Prefixed aliases prepared: sync{suffix}, clear_commands{suffix}")
-
-    await bot.add_cog(cog)
+    await bot.add_cog(MasterCommands(bot))
 
