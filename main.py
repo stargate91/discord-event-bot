@@ -69,6 +69,46 @@ class EventBot(commands.Bot):
                 global_sets = await database.get_all_global_emoji_sets()
                 if not global_sets:
                     config_sets = self.config.get("emoji_sets", [])
+                    if not config_sets:
+                        # Add hardcoded 'factory default' sets
+                        log.info("No global sets found. Injecting factory defaults...")
+                        config_sets = [
+                            {
+                                "set_id": "standard", "name": "Alap (Igen / Nem)",
+                                "data": {"options": [
+                                    {"id": "accepted", "emoji": "✅", "label": "Résztveszek", "list_label": "Résztvevők", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True},
+                                    {"id": "tentative", "emoji": "❓", "label": "Talán", "list_label": "Bizonytalan", "button_style": "both", "button_color": "secondary", "show_in_list": True, "positive": False},
+                                    {"id": "declined", "emoji": "❌", "label": "Nem jövök", "list_label": "-", "button_style": "emoji", "button_color": "danger", "show_in_list": False, "positive": False}
+                                ], "positive_count": 1, "buttons_per_row": 5, "show_mgmt": True}
+                            },
+                            {
+                                "set_id": "raid", "name": "Raid (Tank / Heal / DPS)",
+                                "data": {"options": [
+                                    {"id": "tank", "emoji": "🛡️", "label": "Tank", "list_label": "Tankok", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True, "max_slots": 2},
+                                    {"id": "heal", "emoji": "🏥", "label": "Heal", "list_label": "Healerek", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True, "max_slots": 4},
+                                    {"id": "dps", "emoji": "🗡️", "label": "DPS", "list_label": "DPS-ek", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True, "max_slots": 10},
+                                    {"id": "backup", "emoji": "❓", "label": "Tartalék", "list_label": "Tartalékok", "button_style": "both", "button_color": "secondary", "show_in_list": True, "positive": False},
+                                    {"id": "declined", "emoji": "❌", "label": "Nem jövök", "list_label": "-", "button_style": "emoji", "button_color": "danger", "show_in_list": False, "positive": False}
+                                ], "positive_count": 3, "buttons_per_row": 5, "show_mgmt": True}
+                            },
+                            {
+                                "set_id": "survey", "name": "Szavazás (👍 / 👎)",
+                                "data": {"options": [
+                                    {"id": "up", "emoji": "👍", "label": "Szuper", "list_label": "Szerintük jó", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True},
+                                    {"id": "down", "emoji": "👎", "label": "Rossz", "list_label": "Szerintük rossz", "button_style": "both", "button_color": "danger", "show_in_list": True, "positive": False}
+                                ], "positive_count": 1, "buttons_per_row": 5, "show_mgmt": True}
+                            },
+                            {
+                                "set_id": "gaming", "name": "Gaming (Expanded Roles)",
+                                "data": {"options": [
+                                    {"id": "play", "emoji": "🎮", "label": "Jövök", "list_label": "Játékosok", "button_style": "both", "button_color": "success", "show_in_list": True, "positive": True},
+                                    {"id": "watch", "emoji": "📺", "label": "Néző", "list_label": "Nézők", "button_style": "both", "button_color": "primary", "show_in_list": True, "positive": False},
+                                    {"id": "maybe", "emoji": "🤔", "label": "Talán", "list_label": "Bizonytalanok", "button_style": "both", "button_color": "secondary", "show_in_list": True, "positive": False},
+                                    {"id": "no", "emoji": "❌", "label": "Nem jövök", "list_label": "-", "button_style": "emoji", "button_color": "danger", "show_in_list": False, "positive": False}
+                                ], "positive_count": 1, "buttons_per_row": 5, "show_mgmt": True}
+                            }
+                        ]
+
                     if config_sets:
                         log.info("Migrating global emoji sets to database...")
                         for s in config_sets:

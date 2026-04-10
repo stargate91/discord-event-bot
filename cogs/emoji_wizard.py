@@ -450,7 +450,7 @@ class GlobalEmojiWizardView(EmojiWizardView):
     async def get_sets_options(self):
         sets = await database.get_all_global_emoji_sets()
         if not sets:
-            return [discord.SelectOption(label="No sets found", value="none")]
+            return [discord.SelectOption(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none")]
         return [discord.SelectOption(label=s["name"], value=s["set_id"]) for s in sets]
 
     @ui.button(label="➕ Új Globális", style=discord.ButtonStyle.green, row=1)
@@ -494,7 +494,7 @@ class GlobalEmojiWizardView(EmojiWizardView):
         self.add_item(self.edit_btn)
         self.add_item(self.delete_btn)
         
-        embed = discord.Embed(title=t("LBL_GLOBAL_TITLE"), description=t("LBL_GLOBAL_EMOJI_DESC"), color=discord.Color.blue())
+        embed = discord.Embed(title=t("LBL_GLOBAL_TITLE", guild_id=self.guild_id), description=t("LBL_GLOBAL_EMOJI_DESC", guild_id=self.guild_id), color=discord.Color.blue())
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed, view=self)
         else:
