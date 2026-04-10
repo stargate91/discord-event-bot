@@ -227,6 +227,8 @@
   "SEL_TRIG_AFTER_E": "After End",
   "SEL_TRIG_AFTER_END": "After End",
   "SEL_TRIG_AFTER_S": "After Start",
+  "SEL_TEMPLATE": "Select template...",
+  "LBL_EMPTY_SET": "🆕 Empty set",,
   "SEL_TRIG_AFTER_START": "After Start",
   "SEL_TRIG_BEFORE": "Before Start",
   "SEL_TRIG_TYPE": "Repost Timing",

@@ -68,14 +68,7 @@ class MasterCommands(commands.GroupCog, name="master"):
         try:
             from cogs.emoji_wizard import EmojiWizardView
             view = EmojiWizardView(self.bot, interaction.guild_id, is_global=True)
-            await view.prepare()
-            
-            embed = discord.Embed(
-                title=t("MASTER_EMOJI_TITLE", guild_id=None),
-                description=t("MASTER_EMOJI_DESC", guild_id=None),
-                color=discord.Color.dark_magenta()
-            )
-            await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+            await view.refresh_message(interaction)
         except Exception as e:
             log.error(f"[Master] Error in global-sets: {e}")
             await interaction.response.send_message(t("MASTER_EMOJI_ERR", guild_id=None).replace("{e}", str(e)), ephemeral=True)

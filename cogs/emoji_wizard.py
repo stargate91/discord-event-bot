@@ -19,7 +19,7 @@ async def send_emoji_help(interaction: discord.Interaction, guild_id):
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-class EmojiWizardView(ui.View):
+class EmojiWizardView(ui.LayoutView):
     """Main management console for emoji sets (Guild or Global)."""
     def __init__(self, bot, guild_id, selected_set_id=None, is_global=False):
         super().__init__(timeout=600)
@@ -30,8 +30,10 @@ class EmojiWizardView(ui.View):
         
         # Localize button labels
         self.add_btn.label = t("BTN_NEW_SET", guild_id=guild_id)
+        self.clone_btn.label = t("BTN_CLONE", guild_id=guild_id)
         self.edit_btn.label = t("BTN_EDIT", guild_id=guild_id)
         self.delete_btn.label = t("BTN_DELETE", guild_id=guild_id)
+        self.help_btn.label = "❓"
 
     async def prepare(self):
         """Initial data fetch to populate the view before sending."""
@@ -67,6 +69,7 @@ class EmojiWizardView(ui.View):
         if self.is_global:
              desc = t("LBL_GLOBAL_EMOJI_DESC", guild_id=self.guild_id)
 
+        selection_details = ""
         if self.selected_set_id:
             if self.is_global:
                 sets = await database.get_all_global_emoji_sets()
@@ -79,18 +82,38 @@ class EmojiWizardView(ui.View):
                 sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
                 opts = sdata.get("options", [])
                 preview = " ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts])
-                desc = t("EMOJI_WIZ_SELECTED_DESC", guild_id=self.guild_id, name=current['name'], preview=preview)
+                selection_details = t("EMOJI_WIZ_SELECTED_DESC", guild_id=self.guild_id, name=current['name'], preview=preview)
 
-        embed = discord.Embed(
-            title=t("LBL_GLOBAL_TITLE" if self.is_global else "EMOJI_WIZ_TITLE", guild_id=self.guild_id),
-            description=desc,
-            color=discord.Color.blue() if self.is_global else discord.Color.purple()
-        )
+        # Rebuild view items
+        self.clear_items()
+        
+        # 1. Action Row for Select
+        row_select = ui.ActionRow(self.set_select)
+        
+        # 2. Action Row for management buttons
+        row_btns = ui.ActionRow(self.add_btn, self.clone_btn, self.edit_btn, self.delete_btn, self.help_btn)
+        
+        container_items = [
+            ui.TextDisplay(f"### {t('LBL_GLOBAL_TITLE' if self.is_global else 'EMOJI_WIZ_TITLE', guild_id=self.guild_id)}"),
+            ui.Separator(),
+            ui.TextDisplay(desc),
+        ]
+        
+        if selection_details:
+            container_items.append(ui.Separator())
+            container_items.append(ui.TextDisplay(selection_details))
+            
+        container_items.append(ui.Separator())
+        container_items.append(row_select)
+        container_items.append(row_btns)
+        
+        container = ui.Container(*container_items, accent_color=0x00bfff)
+        self.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.edit_original_response(embeds=[], view=self)
         else:
-            await interaction.response.edit_message(embed=embed, view=self)
+            await interaction.response.edit_message(embeds=[], view=self)
 
     @ui.select(placeholder="Válassz egy készletet...", row=0, options=[discord.SelectOption(label="Loading...", value="none")])
     async def set_select(self, interaction: discord.Interaction, select: ui.Select):
@@ -169,15 +192,31 @@ class EmojiWizardView(ui.View):
     async def help_btn(self, interaction: discord.Interaction, button: ui.Button):
         await send_emoji_help(interaction, self.guild_id)
 
-class TemplateChoiceView(ui.View):
+class TemplateChoiceView(ui.LayoutView):
     def __init__(self, wizard_view):
         super().__init__(timeout=300)
         self.wizard_view = wizard_view
         
-    @ui.select(placeholder="Válassz sablont...", options=[
-        discord.SelectOption(label=t(v["label_key"], guild_id=None) if "label_key" in v else v["id"], value=k, emoji=v["emoji"]) 
-        for k, v in ICON_SET_TEMPLATES.items()
-    ] + [discord.SelectOption(label="Üres szett", value="empty", emoji="🆕")])
+        # Localize options
+        options = []
+        for k, v in ICON_SET_TEMPLATES.items():
+            label = t(v["label_key"], guild_id=self.wizard_view.guild_id) if "label_key" in v else v["id"]
+            options.append(discord.SelectOption(label=label, value=k, emoji=v["emoji"]))
+        
+        options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty", emoji="🆕"))
+        
+        self.select_template.options = options
+        self.select_template.placeholder = t("SEL_TEMPLATE", guild_id=self.wizard_view.guild_id)
+
+        container = ui.Container(
+            ui.TextDisplay(f"### {t('LBL_CHOOSE_TEMPLATE', guild_id=self.wizard_view.guild_id)}"),
+            ui.Separator(),
+            ui.ActionRow(self.select_template),
+            accent_color=0x00bfff
+        )
+        self.add_item(container)
+
+    @ui.select()
     async def select_template(self, interaction: discord.Interaction, select: ui.Select):
         template = select.values[0]
         initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
@@ -303,14 +342,7 @@ class EmojiWizard(commands.GroupCog, name="admin"):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
         
         view = EmojiWizardView(self.bot, interaction.guild_id)
-        await view.prepare()
-        
-        embed = discord.Embed(
-            title="✨ Emoji Wizard",
-            description=t("EMOJI_WIZ_INIT_DESC", guild_id=interaction.guild_id),
-            color=discord.Color.blue()
-        )
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await view.refresh_message(interaction)
 
 async def setup(bot):
     await bot.add_cog(EmojiWizard(bot))
