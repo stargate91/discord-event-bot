@@ -229,11 +229,11 @@ class SchedulerTask(commands.Cog):
             if channel:
                 mention_str = ", ".join(mentions)
                 embed = discord.Embed(
-                    title=f"🔔 Emlékeztető / Reminder",
+                    title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
                     description=rem_text,
                     color=discord.Color.orange()
                 )
-                embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
+                embed.add_field(name=t("LBL_STARTS", guild_id=guild_id), value=f"<t:{int(start_ts)}:R>")
                 await channel.send(content=mention_str, embed=embed)
 
         # Send a private message (DM) to everyone
@@ -242,12 +242,13 @@ class SchedulerTask(commands.Cog):
                 try:
                     user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
                     if user:
-                        embed = discord.Embed(
-                            title=f"🔔 Emlékeztető / Reminder",
-                            description=rem_text,
-                            color=discord.Color.orange()
-                        )
-                        embed.add_field(name="Kezdés / Starts", value=f"<t:{int(start_ts)}:R>")
+                        guild_id = db_event.get("guild_id")
+                embed = discord.Embed(
+                    title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
+                    description=rem_text,
+                    color=discord.Color.orange()
+                )
+                        embed.add_field(name=t("LBL_STARTS", guild_id=guild_id), value=f"<t:{int(start_ts)}:R>")
                         await user.send(embed=embed)
                 except Exception as e:
                     log.error(f"Could not send DM to {p['user_id']}: {e}", guild_id=db_event.get("guild_id"))

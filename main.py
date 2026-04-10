@@ -143,11 +143,10 @@ class EventBot(commands.Bot):
                     presence_list = json.loads(db_presence)
                 else:
                     # 2. Fallback to config.json (initial setup)
-                    globals_cfg = self.config.get("globals", {})
-                    presence_list = globals_cfg.get("bot_presence", [])
+                    presence_list = self.config.get("dynamic_status", [])
                 
                 if not presence_list:
-                    presence_list = [f"watching {event_count} events"]
+                    presence_list = [t("PRESENCE_DEFAULT", guild_id=None)]
                 
                 # Select random status and replace placeholders
                 status_text = random.choice(presence_list).replace("{event_count}", str(event_count))

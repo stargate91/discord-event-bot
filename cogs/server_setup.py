@@ -7,11 +7,11 @@ from utils.auth import is_admin
 class ServerSetupView(ui.View):
     """Visual console for guild settings and defaults."""
     def __init__(self, bot, guild_id):
-        super().__init__(timeout=600)
+        super().__init__(timeout=300)
         self.bot = bot
         self.guild_id = guild_id
         
-        # Dynamically set button labels based on current language
+        # Localize button labels
         self.general_btn.label = t("BTN_GENERAL", guild_id=guild_id)
         self.local_btn.label = t("BTN_LOCAL", guild_id=guild_id)
         self.color_btn.label = t("BTN_COLOR", guild_id=guild_id)
@@ -29,12 +29,12 @@ class ServerSetupView(ui.View):
 
     @ui.button(label="🌍 Timezone & Localization", style=discord.ButtonStyle.secondary, row=0)
     async def local_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder="e.g. Europe/Budapest")
+        modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder=t("PH_TIMEZONE", guild_id=self.guild_id))
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🎨 Aesthetics (Color)", style=discord.ButtonStyle.secondary, row=1)
     async def color_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder="e.g. 0x5865f2 or #5865f2")
+        modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder=t("PH_COLOR", guild_id=self.guild_id))
         await interaction.response.send_modal(modal)
 
     @ui.button(label="🔔 Reminders", style=discord.ButtonStyle.secondary, row=1)
@@ -48,7 +48,7 @@ class GeneralSetupView(ui.View):
         self.bot = bot
         self.guild_id = guild_id
         
-        # Localization
+        # Localize button labels
         self.roles_btn.label = t("BTN_ADMIN_ROLES", guild_id=guild_id)
         self.channels_btn.label = t("BTN_ADMIN_CHANNELS", guild_id=guild_id)
 
@@ -63,25 +63,31 @@ class GeneralSetupView(ui.View):
     @ui.button(label="👥 Admin Roles", style=discord.ButtonStyle.gray)
     async def roles_btn(self, interaction: discord.Interaction, button: ui.Button):
         modal = SimpleConfigModal(self.guild_id, "admin_role_ids", t("SETTING_ADMIN_ROLES", guild_id=self.guild_id), 
-                                 placeholder="ID1, ID2, ID3...", is_long=True)
+                                 placeholder=t("PH_ID_LIST", guild_id=interaction.guild_id), is_long=True)
         await interaction.response.send_modal(modal)
 
     @ui.button(label="📺 Admin Channels", style=discord.ButtonStyle.gray)
     async def channels_btn(self, interaction: discord.Interaction, button: ui.Button):
         modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", t("SETTING_ADMIN_CHANNELS", guild_id=self.guild_id), 
-                                 placeholder="ID_A, ID_B...", is_long=True)
+                                 placeholder=t("PH_ID_LIST", guild_id=interaction.guild_id), is_long=True)
         await interaction.response.send_modal(modal)
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
         await load_guild_translations(self.guild_id) # Reload cache
-        await interaction.response.send_message(f"✅ Language set to `{lang}`.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_LANG_SET", guild_id=self.guild_id, lang=lang), ephemeral=True)
 
 class ReminderSetupView(ui.View):
     def __init__(self, bot, guild_id):
         super().__init__(timeout=300)
         self.bot = bot
         self.guild_id = guild_id
+        
+        # Localize button labels
+        self.rem_none.label = t("SEL_REM_NONE", guild_id=guild_id)
+        self.rem_ping.label = t("SEL_REM_PING", guild_id=guild_id)
+        self.rem_dm.label = t("SEL_REM_DM", guild_id=guild_id)
+        self.rem_both.label = t("SEL_REM_BOTH", guild_id=guild_id)
 
     @ui.button(label="None", style=discord.ButtonStyle.gray)
     async def rem_none(self, interaction: discord.Interaction, button: ui.Button):
@@ -101,7 +107,7 @@ class ReminderSetupView(ui.View):
 
     async def _set_rem(self, interaction, rtype):
         await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
-        await interaction.response.send_message(f"✅ Default reminder type set to `{rtype}`.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_REM_TYPE_SET", guild_id=self.guild_id) + f": `{rtype}`", ephemeral=True)
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False):
@@ -121,7 +127,7 @@ class SimpleConfigModal(ui.Modal):
         if self.key in ["language", "admin_role_ids", "admin_channel_ids"]:
             await load_guild_translations(self.guild_id)
 
-        await interaction.response.send_message(f"✅ Saved `{self.key}`: `{val[:100]}`", ephemeral=True)
+        await interaction.response.send_message(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), ephemeral=True)
 
 async def setup(bot):
     # This cog primarily provides the view classes for other cogs to use.

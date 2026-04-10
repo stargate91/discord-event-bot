@@ -1,29 +1,8 @@
 import discord
 from discord import ui
 import database
-from utils.i18n import t, load_guild_translations
+from utils.i18n import t, load_guild_translations, CATEGORIES
 from utils.auth import is_admin
-
-CATEGORIES = {
-    "Embed": [
-        "EMBED_FOOTER", "LBL_CREATED_BY", "EMBED_START_TIME", "EMBED_RECURRENCE",
-        "EMBED_ACC", "EMBED_DEC", "EMBED_TEN", "EMBED_NONE", "EMBED_FULL", "EMBED_WAITLIST"
-    ],
-    "RSVP Labels": [
-        "BTN_ACCEPT", "BTN_DECLINE", "BTN_TENTATIVE", 
-        "RSVP_ACCEPTED", "RSVP_DECLINED", "RSVP_TENTATIVE"
-    ],
-    "Wizard UI": [
-        "WIZARD_TITLE", "BTN_STEP_1", "BTN_STEP_2", "BTN_SUBMIT", 
-        "BTN_SAVE_PREVIEW", "BTN_PUBLISH"
-    ],
-    "Status & Tags": [
-        "TAG_CANCELLED", "TAG_POSTPONED", "TAG_DELETED", "TAG_PAST"
-    ],
-    "Reminders & Alerts": [
-        "MSG_REM_DESC", "MSG_REC_ALERT", "MSG_EV_CREATED_PUBLIC", "MSG_EV_CREATED_EPHEMERAL"
-    ]
-}
 
 class MessageWizardView(ui.View):
     """Admin UI to manage message overrides."""
@@ -33,14 +12,22 @@ class MessageWizardView(ui.View):
         self.guild_id = guild_id
         self.selected_category = "Embed"
         self.selected_key = None
+        
+        # Localize button labels
+        self.edit_btn.label = t("BTN_EDIT", guild_id=guild_id)
+        self.reset_btn.label = t("BTN_RESET_DEFAULT", guild_id=guild_id)
+        
+        # Localize placeholders
+        self.category_select.placeholder = t("SEL_CATEGORY", guild_id=self.guild_id)
+        self.key_select.placeholder = t("SEL_KEY", guild_id=self.guild_id)
 
     async def refresh_message(self, interaction: discord.Interaction):
         # Ensure cache is fresh for this view
         await load_guild_translations(self.guild_id)
         
         embed = discord.Embed(
-            title="💬 Message Wizard",
-            description=f"Válaszd ki a kategóriát és a szöveget, amit módosítani szeretnél.\n\n**Kategória:** {self.selected_category}",
+            title=t("MSG_WIZ_TITLE", guild_id=self.guild_id),
+            description=t("MSG_WIZ_DESC", guild_id=self.guild_id),
             color=discord.Color.blue()
         )
         
@@ -61,7 +48,7 @@ class MessageWizardView(ui.View):
             ))
 
         if not options:
-            options.append(discord.SelectOption(label="Nincs elérhető kulcs", value="none", disabled=True))
+            options.append(discord.SelectOption(label=t("ERR_NO_KEYS_AVAILABLE", guild_id=self.guild_id), value="none", disabled=True))
             
         self.key_select.options = options
         
@@ -70,7 +57,7 @@ class MessageWizardView(ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.select(placeholder="Kategória választása...", row=0, options=[
+    @ui.select(row=0, options=[
         discord.SelectOption(label=cat, value=cat) for cat in CATEGORIES.keys()
     ])
     async def category_select(self, interaction: discord.Interaction, select: ui.Select):
@@ -78,45 +65,42 @@ class MessageWizardView(ui.View):
         self.selected_key = None
         await self.refresh_message(interaction)
 
-    @ui.select(placeholder="Szöveg (Kulcs) választása...", row=1)
+    @ui.select(row=1)
     async def key_select(self, interaction: discord.Interaction, select: ui.Select):
         if select.values[0] == "none": return
         self.selected_key = select.values[0]
         await self.refresh_message(interaction)
 
-    @ui.button(label="📝 Szerkesztés", style=discord.ButtonStyle.primary, row=2)
+    @ui.button(label="BTN_EDIT", style=discord.ButtonStyle.primary, row=2)
     async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
         if not self.selected_key:
-            return await interaction.response.send_message("Válassz ki egy szöveget a szerkesztéshez!", ephemeral=True)
+            return await interaction.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
         
-        await interaction.response.send_modal(MessageEditModal(self, self.selected_key))
+        current_val = t(self.selected_key, guild_id=self.guild_id)
+        await interaction.response.send_modal(MessageEditModal(self.selected_key, current_val, self.guild_id))
 
     @ui.button(label="Reset Default", style=discord.ButtonStyle.secondary, row=2)
     async def reset_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
         if not self.selected_key:
-            return await interaction.response.send_message("Válassz ki egy szöveget!", ephemeral=True)
+            return await interaction.response.send_message(t("ERR_SELECT_KEY_RESET", guild_id=self.guild_id), ephemeral=True)
         
         await database.delete_translation(self.guild_id, self.selected_key)
         await load_guild_translations(self.guild_id)
-        await interaction.response.send_message(f"✅ Visszaállítva alaphelyzetbe: `{self.selected_key}`", ephemeral=True)
+        await interaction.response.send_message(t("MSG_RESET_SUCCESS_KEY", guild_id=self.guild_id, key=self.selected_key), ephemeral=True)
         await self.refresh_message(interaction)
 
 class MessageEditModal(ui.Modal):
-    def __init__(self, wizard_view, key):
-        super().__init__(title=f"Szerkesztés: {key}")
-        self.wizard_view = wizard_view
+    def __init__(self, key, current_val, guild_id):
+        super().__init__(title=f"{t('BTN_EDIT', guild_id=guild_id)}: {key}")
         self.key = key
-        
-        default_val = t(key)
-        current_val = t(key, guild_id=wizard_view.guild_id)
+        self.guild_id = guild_id
         
         self.text_input = ui.TextInput(
-            label="Egyedi szöveg",
-            placeholder=f"Alap: {default_val[:50]}...",
+            label=t("LBL_CUSTOM_TEXT", guild_id=guild_id),
             default=current_val,
             style=discord.TextStyle.paragraph,
             required=True
@@ -124,8 +108,8 @@ class MessageEditModal(ui.Modal):
         self.add_item(self.text_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        await database.save_translation(self.wizard_view.guild_id, self.key, self.text_input.value)
+        await database.save_translation(self.guild_id, self.key, self.text_input.value)
         # Refresh cache
         await load_guild_translations(self.wizard_view.guild_id)
-        await interaction.response.send_message(f"✅ Mentve: `{self.key}`", ephemeral=True)
+        await interaction.response.send_message(t("MSG_KEY_SAVED", guild_id=self.wizard_view.guild_id, key=self.key), ephemeral=True)
         await self.wizard_view.refresh_message(interaction)

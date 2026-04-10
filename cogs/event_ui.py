@@ -106,6 +106,15 @@ class DynamicEventView(discord.ui.View):
                 opt["max_slots"] = role_limits[role_id]
 
             label = opt.get("label") if "label" in opt else ""
+            guild_id = self.event_conf.get("guild_id") if self.event_conf else None
+            
+            # Try to localize standard button labels
+            if role_id in ["accepted", "declined", "tentative"]:
+                label_key = f"BTN_{role_id.upper()}"
+                localized_label = t(label_key, guild_id=guild_id)
+                if localized_label != label_key:
+                    label = localized_label
+
             row_idx = added_count // per_row
             
             if row_idx > 4:
@@ -225,7 +234,7 @@ class DynamicEventView(discord.ui.View):
             series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
             if len(series_events) > 1:
                 view = EditChoiceView(self.bot, self.event_id, db_event, series_events)
-                await interaction.followup.send("💡 Ez az esemény egy ismétlődő sorozat része. Mit szeretnél szerkeszteni?", view=view, ephemeral=True)
+                await interaction.followup.send(t("MSG_EDIT_SERIES_PROMPT", guild_id=guild_id), view=view, ephemeral=True)
                 return
 
         await self._open_wizard(interaction, db_event)
@@ -253,7 +262,7 @@ class DynamicEventView(discord.ui.View):
     async def calendar_callback(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         db_event = await database.get_active_event(self.event_id)
-        if not db_event: return await interaction.followup.send("Event not found.", ephemeral=True)
+        if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
         
         from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
         title = db_event.get("title") or "Event"
@@ -297,7 +306,8 @@ class DynamicEventView(discord.ui.View):
                         ex_dict = json.loads(ex_raw) if isinstance(ex_raw, str) else ex_raw
                         if isinstance(ex_dict, dict): self.event_conf.update(ex_dict)
                     except: pass
-        if not self.event_conf: return discord.Embed(title="Missing configuration", color=discord.Color.red())
+        guild_id = db_event.get("guild_id") if db_event else None
+        if not self.event_conf: return discord.Embed(title=t("ERR_MISSING_CONFIG", guild_id=guild_id), color=discord.Color.red())
 
         rsvps = await database.get_rsvps(self.event_id)
         status_map = {opt["id"]: [] for opt in self.active_set["options"]}
@@ -315,14 +325,14 @@ class DynamicEventView(discord.ui.View):
         max_acc = self.event_conf.get("max_accepted", 0)
         is_full = (max_acc > 0 and total_positive_count >= max_acc)
         desc = self.event_conf.get("description", "")
-        if is_full: desc = f"### ⚠️ {t('EMBED_FULL') or 'ESEMÉNY BETELT'}\n{desc}"
+        if is_full: desc = f"### ⚠️ {t('EMBED_FULL', guild_id=guild_id) or 'ESEMÉNY BETELT'}\n{desc}"
 
         status = self.event_conf.get("status", "active")
         title_prefix, color_override = "", None
-        if status == "cancelled": title_prefix = f"[{t('TAG_CANCELLED') or 'TÖRÖLVE'}] "; color_override = 0xed4245
-        elif status == "postponed": title_prefix = f"[{t('TAG_POSTPONED') or 'ELHALASZTVA'}] "; color_override = 0xfaa61a
+        if status == "cancelled": title_prefix = f"[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}] "; color_override = 0xed4245
+        elif status == "postponed": title_prefix = f"[{t('TAG_POSTPONED', guild_id=guild_id) or 'ELHALASZTVA'}] "; color_override = 0xfaa61a
 
-        embed = discord.Embed(title=f"{title_prefix}{self.event_conf.get('title', 'Event')}", description=desc, color=color_override or int(str(self.event_conf.get("color") or "0x3498db"), 16))
+        embed = discord.Embed(title=f"{title_prefix}{self.event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}", description=desc, color=color_override or int(str(self.event_conf.get("color") or "0x3498db"), 16))
         
         guild_id = self.event_conf.get("guild_id")
         start_ts = db_event['start_time'] if db_event else time.time()
@@ -411,7 +421,7 @@ class DynamicEventView(discord.ui.View):
         role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
         if role_limit and sum(1 for _, s in rsvps_list if s == status) >= role_limit and old_status != status:
             if self.event_conf.get("use_waiting_list", True): target_status = f"wait_{status}"
-            else: return await interaction.response.send_message(f"Sajnálom, a(z) {opt.get('label') or opt['id']} pozíció betelt!", ephemeral=True)
+            else: return await interaction.response.send_message(t("ERR_POS_FULL", guild_id=interaction.guild_id, name=(opt.get('label') or opt['id'])), ephemeral=True)
 
         positive_statuses = self.active_set.get("positive", [])
         if not positive_statuses and "positive_count" in self.active_set:
@@ -458,22 +468,22 @@ class DynamicEventView(discord.ui.View):
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):
         super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events = bot, event_id, db_event, series_events
-    @discord.ui.button(label="Csak ezt a példányt", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
     async def edit_single(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event)
-    @discord.ui.button(label="Az egész sorozatot (Tömeges)", style=discord.ButtonStyle.primary)
+    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
     async def edit_series(self, interaction: discord.Interaction, button: discord.ui.Button):
         await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event, bulk_ids=[ev['event_id'] for ev in self.series_events])
 
 class StatusChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events, new_status, notify_type="none"):
         super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events, self.new_status, self.notify_type = bot, event_id, db_event, series_events, new_status, notify_type
-    @discord.ui.button(label="Csak ezt a példányt", style=discord.ButtonStyle.secondary)
+    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
     async def status_single(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await database.update_event_status(self.event_id, self.new_status); await self.refresh_and_notify(interaction, [self.event_id]); await interaction.followup.send(f"✅ Esemény státusza: `{self.new_status}`", ephemeral=True)
-    @discord.ui.button(label="Az egész sorozatot (Tömeges)", style=discord.ButtonStyle.primary)
+        await interaction.response.defer(ephemeral=True); await database.update_event_status(self.event_id, self.new_status); await self.refresh_and_notify(interaction, [self.event_id]); await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
+    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
     async def status_series(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); ids = [ev['event_id'] for ev in self.series_events]; await database.update_event_status_bulk(ids, self.new_status); await self.refresh_and_notify(interaction, ids); await interaction.followup.send(f"✅ Sorozat összes példánya mostantól: `{self.new_status}`", ephemeral=True)
+        await interaction.response.defer(ephemeral=True); ids = [ev['event_id'] for ev in self.series_events]; await database.update_event_status_bulk(ids, self.new_status); await self.refresh_and_notify(interaction, ids); await interaction.followup.send(t("MSG_SERIES_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
     async def refresh_and_notify(self, interaction, event_ids):
         for eid in event_ids:
             ev = await database.get_active_event(eid)
@@ -491,9 +501,10 @@ class StatusChoiceView(discord.ui.View):
                 if not s.startswith("wait_"): participants.add(uid)
         if not participants: return
         status_text = self.new_status.upper()
-        if self.new_status == "cancelled": status_text = t("TAG_CANCELLED") or "TÖRÖLVE"
-        if self.new_status == "postponed": status_text = t("TAG_POSTPONED") or "ELHALASZTVA"
-        msg_body = f"📢 **Esemény értesítés:**\nAz alábbi esemény állapota megváltozott: **{status_text}**\n📌 **{self.db_event.get('title') or 'Event'}**"
+        guild_id = interaction.guild_id
+        if self.new_status == "cancelled": status_text = t("TAG_CANCELLED", guild_id=guild_id) or "TÖRÖLVE"
+        if self.new_status == "postponed": status_text = t("TAG_POSTPONED", guild_id=guild_id) or "ELHALASZTVA"
+        msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=(self.db_event.get('title') or 'Event'))
         if self.notify_type in ["dm", "both"]:
             for uid in participants:
                 try:

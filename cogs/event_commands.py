@@ -35,26 +35,12 @@ class EventCommands(commands.GroupCog, name="event"):
 
     @master_group.command(name="status", description="Manage the global bot presence status list")
     async def master_status(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
         if not await self.bot.is_owner(interaction.user):
-            return await interaction.followup.send("❌ Ez a parancs csak a Bot Owner számára érhető el.", ephemeral=True)
-
-        presence_json = await database.get_global_setting("bot_presence_list")
-        presence_list = json.loads(presence_json) if presence_json else []
-
-        embed = discord.Embed(
-            title="🛠️ Global Presence Manager",
-            description="Itt kezelheted a bot státusz üzeneteit. Ezek pörögnek minden szerveren.",
-            color=discord.Color.dark_red()
-        )
+            await interaction.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
+            return
         
-        status_text = "\n".join([f"• {s}" for s in presence_list]) or "*Nincs egyedi státusz beállítva.*"
-        embed.add_field(name="Jelenlegi státuszok", value=status_text, inline=False)
-        embed.set_footer(text="Használd a gombokat a lista módosításához.")
-
-        view = MasterPresenceView(presence_list)
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-
+        view = MasterPresenceView(self.bot)
+        await view.refresh_message(interaction)
 
     @admin_group.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):
@@ -67,10 +53,10 @@ class EventCommands(commands.GroupCog, name="event"):
             return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
         
         from cogs.message_wizard import MessageWizardView
-        view = MessageWizardView(self.bot, interaction.guild_id)
+        view = MessageWizardView(self.bot, interaction.guild.id)
         embed = discord.Embed(
-            title="💬 Message Wizard",
-            description="Válaszd ki a kategóriát és a szöveget, amit módosítani szeretnél.",
+            title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
+            description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
             color=discord.Color.blue()
         )
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
@@ -82,8 +68,6 @@ class EventCommands(commands.GroupCog, name="event"):
         try:
             from utils.i18n import load_guild_translations
             await load_guild_translations(guild_id)
-            
-            log.info(f"[Guild: {guild_id}] Opening Admin Setup...")
             
             if not await is_admin(interaction):
                 return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
@@ -97,8 +81,7 @@ class EventCommands(commands.GroupCog, name="event"):
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"[Guild: {guild_id}] ERROR in admin_setup: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Kritikus hiba a beállítások megnyitásakor: `{e}`", ephemeral=True)
+            await interaction.response.send_message(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @admin_group.command(name="emojis", description="Create or manage custom emoji/reaction sets")
     async def admin_emojis(self, interaction: discord.Interaction):
@@ -107,8 +90,6 @@ class EventCommands(commands.GroupCog, name="event"):
         try:
             from utils.i18n import load_guild_translations
             await load_guild_translations(guild_id)
-            
-            log.info(f"[Guild: {guild_id}] Opening Emoji Manager...")
             
             if not await is_admin(interaction):
                 return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
@@ -119,13 +100,12 @@ class EventCommands(commands.GroupCog, name="event"):
             
             embed = discord.Embed(
                 title="✨ " + t("LBL_WIZ_ICON_SET", guild_id=guild_id),
-                description=t("SETUP_GENERAL_DESC", guild_id=guild_id),
+                description=t("EMOJI_WIZ_INIT_DESC", guild_id=guild_id),
                 color=discord.Color.purple()
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"[Guild: {guild_id}] ERROR in admin_emojis: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Kritikus hiba az emoji kezelő megnyitásakor: `{e}`", ephemeral=True)
+            await interaction.response.send_message(f"{t('ERR_CRITICAL_EMOJI', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @app_commands.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
@@ -141,15 +121,10 @@ class EventCommands(commands.GroupCog, name="event"):
 
         try:
             view = WizardStartView(self.bot, interaction.user.id, guild_id=guild_id)
-            embed = discord.Embed(
-                title=t("WIZARD_TITLE", guild_id=guild_id), 
-                description="Kérlek válaszd ki az esemény típusát az indításhoz!", 
-                color=discord.Color.blue()
-            )
+            embed = discord.Embed(title=t("WIZARD_TITLE", guild_id=interaction.guild_id), description=t("WIZARD_TYPE_DESC", guild_id=interaction.guild_id), color=discord.Color.blue())
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"Error in create_event: {e}", exc_info=True, guild_id=guild_id)
-            await interaction.followup.send(f"❌ Hiba történt a varázsló megnyitásakor: `{e}`", ephemeral=True)
+            await interaction.response.send_message(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @app_commands.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
@@ -178,12 +153,9 @@ class EventCommands(commands.GroupCog, name="event"):
                 return
             
             if occurrence is not None:
-                idx = occurrence - 1
-                if 0 <= idx < len(series_events):
-                    db_event = series_events[idx]
-                else:
-                    await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) aktív esemény ebben a sorozatban.", ephemeral=True)
-                    return
+                if occurrence > len(series_events): 
+                    return await interaction.response.send_message(t("ERR_SERIES_COUNT", guild_id=interaction.guild_id, occurrence=occurrence), ephemeral=True)
+                db_event = series_events[occurrence - 1]
             else:
                 db_event = series_events[0]
                 bulk_ids = [ev['event_id'] for ev in series_events]
@@ -194,53 +166,43 @@ class EventCommands(commands.GroupCog, name="event"):
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
             return
 
-        local_tz = tz.gettz("Europe/Budapest")
-        if db_event.get("start_time"):
-            start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
-            db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")
-        
-        if db_event.get("end_time"):
-            end_dt = datetime.datetime.fromtimestamp(db_event["end_time"], tz=local_tz)
-            db_event["end_str"] = end_dt.strftime("%Y-%m-%d %H:%M")
-        else:
-            db_event["end_str"] = ""
-
         try:
             view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
-            guild_id = interaction.guild_id
-            title = t("WIZARD_TITLE", guild_id=guild_id)
-            if bulk_ids: title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
+            title = t("WIZARD_TITLE", guild_id=interaction.guild_id)
+            if bulk_ids: title = f"📦 {title} {t('LBL_BULK_EDIT', guild_id=interaction.guild_id)}"
             
             embed = discord.Embed(
                 title=title, 
-                description=t("WIZARD_DESC", guild_id=guild_id, status=view.get_status_text()), 
+                description=t("WIZARD_DESC", guild_id=interaction.guild_id, status=view.get_status_text()), 
                 color=discord.Color.gold()
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         except Exception as e:
-            log.error(f"Error in edit_event: {e}", exc_info=True, guild_id=guild_id)
-            await interaction.followup.send(f"❌ Hiba történt a szerkesztő megnyitásakor: `{e}`", ephemeral=True)
+            await interaction.response.send_message(f"{t('ERR_CRITICAL_EDIT', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
         active_events = await database.get_all_active_events(interaction.guild_id)
-        groups = {}
+        series = {}
+        single_events = []
         for ev in active_events:
-            cfg = ev.get('config_name') or 'manual'
-            if cfg not in groups: groups[cfg] = []
-            groups[cfg].append(ev)
-
-        choices = []
-        for cfg, evs in groups.items():
-            if cfg != 'manual':
-                title = evs[0].get('title') or cfg
-                label = f"📦 [SOROZAT] {title} ({len(evs)} aktív)"
-                if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=f"series:{cfg}"))
+            cfg = ev.get('config_name')
+            if cfg and cfg != 'manual':
+                if cfg not in series: series[cfg] = []
+                series[cfg].append(ev)
             else:
-                for ev in evs:
-                    label = f"📝 {ev.get('title') or 'Unnamed'} ({ev['event_id']})"
-                    if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=ev['event_id']))
-        return choices[:25]
+                single_events.append(ev)
+
+        results = []
+        for config_name, evs in series.items():
+            title = evs[0].get("title", config_name)
+            label = t("LBL_SERIES_AUTOCOMPLETE", guild_id=interaction.guild_id, title=title, count=len(evs))
+            results.append(discord.app_commands.Choice(name=label[:100], value=f"series:{config_name}"))
+        
+        for ev in single_events:
+            label = t("LBL_EVENT_AUTOCOMPLETE", guild_id=interaction.guild_id, title=ev.get('title') or 'Unnamed', id=ev['event_id'])
+            results.append(discord.app_commands.Choice(name=label[:100], value=ev["event_id"]))
+        return results[:25]
 
     @app_commands.command(name="list", description="Show all active events")
     async def list_events(self, interaction: discord.Interaction):
@@ -249,52 +211,32 @@ class EventCommands(commands.GroupCog, name="event"):
             return
 
         events = await database.get_all_active_events(interaction.guild_id)
-        if not events:
-            await interaction.response.send_message("Nincsenek aktív események.", ephemeral=True)
-            return
+        if not events: return await interaction.response.send_message(t("ERR_NO_ACTIVE_EVENTS", guild_id=interaction.guild_id), ephemeral=True)
 
-        text = "**Aktív események:**\n"
+        text = t("LBL_ACTIVE_EVENTS_LIST", guild_id=interaction.guild_id) + "\n"
         for ev in events:
             title = ev.get('title') or ev.get('config_name') or "Unnamed"
             text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
         await interaction.response.send_message(text, ephemeral=True)
 
     @app_commands.command(name="cancel", description="Mark an event as CANCELLED")
-    @app_commands.describe(event_id="The short ID or series name", notify="How to notify participants", occurrence="Occurrence number for series")
-    @app_commands.choices(notify=[app_commands.Choice(name="None", value="none"), app_commands.Choice(name="DM only", value="dm"), app_commands.Choice(name="Chat only", value="chat"), app_commands.Choice(name="Both DM and Chat", value="both")])
     async def cancel_event(self, interaction: discord.Interaction, event_id: str, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "cancelled", notify, occurrence)
 
     @app_commands.command(name="postpone", description="Mark an event as POSTPONED")
-    @app_commands.describe(event_id="The short ID or series name", new_time="Optional new date/time (e.g. 2026-05-10 18:00)", notify="How to notify participants", occurrence="Occurrence number for series")
-    @app_commands.choices(notify=[app_commands.Choice(name="None", value="none"), app_commands.Choice(name="DM only", value="dm"), app_commands.Choice(name="Chat only", value="chat"), app_commands.Choice(name="Both DM and Chat", value="both")])
     async def postpone_event(self, interaction: discord.Interaction, event_id: str, new_time: str = None, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "postponed", notify, occurrence, new_time)
 
     @app_commands.command(name="activate", description="Set a cancelled/postponed event back to ACTIVE")
-    @app_commands.describe(event_id="The short ID or series name", occurrence="Occurrence number for series")
     async def activate_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "active", "none", occurrence)
 
-    async def _handle_status_change(self, interaction, event_id, status, notify, occurrence, new_time=None):
+    async def _handle_status_change(self, interaction, event_id, status, notify_type, occurrence, new_time=None):
         if not await is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-            return
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
-        db_event, series_events, is_series_target = None, [], event_id.startswith("series:")
-
-        if is_series_target:
-            config_name = event_id.replace("series:", "")
-            series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
-            if not series_events: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
-            if occurrence is not None:
-                idx = occurrence - 1
-                if 0 <= idx < len(series_events): db_event = series_events[idx]; event_id = db_event["event_id"]; is_series_target = False
-                else: return await interaction.followup.send(f"❌ Nincs ennyi ({occurrence}) esemény.", ephemeral=True)
-            else: db_event = series_events[0]
-        else: db_event = await database.get_active_event(event_id)
-
+        db_event = await database.get_active_event(event_id)
         if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
 
         if status == "postponed" and new_time:
@@ -302,27 +244,18 @@ class EventCommands(commands.GroupCog, name="event"):
                 local_tz = tz.gettz("Europe/Budapest")
                 dt = parser.parse(new_time).replace(tzinfo=local_tz)
                 await database.update_event_time(event_id, dt.timestamp())
-            except Exception as e: return await interaction.followup.send(f"❌ Hibás időpont: {e}", ephemeral=True)
+            except Exception as e:
+                return await interaction.response.send_message(t("ERR_INVALID_TIME", guild_id=interaction.guild_id, e=e), ephemeral=True)
 
-        from cogs.event_ui import StatusChoiceView, DynamicEventView
-        if is_series_target and not occurrence:
-             view = StatusChoiceView(self.bot, event_id, db_event, series_events, status, notify)
-             await interaction.followup.send(f"💡 Ez egy sorozat része. Szeretnéd az ÖSSZES jövőbeli alkalmat **{status}** állapotra állítani?", view=view, ephemeral=True)
-        else:
-            await database.update_event_status(event_id, status)
-            ev = await database.get_active_event(event_id)
-            if ev and ev.get("message_id") and ev.get("channel_id"):
-                chan = self.bot.get_channel(ev["channel_id"])
-                if chan:
-                    try:
-                        msg = await chan.fetch_message(ev["message_id"])
-                        dv = DynamicEventView(self.bot, event_id, ev)
-                        emb = await dv.generate_embed(ev)
-                        await msg.edit(embed=emb, view=dv)
-                    except: pass
-            choice_view = StatusChoiceView(self.bot, event_id, ev, [], status, notify)
-            await choice_view.refresh_and_notify(interaction, [event_id])
-            await interaction.followup.send(f"✅ Esemény mostantól: `{status}`", ephemeral=True)
+        series_events = await database.get_active_events_by_config(db_event["config_name"], interaction.guild_id) if db_event.get("config_name") and db_event["config_name"] != "manual" else []
+        if len(series_events) > 1 and not occurrence:
+            from cogs.event_ui import StatusChoiceView
+            msg = t("MSG_SERIES_STATUS_CONFIRM", guild_id=interaction.guild_id, status=status)
+            view = StatusChoiceView(self.bot, event_id, db_event, series_events, status, notify_type)
+            return await interaction.followup.send(msg, view=view, ephemeral=True)
+
+        await database.update_event_status(event_id, status)
+        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status=status), ephemeral=True)
 
     @cancel_event.autocomplete("event_id")
     @postpone_event.autocomplete("event_id")
@@ -331,42 +264,34 @@ class EventCommands(commands.GroupCog, name="event"):
         return await self.edit_event_autocomplete(interaction, current)
 
     @app_commands.command(name="remove", description="Delete an active event message")
-    @app_commands.describe(event_id="The event you want to remove")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not await is_admin(interaction):
-            await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-            return
-        await interaction.response.defer(ephemeral=True)
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+        
         db_event = await database.get_active_event(event_id, interaction.guild_id)
-        if not db_event: return await interaction.followup.send(f"Event `{event_id}` not found.", ephemeral=True)
+        if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+        
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel and db_event.get("message_id"):
-                old_msg = await channel.fetch_message(db_event["message_id"])
-                if old_msg:
-                    view = discord.ui.View.from_message(old_msg)
-                    for child in view.children: child.disabled = True
-                    embed = old_msg.embeds[0] if old_msg.embeds else None
-                    if embed: embed.title = f"{t('TAG_PAST')} {embed.title}"; await old_msg.edit(embed=embed, view=view)
-                    else: await old_msg.edit(view=view)
-        except Exception as e: log.warning(f"Could not update message for event {event_id}: {e}")
+                msg = await channel.fetch_message(db_event["message_id"])
+                embed = msg.embeds[0]
+                embed.title = f"{t('TAG_PAST', guild_id=interaction.guild_id)} {embed.title}"
+                embed.color = discord.Color.red()
+                await msg.edit(embed=embed, view=None)
+        except: pass
+        
         await database.delete_active_event(event_id, interaction.guild_id)
-        await interaction.followup.send(f"✅ Event removed.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)
 
     @remove_event.autocomplete("event_id")
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
-        active_events = await database.get_all_active_events(interaction.guild_id)
-        choices = []
-        for ev in active_events:
-            label = f"{ev.get('title') or ev.get('config_name')} ({ev['event_id']})"
-            if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=ev['event_id']))
-        return choices[:25]
+        return await self.edit_event_autocomplete(interaction, current)
 
     @app_commands.command(name="continue-draft", description="Finish an event you started earlier")
-    @app_commands.describe(draft_id="Select which draft to finish")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
         data = await database.get_draft(draft_id, interaction.guild_id)
-        if not data: return await interaction.response.send_message("Draft not found.", ephemeral=True)
+        if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
         embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.blue())
@@ -382,10 +307,9 @@ class EventCommands(commands.GroupCog, name="event"):
         return choices[:25]
 
     @app_commands.command(name="delete-draft", description="Delete one of your drafts")
-    @app_commands.describe(draft_id="Select which draft to delete")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
         await database.delete_draft(draft_id, interaction.guild_id)
-        await interaction.response.send_message("Draft deleted.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_DRAFT_DELETED"), ephemeral=True)
 
     @delete_draft_cmd.autocomplete("draft_id")
     async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -396,93 +320,78 @@ class EventCommands(commands.GroupCog, name="event"):
         await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
 
-    # --- ADMIN SUBGROUP ---
-
-    @admin_group.command(name="reset", description="WIPE ALL DATA for this server (Active events, RSVPs, drafts, custom symbols)")
-    async def reset_server(self, interaction: discord.Interaction):
+    @admin_group.command(name="reset", description="WIPE ALL DATA for this server")
+    async def reset(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
 
-        class ConfirmReset(discord.ui.View):
-            def __init__(self):
-                super().__init__(timeout=30)
-                self.value = None
-            @discord.ui.button(label="YES, PERMANENTLY DELETE EVERYTHING", style=discord.ButtonStyle.danger)
-            async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
-                self.value = True; self.stop(); await interaction.response.defer()
-            @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
-            async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button):
-                self.value = False; self.stop(); await interaction.response.send_message("Reset cancelled.", ephemeral=True)
+        view = ui.View()
+        confirm_btn = ui.Button(label=t("BTN_RESET_CONFIRM", guild_id=interaction.guild_id), style=discord.ButtonStyle.danger)
+        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=interaction.guild_id), style=discord.ButtonStyle.secondary)
 
-        confirm_view = ConfirmReset()
-        await interaction.response.send_message("⚠️ **DANGER ZONE** ⚠️\nThis will permanently delete all events, RSVPs, drafts, and custom icons for **THIS SERVER ONLY**.\nAre you absolutely sure?", view=confirm_view, ephemeral=True)
-        await confirm_view.wait()
-        if confirm_view.value:
+        async def confirm_callback(it: discord.Interaction):
             try:
-                guild_id = interaction.guild_id
-                await database.clear_guild_data(guild_id)
-                log.info(f"[Admin] Guild {guild_id} data was WIPED by {interaction.user}", guild_id=guild_id)
-                try:
-                    from cogs.event_ui import load_custom_sets
-                    await load_custom_sets()
-                except: pass
-                await interaction.followup.send(f"✅ All data for this server has been successfully deleted.", ephemeral=True)
-            except Exception as e: log.error(f"Error during guild reset: {e}", guild_id=guild_id); await interaction.followup.send(f"❌ Error during reset: `{e}`", ephemeral=True)
+                await database.reset_guild_data(it.guild.id)
+                await it.response.send_message(t("MSG_RESET_SUCCESS", guild_id=it.guild_id), ephemeral=True)
+            except Exception as e:
+                await it.response.send_message(f"{t('ERR_RESET_FAILED', guild_id=it.guild_id)}: `{e}`", ephemeral=True)
 
-    @commands.command(name="sync")
-    @commands.guild_only()
-    async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
-        if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
-        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID: return await ctx.send(t("ERR_CHANNEL_ONLY"))
-        await ctx.send(t("SYNC_START_MSG"))
-        try:
-            if spec == "global": synced = await self.bot.tree.sync(); await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)))
-            elif spec == "copy": self.bot.tree.copy_global_to(guild=ctx.guild); synced = await self.bot.tree.sync(guild=ctx.guild); await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced)))
-            else: synced = await self.bot.tree.sync(guild=ctx.guild); await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced)))
-        except discord.Forbidden: await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
-        except Exception as e: await ctx.send(f"❌ Sync failed: `{e}`")
+        async def cancel_callback(it: discord.Interaction):
+            await it.response.send_message(t("MSG_RESET_CANCELLED", guild_id=it.guild_id), ephemeral=True)
 
-    @commands.command(name="clear_commands")
-    @commands.guild_only()
-    async def clear_commands_prefix(self, ctx: commands.Context):
-        if not await is_admin(ctx): return await ctx.send(t("ERR_ADMIN_ONLY"))
-        if ADMIN_CHANNEL_ID and ctx.channel.id != ADMIN_CHANNEL_ID: return await ctx.send(t("ERR_CHANNEL_ONLY"))
-        await ctx.send(t("SYNC_CLEAR_START"))
-        try:
-            self.bot.tree.clear_commands(guild=None); await self.bot.tree.sync(guild=None)
-            self.bot.tree.clear_commands(guild=ctx.guild); await self.bot.tree.sync(guild=ctx.guild)
-            suffix = self.bot.config.get("command_suffix", "")
-            await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix))
-        except Exception as e: await ctx.send(f"❌ Clear failed: `{e}`")
+        confirm_btn.callback = confirm_callback
+        cancel_btn.callback = cancel_callback
+        view.add_item(confirm_btn); view.add_item(cancel_btn)
+        await interaction.response.send_message(t("MSG_RESET_WARNING", guild_id=interaction.guild_id), view=view, ephemeral=True)
 
-    @app_commands.command(name="sync", description="Sync slash commands manually")
-    @app_commands.describe(mode="Choose: guild, global, or copy")
-    async def sync_slash(self, interaction: discord.Interaction, mode: str = "guild"):
-        if not await is_admin(interaction): return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-        await interaction.response.defer(ephemeral=True)
-        if mode == "global": synced = await self.bot.tree.sync(); await interaction.followup.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced)), ephemeral=True)
-        elif mode == "copy": self.bot.tree.copy_global_to(guild=interaction.guild); synced = await self.bot.tree.sync(guild=interaction.guild); await interaction.followup.send(t("SYNC_SUCCESS_COPY", count=len(synced)), ephemeral=True)
-        else: synced = await self.bot.tree.sync(guild=interaction.guild); await interaction.followup.send(t("SYNC_SUCCESS_GUILD", count=len(synced)), ephemeral=True)
-
-# --- MASTER UI COMPONENTS ---
-
-class MasterPresenceView(discord.ui.View):
-    def __init__(self, presence_list):
+class MasterPresenceView(ui.View):
+    def __init__(self, bot):
         super().__init__(timeout=300)
-        self.presence_list = presence_list
-    @discord.ui.button(label="➕ Hozzáadás", style=discord.ButtonStyle.green)
-    async def add_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.send_modal(AddPresenceModal(self))
-    @discord.ui.button(label="🗑️ Lista ürítése", style=discord.ButtonStyle.danger)
-    async def clear_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.presence_list = []; await database.save_global_setting("bot_presence_list", json.dumps(self.presence_list)); await interaction.response.send_message("✅ Státusz lista törölve.", ephemeral=True)
+        self.bot = bot
+        
+        # Localize button labels
+        self.add_btn.label = t("BTN_ADD", guild_id=None) # Global
+        self.clear_btn.label = t("BTN_CLEAR", guild_id=None) # Global
 
-class AddPresenceModal(discord.ui.Modal, title="Új Státusz Hozzáadása"):
-    status_input = discord.ui.TextInput(label="Státusz szövege", placeholder="Pl. watching {event_count} events", required=True, style=discord.TextStyle.short)
-    def __init__(self, parent_view):
-        super().__init__(); self.parent_view = parent_view
-    async def on_submit(self, interaction: discord.Interaction):
-        new_status = self.status_input.value.strip(); self.parent_view.presence_list.append(new_status); await database.save_global_setting("bot_presence_list", json.dumps(self.parent_view.presence_list)); await interaction.response.send_message(f"✅ Hozzáadva: `{new_status}`", ephemeral=True)
+    async def refresh_message(self, interaction: discord.Interaction):
+        statuses = self.bot.config.get("dynamic_status", [])
+        embed = discord.Embed(
+            title=t("MASTER_PRESENCE_TITLE"),
+            description=t("MASTER_PRESENCE_DESC"),
+            color=discord.Color.blue()
+        )
+        status_list = "\n".join([f"• {s}" for s in statuses]) if statuses else t("MASTER_PRESENCE_NONE")
+        embed.add_field(name=t("LBL_CURRENT_STATUSES"), value=status_list, inline=False)
+        embed.set_footer(text=t("MASTER_PRESENCE_FOOTER"))
+        
+        if interaction.response.is_done():
+            await interaction.edit_original_response(embed=embed, view=self)
+        else:
+            await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
+
+    @ui.button(label="➕ Status", style=discord.ButtonStyle.primary)
+    async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
+        modal = ui.Modal(title=t("MASTER_PRESENCE_ADD_TITLE"))
+        status_input = ui.TextInput(label=t("MASTER_PRESENCE_INPUT"), placeholder=t("MASTER_PRESENCE_PH"))
+        modal.add_item(status_input)
+        
+        async def on_submit(it: discord.Interaction):
+            new_status = status_input.value.strip()
+            if new_status:
+                statuses = self.bot.config.get("dynamic_status", [])
+                statuses.append(new_status)
+                self.bot.config["dynamic_status"] = statuses
+                await self.refresh_message(it)
+                await it.followup.send(t("MASTER_PRESENCE_ADDED", status=new_status), ephemeral=True)
+        
+        modal.on_submit = on_submit
+        await interaction.response.send_modal(modal)
+
+    @ui.button(label="🗑️ Clear", style=discord.ButtonStyle.danger)
+    async def clear_btn(self, interaction: discord.Interaction, button: ui.Button):
+        self.bot.config["dynamic_status"] = []
+        await self.refresh_message(interaction)
+        await interaction.followup.send(t("MASTER_PRESENCE_CLEARED"), ephemeral=True)
 
 async def setup(bot):
     cog = EventCommands(bot)

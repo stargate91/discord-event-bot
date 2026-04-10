@@ -7,11 +7,16 @@ from utils.auth import is_admin
 
 class EmojiWizardView(ui.View):
     """Main management console for emoji sets."""
-    def __init__(self, bot, guild_id):
+    def __init__(self, bot, guild_id, selected_set_id=None):
         super().__init__(timeout=600)
         self.bot = bot
         self.guild_id = guild_id
-        self.selected_set_id = None
+        self.selected_set_id = selected_set_id
+        
+        # Localize button labels
+        self.add_btn.label = t("BTN_NEW_SET", guild_id=guild_id)
+        self.edit_btn.label = t("BTN_EDIT", guild_id=guild_id)
+        self.delete_btn.label = t("BTN_DELETE", guild_id=guild_id)
 
     async def prepare(self):
         """Initial data fetch to populate the view before sending."""
@@ -22,25 +27,26 @@ class EmojiWizardView(ui.View):
             s_data = s["data"]
             sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
             opts = sdata.get("options", [])
-            preview = " ".join([o.get("emoji") or "?" for o in opts[:3]])
+            icons = [o.get("emoji") for o in opts[:3]]
+            preview = ", ".join(icons) if icons else t("LBL_NO_PREVIEW", guild_id=self.guild_id)
             options.append(discord.SelectOption(
                 label=s["name"], 
                 value=s["set_id"], 
-                description=preview if preview else "No preview",
+                description=preview,
                 default=(s["set_id"] == self.selected_set_id)
             ))
             
         if not options:
-            options.append(discord.SelectOption(label="Nincs egyedi szett", value="none"))
+            options.append(discord.SelectOption(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none"))
 
+        self.set_select.placeholder = t("SEL_EMOJI_SET", guild_id=self.guild_id)
         self.set_select.options = options
 
     async def refresh_message(self, interaction: discord.Interaction):
         await self.prepare()
         
-        desc = "Válaszd ki a szerkeszteni kívánt készletet, vagy hozz létre újat."
+        desc = t("EMOJI_WIZ_INIT_DESC", guild_id=self.guild_id)
         if self.selected_set_id:
-            # Try to find the selected set for preview
             sets = await database.get_emoji_sets(self.guild_id)
             current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
             if current:
@@ -48,10 +54,10 @@ class EmojiWizardView(ui.View):
                 sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
                 opts = sdata.get("options", [])
                 preview = " ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts])
-                desc = f"**Kiválasztott készlet: {current['name']}**\n\nIkonok:\n{preview}\n\n*Használd az alábbi gombokat a szett kezeléséhez.*"
+                desc = t("EMOJI_WIZ_SELECTED_DESC", guild_id=self.guild_id, name=current['name'], preview=preview)
 
         embed = discord.Embed(
-            title="✨ Emoji & Role Kezelő",
+            title=t("EMOJI_WIZ_TITLE", guild_id=self.guild_id),
             description=desc,
             color=discord.Color.purple()
         )
@@ -61,7 +67,7 @@ class EmojiWizardView(ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.select(placeholder="Válassz egy készletet...", row=0, options=[discord.SelectOption(label="Nincs elérhető készlet", value="none")])
+    @ui.select(placeholder="Válassz egy készletet...", row=0)
     async def set_select(self, interaction: discord.Interaction, select: ui.Select):
         if select.values[0] == "none": 
             await interaction.response.defer()
@@ -78,35 +84,33 @@ class EmojiWizardView(ui.View):
     @ui.button(label="⚙️ Szerkesztés", style=discord.ButtonStyle.primary, row=1)
     async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not self.selected_set_id:
-            return await interaction.response.send_message("Válassz ki egy szettet a szerkesztéshez!", ephemeral=True)
+            return await interaction.response.send_message(t("ERR_NO_CUSTOM_SETS", guild_id=self.guild_id), ephemeral=True)
         
-        # Open detailed editor
-        await interaction.response.send_message("🚧 Az opciók részletes szerkesztése hamarosan érkezik. Használd a /emoji set create parancsot komplex szettekhez.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_EDIT_COMING_SOON", guild_id=self.guild_id), ephemeral=True)
 
     @ui.button(label="🗑️ Törlés", style=discord.ButtonStyle.danger, row=1)
     async def delete_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
         if not self.selected_set_id:
-            return await interaction.response.send_message("Válassz ki egy szettet a törléshez!", ephemeral=True)
+            return await interaction.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=self.guild_id), ephemeral=True)
         
         await database.delete_emoji_set(self.guild_id, self.selected_set_id)
         self.selected_set_id = None
-        await interaction.response.send_message(f"✅ Szett törölve.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_SET_DELETED", guild_id=self.guild_id), ephemeral=True)
         await self.refresh_message(interaction)
 
 class CreateEmojiSetModal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title="Új Emoji Szett")
+        super().__init__(title=t("MODAL_NEW_SET_TITLE", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
-        self.name_input = ui.TextInput(label="Szett neve", placeholder="Pl. Raid Csapat", required=True)
-        self.id_input = ui.TextInput(label="Azonosító (angol, kisbetű)", placeholder="Pl. raid_set", required=True)
+        self.name_input = ui.TextInput(label=t("LBL_SET_NAME", guild_id=wizard_view.guild_id), placeholder=t("PH_SET_NAME", guild_id=wizard_view.guild_id), required=True)
+        self.id_input = ui.TextInput(label=t("LBL_SET_ID", guild_id=wizard_view.guild_id), placeholder=t("PH_SET_ID", guild_id=wizard_view.guild_id), required=True)
         self.add_item(self.name_input)
         self.add_item(self.id_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         set_id = self.id_input.value.lower().strip().replace(" ", "_")
-        # Default empty data
         data = {
             "options": [
                 {"id": "accepted", "emoji": "✅", "label": "Igen"},
