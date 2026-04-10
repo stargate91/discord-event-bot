@@ -6,20 +6,8 @@ import json
 import database
 from utils.i18n import t
 from utils.auth import is_admin
-import unicodedata
-import re
-
-def slugify(text: str) -> str:
-    """Converts a string to a safe ASCII slug (lowercase, underscores, no accents)."""
-    # Normalize to NFD to separate accents (e.g. á -> a + ´)
-    text = unicodedata.normalize('NFD', text)
-    # Filter out non-ASCII characters (accents)
-    text = "".join([c for c in text if not unicodedata.combining(c)])
-    # Lowercase and replace anything non-alphanumeric with underscores
-    text = text.lower().strip()
-    text = re.sub(r'[^a-z0-9]+', '_', text)
-    # Remove leading/trailing underscores
-    return text.strip('_')
+from utils.emoji_utils import slugify, parse_emoji_config
+from utils.templates import ICON_SET_TEMPLATES
 
 async def send_emoji_help(interaction: discord.Interaction, guild_id):
     """Sends an ephemeral embed explaining the emoji set configuration."""
@@ -29,51 +17,6 @@ async def send_emoji_help(interaction: discord.Interaction, guild_id):
         color=discord.Color.blue()
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
-
-def parse_emoji_config(text_value: str):
-    """Parses a text block into a list of option dicts.
-    Format: Emoji | Label | List | Limit | Flags
-    Returns (new_opts, positive_count)
-    """
-    new_opts = []
-    positive_count = 0
-    lines = text_value.strip().split("\n")
-    color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
-    
-    for i, line in enumerate(lines, 1):
-        line = line.strip()
-        if not line: continue
-        parts = [p.strip() for p in line.split("|")]
-        if len(parts) < 2: 
-            raise ValueError(f"Line {i}: Too few columns (need at least Emoji | Label)")
-        
-        emoji = parts[0]
-        btn_label = parts[1]
-        list_label = parts[2] if len(parts) > 2 and parts[2] else btn_label
-        oid = slugify(btn_label)
-        
-        limit = 0
-        if len(parts) > 3:
-            try: limit = int(parts[3])
-            except: pass
-            
-        flags = parts[4].upper() if len(parts) > 4 else "SPB"
-        show_in_list = "S" in flags
-        is_positive = "P" in flags
-        if is_positive: positive_count += 1
-        
-        style = "emoji" if "E" in flags else ("label" if "T" in flags else "both")
-        btn_color = "secondary"
-        for code, name in color_map.items():
-            if code in flags: btn_color = name; break
-            
-        new_opts.append({
-            "id": oid, "emoji": emoji, "label": btn_label, "list_label": list_label,
-            "max_slots": limit, "button_style": style, "button_color": btn_color,
-            "show_in_list": show_in_list, "positive": is_positive
-        })
-        
-    return new_opts, positive_count
 
 class EmojiWizardView(ui.View):
     """Main management console for emoji sets."""
@@ -206,23 +149,17 @@ class TemplateChoiceView(ui.View):
         self.wizard_view = wizard_view
         
     @ui.select(placeholder="Válassz sablont...", options=[
-        discord.SelectOption(label="Alap (Igen / Nem)", value="basic", emoji="✅"),
-        discord.SelectOption(label="Raid (Tank / Heal / DPS)", value="raid", emoji="⚔️"),
-        discord.SelectOption(label="Szavazás (👍 / 👎)", value="survey", emoji="📊"),
-        discord.SelectOption(label="Üres szett", value="empty", emoji="🆕")
-    ])
+        discord.SelectOption(label=t(v["label_key"], guild_id=interaction.guild_id) if "interaction" in locals() else v["id"], value=k, emoji=v["emoji"]) 
+        for k, v in ICON_SET_TEMPLATES.items()
+    ] + [discord.SelectOption(label="Üres szett", value="empty", emoji="🆕")])
     async def select_template(self, interaction: discord.Interaction, select: ui.Select):
         template = select.values[0]
         
         # Pre-defined data for templates in the 6-column format
-        templates = {
-            "basic": "✅ | Résztveszek | Résztvevők | accepted | 0 | SPBG\n❓ | Talán | Bizonytalan | tentative | 0 | SB\n❌ | Nem jövök | - | declined | 0 | ER",
-            "raid": "🛡️ | Tank | Tankok | tank | 2 | SPBG\n🏥 | Heal | Healerek | heal | 4 | SPBG\n🗡️ | DPS | DPS-ek | dps | 10 | SPBG\n❓ | Tartalék | Tartalékok | backup | 0 | SB\n❌ | Nem jövök | - | declined | 0 | ER",
-            "survey": "👍 | Szuper | Szerintük jó | up | 0 | SPBG\n👎 | Rossz | Szerintük rossz | down | 0 | ER",
-            "empty": ""
-        }
-        
-        initial_text = templates.get(template, "")
+        if template == "empty":
+            initial_text = ""
+        else:
+            initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "")
         
         # Now show the CreateModal but passing the pre-filled text
         modal = CreateEmojiSetModal(self.wizard_view)

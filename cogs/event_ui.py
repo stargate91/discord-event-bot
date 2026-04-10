@@ -64,8 +64,17 @@ async def load_custom_sets():
         log.error(f"Failed to load custom emoji sets: {e}")
 
 def get_active_set(key):
-    """Return the set config for a given key, searching local cache."""
-    return CUSTOM_ICON_SETS.get(key, CUSTOM_ICON_SETS.get("standard", {"options": []}))
+    """Return the set config for a given key, searching local cache then shared templates."""
+    if key in CUSTOM_ICON_SETS:
+        return CUSTOM_ICON_SETS[key]
+    
+    # Fallback to Shared Templates
+    from utils.templates import get_template_data
+    tmpl_data = get_template_data(key)
+    if tmpl_data:
+        return tmpl_data
+        
+    return CUSTOM_ICON_SETS.get("standard", {"options": []})
 
 class DynamicEventView(discord.ui.View):
     # This class creates the buttons people see under the event message

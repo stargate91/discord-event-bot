@@ -10,6 +10,7 @@ import json
 from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
+from utils.templates import ICON_SET_TEMPLATES
 
 class WizardStartView(ui.View):
     """Initial choice: Single vs Recurring."""
@@ -420,18 +421,23 @@ class EventWizardView(ui.View):
         current_wait = "enabled" if self.data.get("use_waiting_list", True) else "disabled"
 
         # Build Emoji Set options dynamically
-        base_values = ["standard", "mmo", "team", "timing"]
-        final_options = [
-            discord.SelectOption(label=f"{t('SET_STANDARD', guild_id=self.guild_id)} (✅, ❌, ❔)", value="standard", emoji="💠", default=(current_set == "standard")),
-            discord.SelectOption(label=f"{t('SET_MMO', guild_id=self.guild_id)} (🛡️, 🏥, ⚔️)", value="mmo", emoji="⚔️", default=(current_set == "mmo")),
-            discord.SelectOption(label=f"{t('SET_TEAMS', guild_id=self.guild_id)} (🅰️, 🅱️, 👁️)", value="team", emoji="🚩", default=(current_set == "team")),
-            discord.SelectOption(label=f"{t('SET_TIMING', guild_id=self.guild_id)} (✅, ⏰, 🏃)", value="timing", emoji="⏰", default=(current_set == "timing"))
-        ]
+        # Build Emoji Set options dynamically from Shared Templates
+        final_options = []
+        base_ids = list(ICON_SET_TEMPLATES.keys())
+        
+        for tid, t_info in ICON_SET_TEMPLATES.items():
+            label = t(t_info["label_key"], guild_id=self.guild_id)
+            final_options.append(discord.SelectOption(
+                label=label, 
+                value=tid, 
+                emoji=t_info["emoji"], 
+                default=(current_set == tid)
+            ))
         
         db_sets = await database.get_emoji_sets(self.guild_id)
         for s in db_sets:
             set_id = s["set_id"]
-            if set_id in base_values: continue
+            if set_id in base_ids: continue
             
             sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
             opts = sdata.get("options", [])
