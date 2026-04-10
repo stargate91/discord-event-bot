@@ -25,27 +25,41 @@ class WizardStartView(ui.View):
 
     @ui.button(label="🕒 Egyszeri esemény", style=discord.ButtonStyle.secondary, row=0)
     async def single_btn(self, interaction: discord.Interaction, button: ui.Button):
-        # Starts the fast-track wizard
-        view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
-        await view.refresh_ui()
-        embed = discord.Embed(
-            title=t("TITLE_SINGLE_EVENT", guild_id=self.guild_id), 
-            description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
-            color=discord.Color.blue()
-        )
-        await interaction.response.edit_message(embed=embed, view=view)
+        try:
+            # Starts the fast-track wizard
+            view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
+            await view.refresh_ui()
+            embed = discord.Embed(
+                title=t("TITLE_SINGLE_EVENT", guild_id=self.guild_id), 
+                description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
+                color=discord.Color.blue()
+            )
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            log.error(f"[Wizard] Error starting single event wizard: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
     @ui.button(label="🔄 Ismétlődő sorozat", style=discord.ButtonStyle.primary, row=0)
     async def recurring_btn(self, interaction: discord.Interaction, button: ui.Button):
-        # Starts the full-track wizard
-        view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
-        await view.refresh_ui()
-        embed = discord.Embed(
-            title=t("TITLE_RECURRING_EVENT", guild_id=self.guild_id), 
-            description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
-            color=discord.Color.blue()
-        )
-        await interaction.response.edit_message(embed=embed, view=view)
+        try:
+            # Starts the full-track wizard
+            view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
+            await view.refresh_ui()
+            embed = discord.Embed(
+                title=t("TITLE_RECURRING_EVENT", guild_id=self.guild_id), 
+                description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
+                color=discord.Color.blue()
+            )
+            await interaction.response.edit_message(embed=embed, view=view)
+        except Exception as e:
+            log.error(f"[Wizard] Error starting series wizard: {e}")
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 class SingleEventModal(ui.Modal):
     """Fast-track modal combining Step 1 and parts of Step 2."""
@@ -389,8 +403,8 @@ class EventWizardView(ui.View):
         self.step1_btn.label = t("BTN_STEP_1", guild_id=guild_id)
         self.step2_btn.label = t("BTN_STEP_2", guild_id=guild_id)
         self.step3_btn.label = t("BTN_STEP_3", guild_id=guild_id)
-        self.step4_btn.label = t("BTN_STEP_4", guild_id=guild_id)
-        self.limits_btn.label = t("BTN_ROLE_LIMITS", guild_id=guild_id)
+        self.advanced_btn.label = t("BTN_STEP_4", guild_id=guild_id)
+        self.role_limits_btn.label = t("BTN_ROLE_LIMITS", guild_id=guild_id)
         self.messages_btn.label = t("BTN_MESSAGES", guild_id=guild_id)
         self.save_preview_btn.label = t("BTN_SAVE_PREVIEW", guild_id=guild_id)
         
