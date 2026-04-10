@@ -27,20 +27,7 @@ except Exception:
 class EventCommands(commands.GroupCog, name="event"):
     # Subgroup for administrative tasks
     admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers")
-    # Subgroup for Bot Owner / System tasks
-    master_group = app_commands.Group(name="master", description="System-level commands for the Bot Owner")
-
-    def __init__(self, bot):
-        self.bot = bot
-
-    @master_group.command(name="status", description="Manage the global bot presence status list")
-    async def master_status(self, interaction: discord.Interaction):
-        if not await self.bot.is_owner(interaction.user):
-            await interaction.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
-            return
-        
-        view = MasterPresenceView(self.bot)
-        await view.refresh_message(interaction)
+    # --- CLEANUP: Master Hub logic moved to MasterCommands Cog ---
 
     @admin_group.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):
@@ -356,54 +343,7 @@ class EventCommands(commands.GroupCog, name="event"):
     # --- MASTER HUB Handled by MasterCommands Cog ---
 
 
-class MasterPresenceView(ui.View):
-    def __init__(self, bot):
-        super().__init__(timeout=300)
-        self.bot = bot
-        
-        # Localize button labels
-        self.add_btn.label = t("BTN_ADD", guild_id=None) # Global
-        self.clear_btn.label = t("BTN_CLEAR", guild_id=None) # Global
-
-    async def refresh_message(self, interaction: discord.Interaction):
-        statuses = self.bot.config.get("dynamic_status", [])
-        embed = discord.Embed(
-            title=t("MASTER_PRESENCE_TITLE"),
-            description=t("MASTER_PRESENCE_DESC"),
-            color=discord.Color.blue()
-        )
-        status_list = "\n".join([f"• {s}" for s in statuses]) if statuses else t("MASTER_PRESENCE_NONE")
-        embed.add_field(name=t("LBL_CURRENT_STATUSES"), value=status_list, inline=False)
-        embed.set_footer(text=t("MASTER_PRESENCE_FOOTER"))
-        
-        if interaction.response.is_done():
-            await interaction.edit_original_response(embed=embed, view=self)
-        else:
-            await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
-
-    @ui.button(label="➕ Status", style=discord.ButtonStyle.primary)
-    async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
-        modal = ui.Modal(title=t("MASTER_PRESENCE_ADD_TITLE"))
-        status_input = ui.TextInput(label=t("MASTER_PRESENCE_INPUT"), placeholder=t("MASTER_PRESENCE_PH"))
-        modal.add_item(status_input)
-        
-        async def on_submit(it: discord.Interaction):
-            new_status = status_input.value.strip()
-            if new_status:
-                statuses = self.bot.config.get("dynamic_status", [])
-                statuses.append(new_status)
-                self.bot.config["dynamic_status"] = statuses
-                await self.refresh_message(it)
-                await it.followup.send(t("MASTER_PRESENCE_ADDED", status=new_status), ephemeral=True)
-        
-        modal.on_submit = on_submit
-        await interaction.response.send_modal(modal)
-
-    @ui.button(label="🗑️ Clear", style=discord.ButtonStyle.danger)
-    async def clear_btn(self, interaction: discord.Interaction, button: ui.Button):
-        self.bot.config["dynamic_status"] = []
-        await self.refresh_message(interaction)
-        await interaction.followup.send(t("MASTER_PRESENCE_CLEARED"), ephemeral=True)
+# --- CLEANUP: Presence View moved to Master Hub ---
 
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))

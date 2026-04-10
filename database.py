@@ -586,3 +586,20 @@ async def clear_guild_data(guild_id):
     await pool.execute("DELETE FROM active_events WHERE guild_id = $1", str(guild_id))
     await pool.execute("DELETE FROM event_drafts WHERE guild_id = $1", str(guild_id))
     await pool.execute("DELETE FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
+
+async def get_global_stats():
+    """Returns bot-wide statistics for the Master Hub."""
+    pool = await get_pool()
+    # Count guilds with at least one active event
+    guild_count = await pool.fetchval("SELECT COUNT(DISTINCT guild_id) FROM active_events")
+    # Total active events
+    event_count = await pool.fetchval("SELECT COUNT(*) FROM active_events")
+    # Total RSVPs
+    rsvp_count = await pool.fetchval("SELECT COUNT(*) FROM rsvps")
+    
+    return {
+        "guilds": guild_count or 0,
+        "events": event_count or 0,
+        "rsvps": rsvp_count or 0
+    }
+

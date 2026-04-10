@@ -42,52 +42,64 @@ class MasterCommands(commands.GroupCog, name="master"):
             await interaction.followup.send(f"❌ Error retrieving stats: {e}")
 
     @app_commands.command(name="status")
-    @app_commands.describe(
-        action="What to do: list, add, remove",
-        text="The status text (use {event_count} for dynamic number)"
-    )
-    async def status_mgmt(self, interaction: discord.Interaction, action: str, text: str = None):
-        """Manage the bot's dynamic presence list."""
-        await interaction.response.defer(ephemeral=True)
+    async def status_mgmt(self, interaction: discord.Interaction):
+        """Manage the bot's dynamic presence list using a visual console."""
+        view = MasterPresenceView(self.bot)
+        await view.refresh_message(interaction)
+
+class MasterPresenceView(ui.View):
+    def __init__(self, bot):
+        super().__init__(timeout=300)
+        self.bot = bot
         
+        # Localize button labels
+        self.add_btn.label = t("BTN_ADD", guild_id=None)
+        self.clear_btn.label = t("BTN_CLEAR", guild_id=None)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        # Load from DB instead of config
         db_presence = await database.get_global_setting("bot_presence_list")
-        presence_list = json.loads(db_presence) if db_presence else []
+        statuses = json.loads(db_presence) if db_presence else []
+        
+        embed = discord.Embed(
+            title=t("MASTER_PRESENCE_TITLE"),
+            description=t("MASTER_PRESENCE_DESC"),
+            color=discord.Color.blue()
+        )
+        status_list = "\n".join([f"• {s}" for s in statuses]) if statuses else t("MASTER_PRESENCE_NONE")
+        embed.add_field(name=t("LBL_CURRENT_STATUSES"), value=status_list, inline=False)
+        embed.set_footer(text=t("MASTER_PRESENCE_FOOTER"))
+        
+        if interaction.response.is_done():
+            await interaction.edit_original_response(embed=embed, view=self)
+        else:
+            await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
 
-        if action.lower() == "list":
-            if not presence_list:
-                return await interaction.followup.send("📭 The status list is empty.")
-            
-            msg = "**Current Status Roster:**\n"
-            for i, p in enumerate(presence_list):
-                msg += f"{i+1}. `{p}`\n"
-            await interaction.followup.send(msg)
+    @ui.button(label="➕ Status", style=discord.ButtonStyle.primary)
+    async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
+        modal = ui.Modal(title=t("MASTER_PRESENCE_ADD_TITLE"))
+        status_input = ui.TextInput(label=t("MASTER_PRESENCE_INPUT"), placeholder=t("MASTER_PRESENCE_PH"), required=True)
+        modal.add_item(status_input)
+        
+        async def on_submit(it: discord.Interaction):
+            new_status = status_input.value.strip()
+            if new_status:
+                db_presence = await database.get_global_setting("bot_presence_list")
+                statuses = json.loads(db_presence) if db_presence else []
+                statuses.append(new_status)
+                await database.save_global_setting("bot_presence_list", json.dumps(statuses))
+                await it.response.defer()
+                await self.refresh_message(it)
+        
+        modal.on_submit = on_submit
+        await interaction.response.send_modal(modal)
 
-        elif action.lower() == "add":
-            if not text:
-                return await interaction.followup.send("❌ Please provide the status text.")
-            
-            presence_list.append(text)
-            await database.save_global_setting("bot_presence_list", json.dumps(presence_list))
-            await interaction.followup.send(f"✅ Added status: `{text}`")
-            log.info(f"[Master] Owner added presence: {text}")
+    @ui.button(label="🗑️ Clear", style=discord.ButtonStyle.danger)
+    async def clear_btn(self, interaction: discord.Interaction, button: ui.Button):
+        await database.save_global_setting("bot_presence_list", json.dumps([]))
+        await interaction.response.defer()
+        await self.refresh_message(interaction)
 
-        elif action.lower() == "remove":
-            if not text:
-                return await interaction.followup.send("❌ Please provide the text or index to remove.")
-            
-            try:
-                if text.isdigit():
-                    idx = int(text) - 1
-                    removed = presence_list.pop(idx)
-                else:
-                    presence_list.remove(text)
-                    removed = text
-                
-                await database.save_global_setting("bot_presence_list", json.dumps(presence_list))
-                await interaction.followup.send(f"✅ Removed status: `{removed}`")
-                log.info(f"[Master] Owner removed presence: {removed}")
-            except (ValueError, IndexError):
-                await interaction.followup.send("❌ Status not found in list.")
 
     @app_commands.command(name="global-sets")
     async def global_emoji_sets(self, interaction: discord.Interaction):
