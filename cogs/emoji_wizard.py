@@ -169,18 +169,35 @@ class EditEmojiSetModal(ui.Modal):
         pos_count = sdata.get("positive_count", 1)
         row_limit = sdata.get("buttons_per_row", 5)
         
-        # Format options for text field
-        opt_text = "\n".join([f"{o.get('emoji')} | {o.get('label')} | {o.get('id')}" for o in opts])
+        # Format options for text field: Emoji | Label | ID | Limit | Flags
+        lines = []
+        for o in opts:
+            limit = o.get("max_slots", 0)
+            flags = ""
+            if o.get("show_in_list", True): flags += "S"
+            
+            style = o.get("button_style", "both")
+            if style == "both": flags += "B"
+            elif style == "emoji": flags += "E"
+            elif style == "label": flags += "T"
+            
+            lines.append(f"{o.get('emoji')} | {o.get('label')} | {o.get('id')} | {limit} | {flags}")
+        
+        opt_text = "\n".join(lines)
+        
+        show_mgmt_val = t("LBL_YES") if sdata.get("show_mgmt", True) else t("LBL_NO")
         
         self.name_input = ui.TextInput(label=t("LBL_SET_NAME", guild_id=wizard_view.guild_id), default=set_record["name"], required=True)
         self.opts_input = ui.TextInput(label=t("LBL_EDIT_OPTIONS", guild_id=wizard_view.guild_id), placeholder=t("PH_EDIT_OPTIONS", guild_id=wizard_view.guild_id), style=discord.TextStyle.paragraph, default=opt_text, required=True)
         self.pos_count = ui.TextInput(label=t("LBL_POS_COUNT", guild_id=wizard_view.guild_id), default=str(pos_count), required=True)
         self.row_limit = ui.TextInput(label=t("LBL_ROW_LIMIT", guild_id=wizard_view.guild_id), default=str(row_limit), required=True)
+        self.mgmt_input = ui.TextInput(label=t("LBL_SHOW_MGMT", guild_id=wizard_view.guild_id), default=show_mgmt_val, placeholder=t("PH_SHOW_MGMT", guild_id=wizard_view.guild_id), required=True)
         
         self.add_item(self.name_input)
         self.add_item(self.opts_input)
         self.add_item(self.pos_count)
         self.add_item(self.row_limit)
+        self.add_item(self.mgmt_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         # Parse settings
@@ -190,6 +207,8 @@ class EditEmojiSetModal(ui.Modal):
             if not (1 <= row_l <= 5): raise ValueError("Row limit must be 1-5")
         except:
              return await interaction.response.send_message("❌ Invalid numbers for Count or Row Limit.", ephemeral=True)
+
+        show_m = (self.mgmt_input.value.strip().lower() in [t("LBL_YES").lower(), "yes", "igen", "y", "i"])
 
         # Parse options
         new_opts = []
@@ -202,9 +221,30 @@ class EditEmojiSetModal(ui.Modal):
             
             emoji = parts[0]
             label = parts[1]
-            oid = parts[2] if len(parts) > 2 else slugify(label)
+            oid = parts[2] if len(parts) > 2 and parts[2] else slugify(label)
             
-            new_opts.append({"id": oid, "emoji": emoji, "label": label})
+            # Limit
+            limit = 0
+            if len(parts) > 3:
+                try: limit = int(parts[3])
+                except: pass
+            
+            # Flags (S=Show in list, B=Both, E=Emoji only, T=Text only)
+            flags = parts[4].upper() if len(parts) > 4 else "SB"
+            show_in_list = "S" in flags
+            
+            style = "both"
+            if "E" in flags: style = "emoji"
+            elif "T" in flags: style = "label"
+            
+            new_opts.append({
+                "id": oid, 
+                "emoji": emoji, 
+                "label": label, 
+                "max_slots": limit,
+                "button_style": style,
+                "show_in_list": show_in_list
+            })
 
         if not new_opts:
             return await interaction.response.send_message("❌ You must have at least one icon.", ephemeral=True)
@@ -212,7 +252,8 @@ class EditEmojiSetModal(ui.Modal):
         new_data = {
             "options": new_opts,
             "positive_count": pos_c,
-            "buttons_per_row": row_l
+            "buttons_per_row": row_l,
+            "show_mgmt": show_m
         }
         
         await database.save_emoji_set(self.wizard_view.guild_id, self.set_id, self.name_input.value, new_data)

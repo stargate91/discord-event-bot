@@ -121,10 +121,15 @@ class DynamicEventView(discord.ui.View):
                 log.warning(f"Row limit reached for event {event_id}. Skipping option {role_id}.")
                 break
 
+            # Button Style logic
+            btn_style = opt.get("button_style", "both")
+            btn_emoji = opt.get("emoji") if btn_style in ["both", "emoji"] else None
+            btn_label = label if btn_style in ["both", "label"] else None
+
             btn = discord.ui.Button(
                 style=discord.ButtonStyle.secondary, 
-                emoji=opt.get("emoji") or None,
-                label=label or None,
+                emoji=btn_emoji or None,
+                label=btn_label or None,
                 custom_id=f"{role_id}_{event_id}",
                 row=row_idx
             )
@@ -142,14 +147,15 @@ class DynamicEventView(discord.ui.View):
         next_row = (added_count - 1) // per_row + 1 if added_count > 0 else 0
         if next_row > 4: next_row = 4
 
-        # We add the calendar icon
-        calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}", row=next_row)
-        calendar_btn.callback = self.calendar_callback
-        self.add_item(calendar_btn)
+        # Management and Utility buttons
+        if self.active_set.get("show_mgmt", True):
+            # Calendar icon
+            calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}", row=next_row)
+            calendar_btn.callback = self.calendar_callback
+            self.add_item(calendar_btn)
 
-        # Management buttons
-        guild_id = self.event_conf.get("guild_id") if self.event_conf else None
-        if self.active_set.get("show_mgmt"):
+            guild_id = self.event_conf.get("guild_id") if self.event_conf else None
+            
             edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}", row=next_row)
             edit_btn.callback = self.edit_callback
             self.add_item(edit_btn)
@@ -361,6 +367,10 @@ class DynamicEventView(discord.ui.View):
             if is_pos and max_acc > 0: count_text = f"{len(users)}/{max_acc}"
             if limit: count_text = f"{len(users)}/{limit}"
             
+            # Skip if hidden from list
+            if not opt.get("show_in_list", True):
+                continue
+
             name_parts = []
             if opt.get("emoji"): name_parts.append(opt["emoji"])
             if label_text: name_parts.append(label_text)
