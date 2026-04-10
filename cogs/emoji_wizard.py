@@ -30,6 +30,51 @@ async def send_emoji_help(interaction: discord.Interaction, guild_id):
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
+def parse_emoji_config(text_value: str):
+    """Parses a text block into a list of option dicts.
+    Format: Emoji | Label | List | Limit | Flags
+    Returns (new_opts, positive_count)
+    """
+    new_opts = []
+    positive_count = 0
+    lines = text_value.strip().split("\n")
+    color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
+    
+    for i, line in enumerate(lines, 1):
+        line = line.strip()
+        if not line: continue
+        parts = [p.strip() for p in line.split("|")]
+        if len(parts) < 2: 
+            raise ValueError(f"Line {i}: Too few columns (need at least Emoji | Label)")
+        
+        emoji = parts[0]
+        btn_label = parts[1]
+        list_label = parts[2] if len(parts) > 2 and parts[2] else btn_label
+        oid = slugify(btn_label)
+        
+        limit = 0
+        if len(parts) > 3:
+            try: limit = int(parts[3])
+            except: pass
+            
+        flags = parts[4].upper() if len(parts) > 4 else "SPB"
+        show_in_list = "S" in flags
+        is_positive = "P" in flags
+        if is_positive: positive_count += 1
+        
+        style = "emoji" if "E" in flags else ("label" if "T" in flags else "both")
+        btn_color = "secondary"
+        for code, name in color_map.items():
+            if code in flags: btn_color = name; break
+            
+        new_opts.append({
+            "id": oid, "emoji": emoji, "label": btn_label, "list_label": list_label,
+            "max_slots": limit, "button_style": style, "button_color": btn_color,
+            "show_in_list": show_in_list, "positive": is_positive
+        })
+        
+    return new_opts, positive_count
+
 class EmojiWizardView(ui.View):
     """Main management console for emoji sets."""
     def __init__(self, bot, guild_id, selected_set_id=None):
@@ -295,62 +340,10 @@ class EditEmojiSetModal(ui.Modal):
 
         show_m = (self.mgmt_input.value.strip().lower() in [t("LBL_YES").lower(), "yes", "igen", "y", "i"])
 
-        # Parse options
-        new_opts = []
-        positive_count = 0
-        lines = self.opts_input.value.strip().split("\n")
-        
-        color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
-        
-        for i, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line: continue
-            parts = [p.strip() for p in line.split("|")]
-            if len(parts) < 2: 
-                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error="Too few columns"), ephemeral=True)
-            
-            try:
-                emoji = parts[0]
-                btn_label = parts[1]
-                list_label = parts[2] if len(parts) > 2 and parts[2] else btn_label
-                oid = slugify(btn_label)
-                
-                # Limit - now in parts[3]
-                limit = 0
-                if len(parts) > 3:
-                    try: limit = int(parts[3])
-                    except: pass
-                
-                # Flags - now in parts[4]
-                flags = parts[4].upper() if len(parts) > 4 else "SPB"
-                show_in_list = "S" in flags
-                is_positive = "P" in flags
-                if is_positive: positive_count += 1
-                
-                style = "both"
-                if "E" in flags: style = "emoji"
-                elif "T" in flags: style = "label"
-                
-                # Color
-                btn_color = "secondary"
-                for code, name in color_map.items():
-                    if code in flags:
-                        btn_color = name
-                        break
-                
-                new_opts.append({
-                    "id": oid, 
-                    "emoji": emoji, 
-                    "label": btn_label, 
-                    "list_label": list_label,
-                    "max_slots": limit,
-                    "button_style": style,
-                    "button_color": btn_color,
-                    "show_in_list": show_in_list,
-                    "positive": is_positive
-                })
-            except Exception as e:
-                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error=str(e)), ephemeral=True)
+        try:
+            new_opts, p_count = parse_emoji_config(self.opts_input.value)
+        except Exception as e:
+            return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
 
         if not new_opts:
             return await interaction.response.send_message("❌ You must have at least one icon.", ephemeral=True)
@@ -398,46 +391,14 @@ class EditGlobalEmojiSetModal(EditEmojiSetModal):
         except:
              return await interaction.response.send_message("❌ Invalid number for Row Limit.", ephemeral=True)
 
-        lines = self.opts_input.value.strip().split("\n")
-        new_opts = []
-        positive_count = 0
-        color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
-
-        for i, line in enumerate(lines, 1):
-            line = line.strip()
-            if not line: continue
-            parts = [p.strip() for p in line.split("|")]
-            if len(parts) < 2: 
-                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error="Too few columns"), ephemeral=True)
-            
-            try:
-                emoji, btn_label = parts[0], parts[1]
-                list_label = parts[2] if len(parts) > 2 and parts[2] else ""
-                oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
-                limit = 0
-                if len(parts) > 4:
-                    try: limit = int(parts[4])
-                    except: pass
-                flags = parts[5].upper() if len(parts) > 5 else "SPB"
-                show_in_list = "S" in flags
-                is_positive = "P" in flags
-                if is_positive: positive_count += 1
-                style = "emoji" if "E" in flags else ("label" if "T" in flags else "both")
-                btn_color = "secondary"
-                for code, name in color_map.items():
-                    if code in flags: btn_color = name; break
-                
-                new_opts.append({
-                    "id": oid, "emoji": emoji, "label": btn_label, "list_label": list_label,
-                    "max_slots": limit, "button_style": style, "button_color": btn_color,
-                    "show_in_list": show_in_list, "positive": is_positive
-                })
-            except Exception as e:
-                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error=str(e)), ephemeral=True)
+        try:
+            new_opts, p_count = parse_emoji_config(self.opts_input.value)
+        except Exception as e:
+            return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
 
         new_data = {
             "options": new_opts,
-            "positive_count": positive_count,
+            "positive_count": p_count,
             "buttons_per_row": row_l,
             "show_mgmt": True
         }
