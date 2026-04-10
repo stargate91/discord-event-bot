@@ -28,35 +28,8 @@ class EmojiWizardView(ui.LayoutView):
         self.selected_set_id = selected_set_id
         self.is_global = is_global
 
-    async def prepare(self):
-        """Initial data fetch to populate the view before sending."""
-        if self.is_global:
-            sets = await database.get_all_global_emoji_sets()
-        else:
-            sets = await database.get_emoji_sets(self.guild_id)
-        
-        options = []
-        for s in sets:
-            s_data = s["data"]
-            sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
-            opts = sdata.get("options", [])
-            icons = [o.get("emoji") for o in opts[:3]]
-            preview = ", ".join(icons) if icons else t("LBL_NO_PREVIEW", guild_id=self.guild_id)
-            options.append(discord.SelectOption(
-                label=s["name"], 
-                value=s["set_id"], 
-                description=preview,
-                default=(s["set_id"] == self.selected_set_id)
-            ))
-            
-        if not options:
-            options.append(discord.SelectOption(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none"))
-
-        self.set_select.placeholder = t("SEL_EMOJI_SET", guild_id=self.guild_id)
-        self.set_select.options = options
 
     async def refresh_message(self, interaction: discord.Interaction):
-        await self.prepare()
         
         desc = t("EMOJI_WIZ_INIT_DESC", guild_id=self.guild_id)
         if self.is_global:
