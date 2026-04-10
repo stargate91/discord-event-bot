@@ -160,7 +160,7 @@ class StatusModal(ui.Modal):
         await interaction.response.defer()
         await self.refresh_callback(interaction)
 
-class MasterPresenceView(ui.View):
+class MasterPresenceView(ui.LayoutView):
     def __init__(self, bot):
         super().__init__(timeout=300)
         self.bot = bot
@@ -180,16 +180,9 @@ class MasterPresenceView(ui.View):
     async def refresh_message(self, interaction: discord.Interaction):
         await self.load_config()
         
-        embed = discord.Embed(
-            title=t("MASTER_PRESENCE_TITLE", guild_id=None),
-            description=t("MASTER_PRESENCE_DESC", guild_id=None),
-            color=discord.Color.blue()
-        )
-        
         time_cfg = self.current_config.get("time", 30)
         mode_cfg = self.current_config.get("mode", "random")
         val = t("MASTER_PRESENCE_CFG_VAL", guild_id=None).replace("{time}", str(time_cfg)).replace("{mode}", mode_cfg.capitalize())
-        embed.add_field(name=t("MASTER_PRESENCE_CFG", guild_id=None), value=val, inline=False)
         
         statuses = self.current_config.get("statuses", [])
         if statuses:
@@ -198,24 +191,36 @@ class MasterPresenceView(ui.View):
             for i, s in enumerate(statuses):
                 icon = icon_map.get(s.get("type", "watching"), "👀")
                 lines.append(f"`{i+1}.` {icon} **{s.get('type', 'watching').capitalize()}**: {s.get('text', '')}")
-            embed.add_field(name=t("MASTER_PRESENCE_ACTIVE", guild_id=None), value="\n".join(lines), inline=False)
+            active_val = "\n".join(lines)
         else:
-            embed.add_field(name=t("MASTER_PRESENCE_ACTIVE", guild_id=None), value=t("MASTER_PRESENCE_NONE", guild_id=None), inline=False)
+            active_val = t("MASTER_PRESENCE_NONE", guild_id=None)
 
-        # Rebuild view
         self.clear_items()
+        
+        container = ui.Container(
+            ui.TextDisplay(f"### {t('MASTER_PRESENCE_TITLE', guild_id=None)}"),
+            ui.Separator(),
+            ui.TextDisplay(t("MASTER_PRESENCE_DESC", guild_id=None)),
+            ui.Separator(),
+            ui.TextDisplay(f"**{t('MASTER_PRESENCE_CFG', guild_id=None)}**\n{val}"),
+            ui.Separator(),
+            ui.TextDisplay(f"**{t('MASTER_PRESENCE_ACTIVE', guild_id=None)}**\n{active_val}"),
+            accent_color=0x00bfff
+        )
+        self.add_item(container)
         
         add_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.primary)
         async def add_cb(it):
             await it.response.send_modal(StatusModal(self.refresh_message))
         add_btn.callback = add_cb
-        self.add_item(add_btn)
         
         cfg_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_CFG", guild_id=None), style=discord.ButtonStyle.secondary)
         async def cfg_cb(it):
             await it.response.send_modal(PresenceConfigModal(self.current_config, self.refresh_message))
         cfg_btn.callback = cfg_cb
-        self.add_item(cfg_btn)
+        
+        row1 = ui.ActionRow(add_btn, cfg_btn)
+        self.add_item(row1)
 
         if statuses:
             options = []
@@ -232,14 +237,16 @@ class MasterPresenceView(ui.View):
                     edit_view = PresenceEditView(self, sel_id, sel_data)
                     await edit_view.refresh_message(it)
             select.callback = select_cb
-            self.add_item(select)
+            
+            row2 = ui.ActionRow(select)
+            self.add_item(row2)
             
         if interaction.response.is_done():
-            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.edit_original_response(embeds=[], view=self)
         else:
-            await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
+            await interaction.response.send_message(view=self, ephemeral=True)
 
-class PresenceEditView(ui.View):
+class PresenceEditView(ui.LayoutView):
     def __init__(self, parent_view, status_id, status_data):
         super().__init__(timeout=300)
         self.parent_view = parent_view
@@ -248,11 +255,15 @@ class PresenceEditView(ui.View):
 
     async def refresh_message(self, interaction: discord.Interaction):
         desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", self.status_data.get('type', 'watching').capitalize()).replace("{text}", self.status_data.get('text', ''))
-        embed = discord.Embed(
-            title=t("MASTER_PRESENCE_EDIT_MODE", guild_id=None),
-            description=desc,
-            color=discord.Color.yellow()
+        
+        self.clear_items()
+        container = ui.Container(
+            ui.TextDisplay(f"### {t('MASTER_PRESENCE_EDIT_MODE', guild_id=None)}"),
+            ui.Separator(),
+            ui.TextDisplay(desc),
+            accent_color=0x00bfff
         )
+        self.add_item(container)
         
         edit_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.primary)
         async def edit_cb(it):
@@ -275,10 +286,10 @@ class PresenceEditView(ui.View):
             await self.parent_view.refresh_message(it)
         back_btn.callback = back_cb
 
-        self.clear_items()
-        self.add_item(edit_btn); self.add_item(del_btn); self.add_item(back_btn)
+        row = ui.ActionRow(edit_btn, del_btn, back_btn)
+        self.add_item(row)
         
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embeds=[], view=self)
 
 
 
