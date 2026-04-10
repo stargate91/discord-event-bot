@@ -254,12 +254,12 @@ class PresenceEditView(ui.LayoutView):
         desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", self.status_data.get('type', 'watching').capitalize()).replace("{text}", self.status_data.get('text', ''))
         
         self.clear_items()
-        edit_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.primary)
+        edit_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
         async def edit_cb(it):
             await it.response.send_modal(StatusModal(self.parent_view.refresh_message, self.status_id, self.status_data))
         edit_btn.callback = edit_cb
         
-        del_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.danger)
+        del_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             db_presence = await database.get_global_setting("bot_presence_list")
             config = json.loads(db_presence)
