@@ -156,7 +156,7 @@ class EmojiWizardView(ui.LayoutView):
         if interaction.response.is_done():
             await interaction.edit_original_response(embeds=[], view=self)
         else:
-            await interaction.response.edit_message(embeds=[], view=self)
+            await interaction.response.send_message(view=self, ephemeral=True)
 
 
 
