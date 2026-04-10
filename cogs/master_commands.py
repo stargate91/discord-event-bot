@@ -197,7 +197,7 @@ class MasterPresenceView(ui.LayoutView):
 
         self.clear_items()
         
-        add_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.primary)
+        add_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
             await it.response.send_modal(StatusModal(self.refresh_message))
         add_btn.callback = add_cb
@@ -207,7 +207,7 @@ class MasterPresenceView(ui.LayoutView):
             await it.response.send_modal(PresenceConfigModal(self.current_config, self.refresh_message))
         cfg_btn.callback = cfg_cb
         
-        row1 = ui.ActionRow(add_btn, cfg_btn)
+        row_buttons = ui.ActionRow(add_btn, cfg_btn)
 
         container_items = [
             ui.TextDisplay(f"### {t('MASTER_PRESENCE_TITLE', guild_id=None)}"),
@@ -216,8 +216,7 @@ class MasterPresenceView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(f"**{t('MASTER_PRESENCE_CFG', guild_id=None)}**\n{val}"),
             ui.Separator(),
-            ui.TextDisplay(f"**{t('MASTER_PRESENCE_ACTIVE', guild_id=None)}**\n{active_val}"),
-            row1
+            ui.TextDisplay(f"**{t('MASTER_PRESENCE_ACTIVE', guild_id=None)}**\n{active_val}")
         ]
 
         if statuses:
@@ -236,9 +235,11 @@ class MasterPresenceView(ui.LayoutView):
                     await edit_view.refresh_message(it)
             select.callback = select_cb
             
-            row2 = ui.ActionRow(select)
-            container_items.append(row2)
+            row_select = ui.ActionRow(select)
+            container_items.append(ui.Separator())
+            container_items.append(row_select)
 
+        container_items.append(row_buttons)
         container = ui.Container(*container_items, accent_color=0x00bfff)
         self.add_item(container)
             
