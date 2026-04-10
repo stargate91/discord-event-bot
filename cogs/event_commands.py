@@ -352,20 +352,20 @@ class EventCommands(commands.GroupCog, name="event"):
         if not await is_admin(ctx):
             return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
         
-        await ctx.send("🔄 Starting synchronization...")
+        await ctx.send(t("SYNC_START", guild_id=ctx.guild.id))
         try:
             if spec == "global":
                 synced = await self.bot.tree.sync()
-                await ctx.send(f"✅ Synced {len(synced)} commands globally.")
+                await ctx.send(t("SYNC_GLOBAL_OK", guild_id=ctx.guild.id).replace("{count}", str(len(synced))))
             elif spec == "copy":
                 self.bot.tree.copy_global_to(guild=ctx.guild)
                 synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(f"✅ Global commands copied and synced to this guild ({len(synced)} total).")
+                await ctx.send(t("SYNC_COPY_OK", guild_id=ctx.guild.id).replace("{count}", str(len(synced))))
             else:
                 synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(f"✅ Synced {len(synced)} commands to this guild.")
+                await ctx.send(t("SYNC_GUILD_OK", guild_id=ctx.guild.id).replace("{count}", str(len(synced))))
         except Exception as e:
-            await ctx.send(f"❌ Sync failed: `{e}`")
+            await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
     @commands.command(name="clear_commands", aliases=["clear_commands_nexus"])
     @commands.guild_only()
@@ -373,15 +373,15 @@ class EventCommands(commands.GroupCog, name="event"):
         if not await is_admin(ctx):
             return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
         
-        await ctx.send("🗑️ Clearing all command registrations...")
+        await ctx.send(t("SYNC_CLEAR_START", guild_id=ctx.guild.id))
         try:
             self.bot.tree.clear_commands(guild=None)
             await self.bot.tree.sync(guild=None)
             self.bot.tree.clear_commands(guild=ctx.guild)
             await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send("✅ Command tree cleared. Use `!sync` to re-register.")
+            await ctx.send(t("SYNC_CLEAR_OK", guild_id=ctx.guild.id))
         except Exception as e:
-            await ctx.send(f"❌ Clear failed: `{e}`")
+            await ctx.send(t("SYNC_CLEAR_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))
