@@ -130,7 +130,7 @@
   "MODAL_NEW_SET_TITLE": "Create New Emoji Set",
   "LBL_CHOOSE_TEMPLATE": "Choose a template to start with",
   "LBL_EDIT_OPTIONS": "Icon Configuration",
-  "PH_EDIT_OPTIONS": "Format: Emoji | Button | List | ID | Limit | Flags\nExample: ✅ | Yes | Participants | accepted | 0 | SPBG",
+  "PH_EDIT_OPTIONS": "Emoji | Button | List | ID | Limit | Flags\nExample: ✅ | Yes | Participants | acc | 0 | SPBG",
   "PH_SHOW_MGMT": "Yes / No",
   "MSG_GLOBAL_SAVED": "✅ Global set saved!",
   "MSG_GLOBAL_DELETED": "✅ Global set deleted!",
