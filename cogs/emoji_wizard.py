@@ -166,22 +166,25 @@ class EditEmojiSetModal(ui.Modal):
         s_data = set_record["data"]
         sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
         opts = sdata.get("options", [])
-        pos_count = sdata.get("positive_count", 1)
         row_limit = sdata.get("buttons_per_row", 5)
         
-        # Format options for text field: Emoji | Label | ID | Limit | Flags
+        # Format options for text field: Emoji | Button | Embed | ID | Limit | Flags
         lines = []
         for o in opts:
             limit = o.get("max_slots", 0)
             flags = ""
             if o.get("show_in_list", True): flags += "S"
+            if o.get("positive", False): flags += "P"
             
             style = o.get("button_style", "both")
             if style == "both": flags += "B"
             elif style == "emoji": flags += "E"
             elif style == "label": flags += "T"
             
-            lines.append(f"{o.get('emoji')} | {o.get('label')} | {o.get('id')} | {limit} | {flags}")
+            btn_lbl = o.get("label", "")
+            list_lbl = o.get("list_label", "")
+            
+            lines.append(f"{o.get('emoji')} | {btn_lbl} | {list_lbl} | {o.get('id')} | {limit} | {flags}")
         
         opt_text = "\n".join(lines)
         
@@ -189,29 +192,27 @@ class EditEmojiSetModal(ui.Modal):
         
         self.name_input = ui.TextInput(label=t("LBL_SET_NAME", guild_id=wizard_view.guild_id), default=set_record["name"], required=True)
         self.opts_input = ui.TextInput(label=t("LBL_EDIT_OPTIONS", guild_id=wizard_view.guild_id), placeholder=t("PH_EDIT_OPTIONS", guild_id=wizard_view.guild_id), style=discord.TextStyle.paragraph, default=opt_text, required=True)
-        self.pos_count = ui.TextInput(label=t("LBL_POS_COUNT", guild_id=wizard_view.guild_id), default=str(pos_count), required=True)
         self.row_limit = ui.TextInput(label=t("LBL_ROW_LIMIT", guild_id=wizard_view.guild_id), default=str(row_limit), required=True)
         self.mgmt_input = ui.TextInput(label=t("LBL_SHOW_MGMT", guild_id=wizard_view.guild_id), default=show_mgmt_val, placeholder=t("PH_SHOW_MGMT", guild_id=wizard_view.guild_id), required=True)
         
         self.add_item(self.name_input)
         self.add_item(self.opts_input)
-        self.add_item(self.pos_count)
         self.add_item(self.row_limit)
         self.add_item(self.mgmt_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         # Parse settings
         try:
-            pos_c = int(self.pos_count.value)
             row_l = int(self.row_limit.value)
             if not (1 <= row_l <= 5): raise ValueError("Row limit must be 1-5")
         except:
-             return await interaction.response.send_message("❌ Invalid numbers for Count or Row Limit.", ephemeral=True)
+             return await interaction.response.send_message("❌ Invalid number for Row Limit.", ephemeral=True)
 
         show_m = (self.mgmt_input.value.strip().lower() in [t("LBL_YES").lower(), "yes", "igen", "y", "i"])
 
         # Parse options
         new_opts = []
+        positive_count = 0
         lines = self.opts_input.value.strip().split("\n")
         for line in lines:
             line = line.strip()
@@ -220,18 +221,22 @@ class EditEmojiSetModal(ui.Modal):
             if len(parts) < 2: continue
             
             emoji = parts[0]
-            label = parts[1]
-            oid = parts[2] if len(parts) > 2 and parts[2] else slugify(label)
+            btn_label = parts[1]
+            list_label = parts[2] if len(parts) > 2 and parts[2] else ""
+            oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
             
             # Limit
             limit = 0
-            if len(parts) > 3:
-                try: limit = int(parts[3])
+            if len(parts) > 4:
+                try: limit = int(parts[4])
                 except: pass
             
-            # Flags (S=Show in list, B=Both, E=Emoji only, T=Text only)
-            flags = parts[4].upper() if len(parts) > 4 else "SB"
+            # Flags (S=Show in list, P=Positive, B=Both, E=Emoji only, T=Text only)
+            flags = parts[5].upper() if len(parts) > 5 else "SPB"
             show_in_list = "S" in flags
+            is_positive = "P" in flags
+            
+            if is_positive: positive_count += 1
             
             style = "both"
             if "E" in flags: style = "emoji"
@@ -240,10 +245,12 @@ class EditEmojiSetModal(ui.Modal):
             new_opts.append({
                 "id": oid, 
                 "emoji": emoji, 
-                "label": label, 
+                "label": btn_label, 
+                "list_label": list_label,
                 "max_slots": limit,
                 "button_style": style,
-                "show_in_list": show_in_list
+                "show_in_list": show_in_list,
+                "positive": is_positive
             })
 
         if not new_opts:
@@ -251,7 +258,7 @@ class EditEmojiSetModal(ui.Modal):
 
         new_data = {
             "options": new_opts,
-            "positive_count": pos_c,
+            "positive_count": positive_count, # Redundant but good for backward compatibility
             "buttons_per_row": row_l,
             "show_mgmt": show_m
         }

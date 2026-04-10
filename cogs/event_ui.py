@@ -183,7 +183,7 @@ class DynamicEventView(discord.ui.View):
             return
 
         max_acc = event_conf.get("max_accepted", 0)
-        positive_statuses = self.active_set.get("positive", [])
+        positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
         if not positive_statuses and "positive_count" in self.active_set:
             cnt = self.active_set["positive_count"]
             positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
@@ -318,7 +318,7 @@ class DynamicEventView(discord.ui.View):
         rsvps = await database.get_rsvps(self.event_id)
         status_map = {opt["id"]: [] for opt in self.active_set["options"]}
         total_positive_count = 0
-        positive_statuses = self.active_set.get("positive", [])
+        positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
         if not positive_statuses and "positive_count" in self.active_set:
             cnt = self.active_set["positive_count"]
             positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
