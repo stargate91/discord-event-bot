@@ -257,5 +257,5 @@
   "WIZARD_STATUS_OK": "✅ Ready",
   "WIZARD_STATUS_WAIT": "⏳ Waiting for input",
   "WIZARD_TITLE": "Event Management Wizard",
-  "WIZARD_TYPE_DESC": "Please select the event type to start!",
+  "WIZARD_TYPE_DESC": "Please select the event type to start!"
 }
