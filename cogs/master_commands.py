@@ -26,18 +26,13 @@ class MasterCommands(commands.GroupCog, name="master"):
                 config_data = json.load(f)
             bot_version = config_data.get("globals", {}).get("version", "v2.1.0")
 
-            val_guilds = f"**{stats['guilds']}**"
-            val_events = f"**{stats['events']}**"
-            val_rsvps = f"**{stats['rsvps']}**"
-            val_lat = f"{round(self.bot.latency * 1000)}ms"
-
             body_text = (
-                f"{t('MASTER_STATS_GUILDS', guild_id=None)}: {val_guilds}\n"
-                f"{t('MASTER_STATS_EVENTS', guild_id=None)}: {val_events}\n"
-                f"{t('MASTER_STATS_RSVPS', guild_id=None)}: {val_rsvps}\n\n"
-                f"{t('MASTER_STATS_VERSION', guild_id=None)}: **{bot_version}**\n"
-                f"{t('MASTER_STATS_PYTHON', guild_id=None)}: **3.14**\n"
-                f"{t('MASTER_STATS_LATENCY', guild_id=None)}: **{val_lat}**"
+                f"{t('MASTER_STATS_GUILDS', guild_id=None, val=stats['guilds'])}\n"
+                f"{t('MASTER_STATS_EVENTS', guild_id=None, val=stats['events'])}\n"
+                f"{t('MASTER_STATS_RSVPS', guild_id=None, val=stats['rsvps'])}\n\n"
+                f"{t('MASTER_STATS_VERSION', guild_id=None, val=bot_version)}\n"
+                f"{t('MASTER_STATS_PYTHON', guild_id=None, val='3.14')}\n"
+                f"{t('MASTER_STATS_LATENCY', guild_id=None, val=f'{round(self.bot.latency * 1000)}ms')}"
             )
 
             layout = ui.LayoutView()
@@ -180,10 +175,10 @@ class MasterPresenceView(ui.LayoutView):
         statuses = self.current_config.get("statuses", [])
         if statuses:
             lines = []
-            icon_map = {"playing": "🎮", "watching": "👀", "listening": "🎧", "competing": "🏆"}
             for i, s in enumerate(statuses):
-                icon = icon_map.get(s.get("type", "watching"), "👀")
-                lines.append(f"`{i+1}.` {icon} **{s.get('type', 'watching').capitalize()}**: {s.get('text', '')}")
+                type_key = f"PRESENCE_TYPE_{s.get('type', 'watching').upper()}"
+                type_text = t(type_key, guild_id=None)
+                lines.append(t("MASTER_PRESENCE_LIST_ITEM", guild_id=None, i=i+1, type_text=type_text, text=s.get('text', '')))
             active_val = "\n".join(lines)
         else:
             active_val = t("MASTER_PRESENCE_NONE", guild_id=None)
@@ -216,7 +211,9 @@ class MasterPresenceView(ui.LayoutView):
         if statuses:
             options = []
             for s in statuses:
-                label = f"{s.get('type', 'Watching').capitalize()}: {s.get('text', '')}"[:100]
+                type_key = f"PRESENCE_TYPE_{s.get('type', 'watching').upper()}"
+                type_text = t(type_key, guild_id=None).replace("**", "") # Strip bolding for select menu if any
+                label = f"{type_text}: {s.get('text', '')}"[:100]
                 options.append(discord.SelectOption(label=label, value=s["id"]))
             
             select = ui.Select(placeholder=t("MASTER_PRESENCE_SEL_PH", guild_id=None), options=options)
@@ -251,7 +248,9 @@ class PresenceEditView(ui.LayoutView):
         self.status_data = status_data
 
     async def refresh_message(self, interaction: discord.Interaction):
-        desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", self.status_data.get('type', 'watching').capitalize()).replace("{text}", self.status_data.get('text', ''))
+        type_key = f"PRESENCE_TYPE_{self.status_data.get('type', 'watching').upper()}"
+        type_text = t(type_key, guild_id=None)
+        desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", type_text).replace("{text}", self.status_data.get('text', ''))
         
         self.clear_items()
         edit_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
