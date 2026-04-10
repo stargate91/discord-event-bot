@@ -78,7 +78,7 @@ class MessageWizardView(ui.View):
         self.selected_key = None
         await self.refresh_message(interaction)
 
-    @ui.select(row=1)
+    @ui.select(row=1, options=[discord.SelectOption(label="Loading...", value="none")])
     async def key_select(self, interaction: discord.Interaction, select: ui.Select):
         if select.values[0] == "none": return
         self.selected_key = select.values[0]

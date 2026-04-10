@@ -137,7 +137,7 @@ class EmojiWizardView(ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.select(placeholder="Válassz egy készletet...", row=0)
+    @ui.select(placeholder="Válassz egy készletet...", row=0, options=[discord.SelectOption(label="Loading...", value="none")])
     async def set_select(self, interaction: discord.Interaction, select: ui.Select):
         if select.values[0] == "none": 
             await interaction.response.defer()
