@@ -21,23 +21,32 @@ class MasterCommands(commands.GroupCog, name="master"):
         try:
             stats = await database.get_global_stats()
             
-            embed = discord.Embed(
-                title=t("MASTER_STATS_TITLE", guild_id=None),
-                color=discord.Color.purple(),
-                timestamp=discord.utils.utcnow()
+            val_guilds = f"**{stats['guilds']}**"
+            val_events = f"**{stats['events']}**"
+            val_rsvps = f"**{stats['rsvps']}**"
+            val_lat = f"{round(self.bot.latency * 1000)}ms"
+
+            body_text = (
+                f"{t('MASTER_STATS_GUILDS', guild_id=None)}: {val_guilds}\n"
+                f"{t('MASTER_STATS_EVENTS', guild_id=None)}: {val_events}\n"
+                f"{t('MASTER_STATS_RSVPS', guild_id=None)}: {val_rsvps}\n\n"
+                f"{t('MASTER_STATS_VERSION', guild_id=None)}: **v2.1.0**\n"
+                f"{t('MASTER_STATS_PYTHON', guild_id=None)}: **3.14**\n"
+                f"{t('MASTER_STATS_LATENCY', guild_id=None)}: **{val_lat}**"
+            )
+
+            layout = ui.LayoutView(
+                ui.Container(
+                    ui.TextDisplay(f"### {t('MASTER_STATS_TITLE', guild_id=None)}"),
+                    ui.Separator(),
+                    ui.TextDisplay(body_text),
+                    ui.Separator(),
+                    ui.TextDisplay(f"__{t('MASTER_STATS_FOOTER', guild_id=None)}__"),
+                    accent_color=0x00bfff
+                )
             )
             
-            embed.add_field(name=t("MASTER_STATS_GUILDS", guild_id=None), value=f"**{stats['guilds']}**", inline=True)
-            embed.add_field(name=t("MASTER_STATS_EVENTS", guild_id=None), value=f"**{stats['events']}**", inline=True)
-            embed.add_field(name=t("MASTER_STATS_RSVPS", guild_id=None), value=f"**{stats['rsvps']}**", inline=True)
-            
-            # Additional bot info
-            embed.add_field(name=t("MASTER_STATS_VERSION", guild_id=None), value="v2.1.0", inline=True)
-            embed.add_field(name=t("MASTER_STATS_PYTHON", guild_id=None), value="3.14", inline=True)
-            embed.add_field(name=t("MASTER_STATS_LATENCY", guild_id=None), value=f"{round(self.bot.latency * 1000)}ms", inline=True)
-            
-            embed.set_footer(text=t("MASTER_STATS_FOOTER", guild_id=None))
-            await interaction.followup.send(embed=embed)
+            await interaction.followup.send(view=layout)
         except Exception as e:
             log.error(f"[Master] Error getting stats: {e}")
             await interaction.followup.send(t("MASTER_STATS_ERR", guild_id=None).replace("{e}", str(e)))
