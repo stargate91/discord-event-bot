@@ -89,7 +89,8 @@ class EventBot(commands.Bot):
             extensions = [
                 "cogs.event_commands",
                 "cogs.scheduler_task",
-                "cogs.server_setup"
+                "cogs.server_setup",
+                "cogs.emoji_wizard"
             ]
             
             for ext in extensions:
