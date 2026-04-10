@@ -5,6 +5,7 @@
   "command_prefix": "!",
   "globals": {
     "logging_level": "INFO",
-    "wizard_timeout": 600
+    "wizard_timeout": 600,
+    "version": "v2.1.0"
   }
 }

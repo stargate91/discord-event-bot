@@ -21,6 +21,11 @@ class MasterCommands(commands.GroupCog, name="master"):
         try:
             stats = await database.get_global_stats()
             
+            # Read version from config.json
+            with open("config.json", "r", encoding="utf-8") as f:
+                config_data = json.load(f)
+            bot_version = config_data.get("globals", {}).get("version", "v2.1.0")
+
             val_guilds = f"**{stats['guilds']}**"
             val_events = f"**{stats['events']}**"
             val_rsvps = f"**{stats['rsvps']}**"
@@ -30,7 +35,7 @@ class MasterCommands(commands.GroupCog, name="master"):
                 f"{t('MASTER_STATS_GUILDS', guild_id=None)}: {val_guilds}\n"
                 f"{t('MASTER_STATS_EVENTS', guild_id=None)}: {val_events}\n"
                 f"{t('MASTER_STATS_RSVPS', guild_id=None)}: {val_rsvps}\n\n"
-                f"{t('MASTER_STATS_VERSION', guild_id=None)}: **v2.1.0**\n"
+                f"{t('MASTER_STATS_VERSION', guild_id=None)}: **{bot_version}**\n"
                 f"{t('MASTER_STATS_PYTHON', guild_id=None)}: **3.14**\n"
                 f"{t('MASTER_STATS_LATENCY', guild_id=None)}: **{val_lat}**"
             )
@@ -41,7 +46,7 @@ class MasterCommands(commands.GroupCog, name="master"):
                 ui.Separator(),
                 ui.TextDisplay(body_text),
                 ui.Separator(),
-                ui.TextDisplay(f"__{t('MASTER_STATS_FOOTER', guild_id=None)}__"),
+                ui.TextDisplay(f"{t('MASTER_STATS_FOOTER', guild_id=None)}"),
                 accent_color=0x00bfff
             )
             layout.add_item(container)
