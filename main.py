@@ -260,9 +260,10 @@ class EventBot(commands.Bot):
                     name=status_text
                 )
                 await self.change_presence(activity=activity, status=discord.Status.online)
+                log.info(f"[Presence] Updated to: {act_type.name} - {status_text}")
                 
             except Exception as e:
-                log.error(f"[Presence] Error updating status: {e}")
+                log.error(f"[Presence] Error updating status: {e}", exc_info=True)
             
             # Rotate based on configured time (default 30s, minimum 15s to avoid API spam)
             sleep_time = max(15, config.get("time", 30))
