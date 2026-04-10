@@ -243,11 +243,11 @@ class SchedulerTask(commands.Cog):
                     user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
                     if user:
                         guild_id = db_event.get("guild_id")
-                embed = discord.Embed(
-                    title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
-                    description=rem_text,
-                    color=discord.Color.orange()
-                )
+                        embed = discord.Embed(
+                            title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
+                            description=rem_text,
+                            color=discord.Color.orange()
+                        )
                         embed.add_field(name=t("LBL_STARTS", guild_id=guild_id), value=f"<t:{int(start_ts)}:R>")
                         await user.send(embed=embed)
                 except Exception as e:

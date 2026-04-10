@@ -251,6 +251,11 @@ async def get_emoji_sets(guild_id):
     pool = await get_pool()
     return await pool.fetch("SELECT set_id, name, data FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
 
+async def get_all_custom_emoji_sets():
+    """Get all custom emoji sets from all guilds (for global cache)."""
+    pool = await get_pool()
+    return await pool.fetch("SELECT set_id, name, data FROM guild_emoji_sets")
+
 async def save_emoji_set(guild_id, set_id, name, data):
     """Upsert an emoji set."""
     pool = await get_pool()
