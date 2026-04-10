@@ -29,8 +29,7 @@ class EmojiWizardView(ui.LayoutView):
         self.is_global = is_global
 
 
-    async def refresh_message(self, interaction: discord.Interaction):
-        
+    async def refresh_message(self, interaction: discord.Interaction, status_msg=None):
         desc = t("EMOJI_WIZ_INIT_DESC", guild_id=self.guild_id)
         if self.is_global:
              desc = t("LBL_GLOBAL_EMOJI_DESC", guild_id=self.guild_id)
@@ -139,7 +138,7 @@ class EmojiWizardView(ui.LayoutView):
         container_items = [
             ui.TextDisplay(f"### {t('LBL_GLOBAL_TITLE' if self.is_global else 'EMOJI_WIZ_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
-            ui.TextDisplay(desc),
+            ui.TextDisplay(f"{status_msg}\n\n{desc}" if status_msg else desc),
         ]
         
         if selection_details:
@@ -154,10 +153,13 @@ class EmojiWizardView(ui.LayoutView):
         self.add_item(container)
         
         if interaction.response.is_done():
+            # If interaction already used (e.g. from modal that sent a msg), we edit the msg
             await interaction.edit_original_response(embeds=[], view=self)
-        elif interaction.type == discord.InteractionType.component:
+        elif interaction.type in (discord.InteractionType.component, discord.InteractionType.modal_submit):
+            # Normal way to update a view message from a component or its modal
             await interaction.response.edit_message(embeds=[], view=self)
         else:
+            # Initial slash command response
             await interaction.response.send_message(view=self, ephemeral=True)
 
 
@@ -289,8 +291,7 @@ class EditEmojiSetModal(ui.Modal):
             msg = t("MSG_ADVANCED_SAVED", guild_id=self.wizard_view.guild_id)
 
         self.wizard_view.selected_set_id = tid
-        await interaction.response.send_message(msg, ephemeral=True)
-        await self.wizard_view.refresh_message(interaction)
+        await self.wizard_view.refresh_message(interaction, status_msg=msg)
 
 class EmojiWizard(commands.GroupCog, name="admin"):
     """Cog for server administrators to manage local emoji sets."""
