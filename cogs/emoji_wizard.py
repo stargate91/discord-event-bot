@@ -256,7 +256,7 @@ class EditEmojiSetModal(ui.Modal):
             btn_lbl = o.get("label", "")
             list_lbl = o.get("list_label", "")
             
-            lines.append(f"{o.get('emoji')} | {btn_lbl} | {list_lbl} | {o.get('id')} | {limit} | {flags}")
+            lines.append(f"{o.get('emoji')} | {btn_lbl} | {list_lbl} | {limit} | {flags}")
         
         opt_text = "\n".join(lines)
         
@@ -299,17 +299,17 @@ class EditEmojiSetModal(ui.Modal):
             try:
                 emoji = parts[0]
                 btn_label = parts[1]
-                list_label = parts[2] if len(parts) > 2 and parts[2] else ""
-                oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
+                list_label = parts[2] if len(parts) > 2 and parts[2] else btn_label
+                oid = slugify(btn_label)
                 
-                # Limit
+                # Limit - now in parts[3]
                 limit = 0
-                if len(parts) > 4:
-                    try: limit = int(parts[4])
+                if len(parts) > 3:
+                    try: limit = int(parts[3])
                     except: pass
                 
-                # Flags (S=Show in list, P=Positive, B/E/T=Style, G/R/B/Y=Color)
-                flags = parts[5].upper() if len(parts) > 5 else "SPB"
+                # Flags - now in parts[4]
+                flags = parts[4].upper() if len(parts) > 4 else "SPB"
                 show_in_list = "S" in flags
                 is_positive = "P" in flags
                 if is_positive: positive_count += 1
