@@ -35,16 +35,16 @@ class MasterCommands(commands.GroupCog, name="master"):
                 f"{t('MASTER_STATS_LATENCY', guild_id=None)}: **{val_lat}**"
             )
 
-            layout = ui.LayoutView(
-                ui.Container(
-                    ui.TextDisplay(f"### {t('MASTER_STATS_TITLE', guild_id=None)}"),
-                    ui.Separator(),
-                    ui.TextDisplay(body_text),
-                    ui.Separator(),
-                    ui.TextDisplay(f"__{t('MASTER_STATS_FOOTER', guild_id=None)}__"),
-                    accent_color=0x00bfff
-                )
+            layout = ui.LayoutView()
+            container = ui.Container(
+                ui.TextDisplay(f"### {t('MASTER_STATS_TITLE', guild_id=None)}"),
+                ui.Separator(),
+                ui.TextDisplay(body_text),
+                ui.Separator(),
+                ui.TextDisplay(f"__{t('MASTER_STATS_FOOTER', guild_id=None)}__"),
+                accent_color=0x00bfff
             )
+            layout.add_item(container)
             
             await interaction.followup.send(view=layout)
         except Exception as e:
