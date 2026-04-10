@@ -344,6 +344,48 @@ class EventCommands(commands.GroupCog, name="event"):
         view.add_item(confirm_btn); view.add_item(cancel_btn)
         await interaction.response.send_message(t("MSG_RESET_WARNING", guild_id=interaction.guild_id), view=view, ephemeral=True)
 
+    # --- PREFIXED COMMANDS (for emergency/manual sync) ---
+
+    @commands.command(name="sync")
+    @commands.guild_only()
+    async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
+        if not await is_admin(ctx):
+            return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
+        
+        await ctx.send(t("SYNC_START_MSG", guild_id=ctx.guild.id))
+        try:
+            if spec == "global":
+                synced = await self.bot.tree.sync()
+                await ctx.send(t("SYNC_SUCCESS_GLOBAL", count=len(synced), guild_id=ctx.guild.id))
+            elif spec == "copy":
+                self.bot.tree.copy_global_to(guild=ctx.guild)
+                synced = await self.bot.tree.sync(guild=ctx.guild)
+                await ctx.send(t("SYNC_SUCCESS_COPY", count=len(synced), guild_id=ctx.guild.id))
+            else:
+                synced = await self.bot.tree.sync(guild=ctx.guild)
+                await ctx.send(t("SYNC_SUCCESS_GUILD", count=len(synced), guild_id=ctx.guild.id))
+        except discord.Forbidden:
+            await ctx.send("❌ Error: Missing 'Applications.Commands' scope or permissions!")
+        except Exception as e:
+            await ctx.send(f"❌ Sync failed: `{e}`")
+
+    @commands.command(name="clear_commands")
+    @commands.guild_only()
+    async def clear_commands_prefix(self, ctx: commands.Context):
+        if not await is_admin(ctx):
+            return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
+        
+        await ctx.send(t("SYNC_CLEAR_START", guild_id=ctx.guild.id))
+        try:
+            self.bot.tree.clear_commands(guild=None)
+            await self.bot.tree.sync(guild=None)
+            self.bot.tree.clear_commands(guild=ctx.guild)
+            await self.bot.tree.sync(guild=ctx.guild)
+            suffix = self.bot.config.get("command_suffix", "")
+            await ctx.send(t("SYNC_CLEAR_SUCCESS", suffix=suffix, guild_id=ctx.guild.id))
+        except Exception as e:
+            await ctx.send(f"❌ Clear failed: `{e}`")
+
 class MasterPresenceView(ui.View):
     def __init__(self, bot):
         super().__init__(timeout=300)
