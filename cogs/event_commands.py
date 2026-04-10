@@ -29,6 +29,9 @@ class EventCommands(commands.GroupCog, name="event"):
     admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers")
     # --- CLEANUP: Master Hub logic moved to MasterCommands Cog ---
 
+    def __init__(self, bot):
+        self.bot = bot
+
     @admin_group.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
