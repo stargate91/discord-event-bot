@@ -113,8 +113,8 @@ class CreateEmojiSetModal(ui.Modal):
         set_id = self.id_input.value.lower().strip().replace(" ", "_")
         data = {
             "options": [
-                {"id": "accepted", "emoji": "✅", "label": "Igen"},
-                {"id": "declined", "emoji": "❌", "label": "Nem"}
+                {"id": "accepted", "emoji": "✅", "label": t("LBL_YES", guild_id=self.wizard_view.guild_id)},
+                {"id": "declined", "emoji": "❌", "label": t("LBL_NO", guild_id=self.wizard_view.guild_id)}
             ],
             "positive_count": 1,
             "buttons_per_row": 5
