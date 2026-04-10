@@ -27,13 +27,6 @@ class EmojiWizardView(ui.LayoutView):
         self.guild_id = guild_id
         self.selected_set_id = selected_set_id
         self.is_global = is_global
-        
-        # Localize button labels
-        self.add_btn.label = t("BTN_NEW_SET", guild_id=guild_id)
-        self.clone_btn.label = t("BTN_CLONE", guild_id=guild_id)
-        self.edit_btn.label = t("BTN_EDIT", guild_id=guild_id)
-        self.delete_btn.label = t("BTN_DELETE", guild_id=guild_id)
-        self.help_btn.label = "❓"
 
     async def prepare(self):
         """Initial data fetch to populate the view before sending."""
@@ -82,16 +75,93 @@ class EmojiWizardView(ui.LayoutView):
                 sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
                 opts = sdata.get("options", [])
                 preview = " ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts])
-                selection_details = t("EMOJI_WIZ_SELECTED_DESC", guild_id=self.guild_id, name=current['name'], preview=preview)
-
         # Rebuild view items
         self.clear_items()
         
-        # 1. Action Row for Select
-        row_select = ui.ActionRow(self.set_select)
+        # 1. Select Menu
+        options = []
+        if self.is_global:
+            sets = await database.get_all_global_emoji_sets()
+        else:
+            sets = await database.get_emoji_sets(self.guild_id)
+            
+        for s in sets:
+            s_data = s["data"]
+            sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
+            opts = sdata.get("options", [])
+            preview = ", ".join([o.get("emoji") for o in opts[:3]]) if opts else t("LBL_NO_PREVIEW", guild_id=self.guild_id)
+            options.append(discord.SelectOption(
+                label=s["name"], 
+                value=s["set_id"], 
+                description=preview,
+                default=(s["set_id"] == self.selected_set_id)
+            ))
+        if not options:
+            options.append(discord.SelectOption(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none"))
+
+        set_select = ui.Select(placeholder=t("SEL_EMOJI_SET", guild_id=self.guild_id), options=options)
+        async def select_callback(it):
+            if set_select.values[0] == "none":
+                return await it.response.defer()
+            self.selected_set_id = set_select.values[0]
+            await self.refresh_message(it)
+        set_select.callback = select_callback
         
-        # 2. Action Row for management buttons
-        row_btns = ui.ActionRow(self.add_btn, self.clone_btn, self.edit_btn, self.delete_btn, self.help_btn)
+        row_select = ui.ActionRow(set_select)
+        
+        # 2. Buttons
+        add_btn = ui.Button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.green)
+        async def add_cb(it):
+            if not self.is_global and not await is_admin(it):
+                return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
+            if self.is_global and not await self.bot.is_owner(it.user):
+                return await it.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
+            view = TemplateChoiceView(self)
+            await it.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=self.guild_id), view=view, ephemeral=True)
+        add_btn.callback = add_cb
+        
+        clone_btn = ui.Button(label=t("BTN_CLONE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        async def clone_cb(it):
+            if not self.selected_set_id:
+                return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
+            cur_sets = await database.get_all_global_emoji_sets() if self.is_global else await database.get_emoji_sets(self.guild_id)
+            current = next((s for s in cur_sets if s["set_id"] == self.selected_set_id), None)
+            if not current: return await it.response.send_message("❌ Set not found.", ephemeral=True)
+            modal = EditEmojiSetModal(self, current)
+            modal.title = t("BTN_CLONE", guild_id=self.guild_id); modal.is_clone = True
+            await it.response.send_modal(modal)
+        clone_btn.callback = clone_cb
+        
+        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        async def edit_cb(it):
+            if not self.selected_set_id:
+                return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
+            cur_sets = await database.get_all_global_emoji_sets() if self.is_global else await database.get_emoji_sets(self.guild_id)
+            current = next((s for s in cur_sets if s["set_id"] == self.selected_set_id), None)
+            if not current: return await it.response.send_message("❌ Set not found.", ephemeral=True)
+            await it.response.send_modal(EditEmojiSetModal(self, current))
+        edit_btn.callback = edit_cb
+        
+        del_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.guild_id), style=discord.ButtonStyle.danger)
+        async def del_cb(it):
+            if not self.selected_set_id:
+                return await it.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=self.guild_id), ephemeral=True)
+            if self.is_global:
+                pool = await database.get_pool()
+                await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", self.selected_set_id)
+                from cogs.event_ui import load_custom_sets; await load_custom_sets()
+            else:
+                await database.delete_emoji_set(self.guild_id, self.selected_set_id)
+            self.selected_set_id = None
+            await it.response.send_message(t("MSG_SET_DELETED", guild_id=self.guild_id), ephemeral=True)
+            await self.refresh_message(it)
+        del_btn.callback = del_cb
+        
+        help_btn = ui.Button(label="❓", style=discord.ButtonStyle.secondary)
+        async def help_cb(it): await send_emoji_help(it, self.guild_id)
+        help_btn.callback = help_cb
+        
+        row_btns = ui.ActionRow(add_btn, clone_btn, edit_btn, del_btn, help_btn)
         
         container_items = [
             ui.TextDisplay(f"### {t('LBL_GLOBAL_TITLE' if self.is_global else 'EMOJI_WIZ_TITLE', guild_id=self.guild_id)}"),
@@ -115,82 +185,7 @@ class EmojiWizardView(ui.LayoutView):
         else:
             await interaction.response.edit_message(embeds=[], view=self)
 
-    @ui.select(placeholder="Válassz egy készletet...", row=0, options=[discord.SelectOption(label="Loading...", value="none")])
-    async def set_select(self, interaction: discord.Interaction, select: ui.Select):
-        if select.values[0] == "none": 
-            await interaction.response.defer()
-            return
-        self.selected_set_id = select.values[0]
-        await self.refresh_message(interaction)
 
-    @ui.button(label="➕ Új szett", style=discord.ButtonStyle.green, row=1)
-    async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
-        # Admin check handled in main cog or masterhub usually, but we check here too
-        if not self.is_global and not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
-        if self.is_global and not await self.bot.is_owner(interaction.user):
-            return await interaction.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
-            
-        view = TemplateChoiceView(self)
-        await interaction.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=self.guild_id), view=view, ephemeral=True)
-
-    @ui.button(label="👯 Másolás", style=discord.ButtonStyle.secondary, row=1)
-    async def clone_btn(self, interaction: discord.Interaction, button: ui.Button):
-        if not self.selected_set_id:
-            return await interaction.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
-        
-        # Fetch actual data from DB
-        if self.is_global:
-            sets = await database.get_all_global_emoji_sets()
-        else:
-            sets = await database.get_emoji_sets(self.guild_id)
-            
-        current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
-        if not current:
-             return await interaction.response.send_message("❌ Set not found.", ephemeral=True)
-
-        modal = EditEmojiSetModal(self, current)
-        modal.title = t("BTN_CLONE", guild_id=self.guild_id)
-        modal.is_clone = True
-        await interaction.response.send_modal(modal)
-
-    @ui.button(label="⚙️ Szerkesztés", style=discord.ButtonStyle.primary, row=1)
-    async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
-        if not self.selected_set_id:
-            return await interaction.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
-        
-        if self.is_global:
-            sets = await database.get_all_global_emoji_sets()
-        else:
-            sets = await database.get_emoji_sets(self.guild_id)
-            
-        current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
-        if not current:
-             return await interaction.response.send_message("❌ Set not found.", ephemeral=True)
-
-        await interaction.response.send_modal(EditEmojiSetModal(self, current))
-
-    @ui.button(label="🗑️ Törlés", style=discord.ButtonStyle.danger, row=1)
-    async def delete_btn(self, interaction: discord.Interaction, button: ui.Button):
-        if not self.selected_set_id:
-            return await interaction.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=self.guild_id), ephemeral=True)
-        
-        if self.is_global:
-            # We don't have a direct delete_global_emoji_set but we can implement it
-            pool = await database.get_pool()
-            await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", self.selected_set_id)
-            from cogs.event_ui import load_custom_sets
-            await load_custom_sets()
-        else:
-            await database.delete_emoji_set(self.guild_id, self.selected_set_id)
-            
-        self.selected_set_id = None
-        await interaction.response.send_message(t("MSG_SET_DELETED", guild_id=self.guild_id), ephemeral=True)
-        await self.refresh_message(interaction)
-
-    @ui.button(label="❓", style=discord.ButtonStyle.secondary, row=1)
-    async def help_btn(self, interaction: discord.Interaction, button: ui.Button):
-        await send_emoji_help(interaction, self.guild_id)
 
 class TemplateChoiceView(ui.LayoutView):
     def __init__(self, wizard_view):
@@ -205,37 +200,28 @@ class TemplateChoiceView(ui.LayoutView):
         
         options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty", emoji="🆕"))
         
-        self.select_template.options = options
-        self.select_template.placeholder = t("SEL_TEMPLATE", guild_id=self.wizard_view.guild_id)
+        select_template = ui.Select(placeholder=t("SEL_TEMPLATE", guild_id=self.wizard_view.guild_id), options=options)
+        async def select_callback(interaction: discord.Interaction):
+            template = select_template.values[0]
+            initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
+            dummy_record = {
+                "set_id": "", "name": "",
+                "data": json.dumps({"options": [], "buttons_per_row": 5, "show_mgmt": True})
+            }
+            edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
+            edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
+            edit_modal.opts_input.default = initial_text
+            edit_modal.is_new = True 
+            await interaction.response.send_modal(edit_modal)
+        select_template.callback = select_callback
 
         container = ui.Container(
             ui.TextDisplay(f"### {t('LBL_CHOOSE_TEMPLATE', guild_id=self.wizard_view.guild_id)}"),
             ui.Separator(),
-            ui.ActionRow(self.select_template),
+            ui.ActionRow(select_template),
             accent_color=0x00bfff
         )
         self.add_item(container)
-
-    @ui.select()
-    async def select_template(self, interaction: discord.Interaction, select: ui.Select):
-        template = select.values[0]
-        initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
-        
-        dummy_record = {
-            "set_id": "",
-            "name": "",
-            "data": json.dumps({
-                "options": [],
-                "buttons_per_row": 5,
-                "show_mgmt": True
-            })
-        }
-        edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
-        edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
-        edit_modal.opts_input.default = initial_text
-        edit_modal.is_new = True 
-        
-        await interaction.response.send_modal(edit_modal)
 
 class EditEmojiSetModal(ui.Modal):
     def __init__(self, wizard_view, set_record):
