@@ -498,7 +498,7 @@ class GlobalEmojiWizardView(EmojiWizardView):
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed, view=self)
         else:
-            await interaction.response.edit_message(embed=embed, view=self)
+            await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
 
 class EmojiWizard(commands.GroupCog, name="admin"):
     def __init__(self, bot):
