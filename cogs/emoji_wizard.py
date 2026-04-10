@@ -499,19 +499,18 @@ class GlobalEmojiWizardView(EmojiWizardView):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-class EmojiWizard(commands.Cog):
+class EmojiWizard(commands.GroupCog, name="admin"):
     def __init__(self, bot):
         self.bot = bot
 
-    admin_group = app_commands.Group(name="admin", description="Admin commands")
-
-    @admin_group.command(name="emojis", description="Manage customized emoji sets for this server")
+    @app_commands.command(name="emojis", description="Manage customized emoji sets for this server")
     async def manage_emojis(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
         
         view = EmojiWizardView(self.bot, interaction.guild_id)
-        options = await view.get_sets_options()
+        # Note: we need to call prepare now or in the view
+        await view.prepare()
         
         embed = discord.Embed(
             title="✨ Emoji Wizard",
@@ -520,7 +519,7 @@ class EmojiWizard(commands.Cog):
         )
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-    @admin_group.command(name="global-emojis", description="Manage system-wide global emoji sets (Owner Only)")
+    @app_commands.command(name="global-emojis", description="Manage system-wide global emoji sets (Owner Only)")
     async def manage_global_emojis(self, interaction: discord.Interaction):
         if not await self.bot.is_owner(interaction.user):
             return await interaction.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
