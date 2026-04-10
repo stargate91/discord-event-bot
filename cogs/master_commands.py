@@ -168,15 +168,13 @@ class MasterPresenceView(ui.View):
 async def setup(bot):
     cog = MasterCommands(bot)
     
-    # Apply SUFFIX aliases if configured
-    try:
-        from utils.jsonc import load_jsonc
-        config_data = load_jsonc('config.json')
-        suffix = config_data.get("command_suffix", "")
-        if suffix:
-            cog.sync_prefix.aliases = [f"sync{suffix}"]
-            cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
-            log.info(f"[Master] Prefixed aliases prepared: sync{suffix}, clear_commands{suffix}")
-    except: pass
+    # Apply SUFFIX aliases from the already-loaded bot config
+    config = getattr(bot, 'config', {})
+    suffix = config.get('command_suffix', '')
+    if suffix:
+        cog.sync_prefix.aliases = [f"sync{suffix}"]
+        cog.clear_commands_prefix.aliases = [f"clear_commands{suffix}"]
+        log.info(f"[Master] Prefixed aliases prepared: sync{suffix}, clear_commands{suffix}")
 
     await bot.add_cog(cog)
+
