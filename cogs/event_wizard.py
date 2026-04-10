@@ -772,7 +772,7 @@ class EventWizardView(ui.View):
                     except:
                         pass
             
-            msg = await target_chan.send(content=t("MSG_EV_CREATED_PUBLIC"), embed=embed, view=view)
+            msg = await target_chan.send(content=t("MSG_DEFAULT_PROMO", guild_id=self.guild_id), embed=embed, view=view)
             await database.set_event_message(event_id, msg.id)
             self.bot.add_view(view)
             await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)

@@ -439,7 +439,13 @@ class DynamicEventView(discord.ui.View):
             
         role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
         if role_limit and sum(1 for _, s in rsvps_list if s == status) >= role_limit and old_status != status:
-            if self.event_conf.get("use_waiting_list", True): target_status = f"wait_{status}"
+            if self.event_conf.get("use_waiting_list", True): 
+                target_status = f"wait_{status}"
+                # Send waitlist hint
+                try:
+                    hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
+                    await interaction.user.send(hint)
+                except: pass
             else: return await interaction.response.send_message(t("ERR_POS_FULL", guild_id=interaction.guild_id, name=(opt.get('label') or opt['id'])), ephemeral=True)
 
         positive_statuses = self.active_set.get("positive", [])
@@ -449,7 +455,13 @@ class DynamicEventView(discord.ui.View):
         if target_status in positive_statuses:
             max_acc = self.event_conf.get('max_accepted', 0)
             if max_acc > 0 and sum(1 for _, s in rsvps_list if s in positive_statuses) >= max_acc and old_status not in positive_statuses:
-                if not target_status.startswith("wait_"): target_status = f"wait_{status}"
+                if not target_status.startswith("wait_"): 
+                    target_status = f"wait_{status}"
+                    # Send waitlist hint (event-level limit)
+                    try:
+                        hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
+                        await interaction.user.send(hint)
+                    except: pass
 
         await interaction.response.defer()
         await database.update_rsvp(self.event_id, interaction.user.id, target_status)
@@ -519,11 +531,16 @@ class StatusChoiceView(discord.ui.View):
             for uid, s in rsvps:
                 if not s.startswith("wait_"): participants.add(uid)
         if not participants: return
-        status_text = self.new_status.upper()
         guild_id = interaction.guild_id
-        if self.new_status == "cancelled": status_text = t("TAG_CANCELLED", guild_id=guild_id) or "TÖRÖLVE"
-        if self.new_status == "postponed": status_text = t("TAG_POSTPONED", guild_id=guild_id) or "ELHALASZTVA"
-        msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=(self.db_event.get('title') or 'Event'))
+        title = self.db_event.get('title') or 'Event'
+        
+        if self.new_status == "cancelled":
+            msg_body = t("MSG_EVENT_CANCELLED", guild_id=guild_id, title=title)
+        elif self.new_status == "postponed":
+            msg_body = t("MSG_EVENT_POSTPONED", guild_id=guild_id, title=title)
+        else:
+            status_text = self.new_status.upper()
+            msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=title)
         if self.notify_type in ["dm", "both"]:
             for uid in participants:
                 try:

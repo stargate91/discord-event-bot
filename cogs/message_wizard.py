@@ -10,7 +10,7 @@ class MessageWizardView(ui.View):
         super().__init__(timeout=600)
         self.bot = bot
         self.guild_id = guild_id
-        self.selected_category = "Embed"
+        self.selected_category = "Notifications"
         self.selected_key = None
     async def prepare(self):
         """Prepare the initial set of options for the wizard."""
@@ -38,9 +38,25 @@ class MessageWizardView(ui.View):
         # Ensure cache is fresh for this view
         await load_guild_translations(self.guild_id)
         
+        desc = t("MSG_WIZ_DESC", guild_id=self.guild_id)
+        
+        if self.selected_key:
+            current_val = t(self.selected_key, guild_id=self.guild_id)
+            # Simulated preview
+            preview = current_val.replace("{user_id}", f"<@{interaction.user.id}>")\
+                                 .replace("{title}", "Raid: Onyxia's Lair")\
+                                 .replace("{role}", "Tank")\
+                                 .replace("{emoji}", "🛡️")\
+                                 .replace("{status}", "ACTIVE")
+            
+            desc += f"\n\n**🔍 Preview ({self.selected_key}):**\n> {preview}"
+            
+            # Placeholder Help
+            desc += "\n\n**💡 Használható változók:**\n`{title}`, `{user_id}`, `{role}`, `{emoji}`, `{status}`"
+
         embed = discord.Embed(
             title=t("MSG_WIZ_TITLE", guild_id=self.guild_id),
-            description=t("MSG_WIZ_DESC", guild_id=self.guild_id),
+            description=desc,
             color=discord.Color.blue()
         )
         
@@ -70,21 +86,14 @@ class MessageWizardView(ui.View):
         else:
             await interaction.response.edit_message(embed=embed, view=self)
 
-    @ui.select(row=0, options=[
-        discord.SelectOption(label=cat, value=cat) for cat in CATEGORIES.keys()
-    ])
-    async def category_select(self, interaction: discord.Interaction, select: ui.Select):
-        self.selected_category = select.values[0]
-        self.selected_key = None
-        await self.refresh_message(interaction)
 
-    @ui.select(row=1, options=[discord.SelectOption(label="Loading...", value="none")])
+    @ui.select(row=0, options=[discord.SelectOption(label="Loading...", value="none")])
     async def key_select(self, interaction: discord.Interaction, select: ui.Select):
         if select.values[0] == "none": return
         self.selected_key = select.values[0]
         await self.refresh_message(interaction)
 
-    @ui.button(label="BTN_EDIT", style=discord.ButtonStyle.primary, row=2)
+    @ui.button(label="BTN_EDIT", style=discord.ButtonStyle.primary, row=1)
     async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
@@ -94,7 +103,7 @@ class MessageWizardView(ui.View):
         current_val = t(self.selected_key, guild_id=self.guild_id)
         await interaction.response.send_modal(MessageEditModal(self, self.selected_key, current_val, self.guild_id))
 
-    @ui.button(label="Reset Default", style=discord.ButtonStyle.secondary, row=2)
+    @ui.button(label="Reset Default", style=discord.ButtonStyle.secondary, row=1)
     async def reset_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
@@ -114,7 +123,7 @@ class MessageEditModal(ui.Modal):
         self.guild_id = guild_id
         
         self.text_input = ui.TextInput(
-            label=t("LBL_CUSTOM_TEXT", guild_id=guild_id),
+            label=f"{t('LBL_CUSTOM_TEXT', guild_id=guild_id)} ({{{{user_id}}}}, {{{{title}}}}...)",
             default=current_val,
             style=discord.TextStyle.paragraph,
             required=True

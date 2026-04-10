@@ -388,6 +388,7 @@ async def update_active_event(event_id, data):
     
     start_time = data.get("start_time")
     end_time = data.get("end_time")
+    status = data.get("status", "active")
     recurrence = data.get("recurrence_type", "none")
     repost_trigger = data.get("repost_trigger", "before_start")
     repost_offset = data.get("repost_offset", "1h")
@@ -408,15 +409,15 @@ async def update_active_event(event_id, data):
         UPDATE active_events SET 
             title = $1, description = $2, image_urls = $3, 
             color = $4, max_accepted = $5, ping_role = $6, 
-            start_time = $7, end_time = $8, recurrence_type = $9, 
-            repost_trigger = $10, repost_offset = $11, timezone = $12,
-            creator_id = $13, reminder_type = $14, reminder_offset = $15,
-            reminder_sent = $16, recurrence_limit = $17, recurrence_count = $18,
-            icon_set = $19, extra_data = $20
-        WHERE event_id = $21
+            start_time = $7, end_time = $8, status = $9, recurrence_type = $10, 
+            repost_trigger = $11, repost_offset = $12, timezone = $13,
+            creator_id = $14, reminder_type = $15, reminder_offset = $16,
+            reminder_sent = $17, recurrence_limit = $18, recurrence_count = $19,
+            icon_set = $20, extra_data = $21
+        WHERE event_id = $22
     """, 
         title, description, image_urls, color, max_acc, ping_role, 
-        start_time, end_time, recurrence, repost_trigger, repost_offset, timezone, 
+        start_time, end_time, status, recurrence, repost_trigger, repost_offset, timezone, 
         creator_id, reminder_type, reminder_offset, reminder_sent, 
         recurrence_limit, recurrence_count, icon_set, extra_data, 
         event_id
