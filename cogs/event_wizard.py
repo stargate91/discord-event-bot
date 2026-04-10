@@ -407,6 +407,7 @@ class EventWizardView(ui.View):
         self.role_limits_btn.label = t("BTN_ROLE_LIMITS", guild_id=guild_id)
         self.messages_btn.label = t("BTN_MESSAGES", guild_id=guild_id)
         self.save_preview_btn.label = t("BTN_SAVE_PREVIEW", guild_id=guild_id)
+        self.wait_list_btn.label = t("SEL_WAIT_DISABLED", guild_id=guild_id) # Default
         
         if not self.data.get("image_urls") and self.data.get("image_url"):
             self.data["image_urls"] = self.data["image_url"]
@@ -467,10 +468,10 @@ class EventWizardView(ui.View):
             discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(current_trig == "after_end"))
         ]
         
-        self.waiting_list_select.options = [
-            discord.SelectOption(label=t("SEL_WAIT_ENABLED", guild_id=self.guild_id), value="enabled", emoji="⏳", default=(current_wait == "enabled")),
-            discord.SelectOption(label=t("SEL_WAIT_DISABLED", guild_id=self.guild_id), value="disabled", emoji="🚫", default=(current_wait == "disabled"))
-        ]
+        # Update Waiting List Button
+        use_waiting = self.data.get("use_waiting_list", False)
+        self.wait_list_btn.label = t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id)
+        self.wait_list_btn.style = discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray
 
     async def save_to_draft(self):
         """Saves the current state of the wizard to the drafts table."""
@@ -507,7 +508,7 @@ class EventWizardView(ui.View):
         )
         
         if self.can_publish:
-            publish_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green, row=4, custom_id="wiz_publish")
+            publish_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green, row=1, custom_id="wiz_publish")
             publish_btn.callback = self.publish_btn
             self.add_item(publish_btn)
             for child in self.children:
@@ -559,7 +560,7 @@ class EventWizardView(ui.View):
         active_set = get_active_set(icon_set_key)
         await interaction.response.send_modal(RoleLimitsModal(self, active_set))
 
-    @ui.button(label="Messages", style=discord.ButtonStyle.gray, custom_id="wiz_messages", row=0)
+    @ui.button(label="Messages", style=discord.ButtonStyle.gray, custom_id="wiz_messages", row=1)
     async def messages_btn(self, interaction: discord.Interaction, button: ui.Button):
         await interaction.response.send_modal(NotificationSettingsModal(self))
 
@@ -571,7 +572,7 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="Teams (🅰️, 🅱️, 👁️)", value="team", emoji="🚩"),
             discord.SelectOption(label="Timing (✅, ⏰, 🏃)", value="timing", emoji="⏰")
         ],
-        row=2
+        row=3
     )
     async def icon_set_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["icon_set"] = str(select.values[0])
@@ -586,7 +587,7 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="Weekly", value="weekly", emoji="🗓️"),
             discord.SelectOption(label="Monthly", value="monthly", emoji="📊")
         ],
-        row=3
+        row=4
     )
     async def recurrence_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["recurrence_type"] = str(select.values[0])
@@ -600,22 +601,15 @@ class EventWizardView(ui.View):
             discord.SelectOption(label="After Start", value="after_start"),
             discord.SelectOption(label="After End", value="after_end")
         ],
-        row=1
+        row=2
     )
     async def trigger_select(self, interaction: discord.Interaction, select: ui.Select):
         self.data["repost_trigger"] = str(select.values[0])
         await self.update_message(interaction)
 
-    @ui.select(
-        placeholder="Waiting List",
-        options=[
-            discord.SelectOption(label="Waiting List: Enabled", value="enabled", emoji="⏳"),
-            discord.SelectOption(label="Waiting List: Disabled", value="disabled", emoji="🚫")
-        ],
-        row=3
-    )
-    async def waiting_list_select(self, interaction: discord.Interaction, select: ui.Select):
-        use_waiting = (str(select.values[0]) == "enabled")
+    @ui.button(label="Waiting List", style=discord.ButtonStyle.gray, custom_id="wiz_wait_toggle", row=1)
+    async def wait_list_btn(self, interaction: discord.Interaction, button: ui.Button):
+        use_waiting = not self.data.get("use_waiting_list", False)
         self.data["use_waiting_list"] = use_waiting
         
         extra_data_raw = self.data.get("extra_data")
@@ -634,7 +628,7 @@ class EventWizardView(ui.View):
         await self.save_to_draft()
         await self.update_message(interaction)
 
-    @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=4, custom_id="wiz_save")
+    @ui.button(label="SAVE & PREVIEW", style=discord.ButtonStyle.primary, row=1, custom_id="wiz_save")
     async def save_preview_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not self.steps_completed["step1"] or not self.steps_completed["step2"]:
             await interaction.response.send_message(t("ERR_FILL_STEPS", guild_id=self.guild_id), ephemeral=True)
