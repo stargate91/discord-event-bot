@@ -372,7 +372,7 @@ class EditEmojiSetModal(ui.Modal):
 class EditGlobalEmojiSetModal(EditEmojiSetModal):
     def __init__(self, wizard_view, set_record):
         super().__init__(wizard_view, set_record)
-        self.title = t("LBL_GLOBAL_TITLE")
+        self.title = t("LBL_GLOBAL_TITLE", guild_id=wizard_view.guild_id)
 
     async def on_submit(self, interaction: discord.Interaction):
         # We reuse the parsing logic but save to the GLOBAL table
@@ -467,7 +467,14 @@ class GlobalEmojiWizardView(EmojiWizardView):
             return await interaction.response.send_message("❌ Select a set first.", ephemeral=True)
         sets = await database.get_all_global_emoji_sets()
         current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
-        await interaction.response.send_modal(EditGlobalEmojiSetModal(self, current))
+        
+        if not current:
+            return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=self.guild_id), ephemeral=True)
+            
+        try:
+            await interaction.response.send_modal(EditGlobalEmojiSetModal(self, current))
+        except Exception as e:
+            await interaction.response.send_message(f"❌ Error opening modal: {e}", ephemeral=True)
 
     @ui.button(label="🗑️ Törlés", style=discord.ButtonStyle.danger, row=1)
     async def delete_btn(self, interaction: discord.Interaction, button: ui.Button):
