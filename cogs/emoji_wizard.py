@@ -83,7 +83,7 @@ class EmojiWizardView(ui.LayoutView):
         row_select = ui.ActionRow(set_select)
         
         # 2. Buttons
-        add_btn = ui.Button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.green)
+        add_btn = ui.Button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
             if not self.is_global and not await is_admin(it):
                 return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
@@ -105,7 +105,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_modal(modal)
         clone_btn.callback = clone_cb
         
-        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def edit_cb(it):
             if not self.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
@@ -115,7 +115,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_modal(EditEmojiSetModal(self, current))
         edit_btn.callback = edit_cb
         
-        del_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.guild_id), style=discord.ButtonStyle.danger)
+        del_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             if not self.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=self.guild_id), ephemeral=True)
