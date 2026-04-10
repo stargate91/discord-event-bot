@@ -5,6 +5,7 @@ import database
 import json
 from utils.logger import log
 from utils.i18n import t
+from utils.auth import is_admin
 
 class MasterCommands(commands.GroupCog, name="master"):
     """Global Bot Management commands. Only visible in the Master Guild."""
@@ -124,9 +125,11 @@ class MasterPresenceView(ui.View):
     # These are for the Bot Owner to manage the command tree manually.
 
     @commands.command(name="sync")
-    @commands.is_owner()
+    @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
         """Manual sync: !sync (guild), !sync copy (copy global to guild), !sync global"""
+        if not await is_admin(ctx):
+            return await ctx.send("❌ No permission.")
         await ctx.send("🔄 Starting synchronization...")
         try:
             if spec == "global":
@@ -144,9 +147,11 @@ class MasterPresenceView(ui.View):
             await ctx.send(f"❌ Sync failed: `{e}`")
 
     @commands.command(name="clear_commands")
-    @commands.is_owner()
+    @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
         """Totally clear slash commands tree."""
+        if not await is_admin(ctx):
+            return await ctx.send("❌ No permission.")
         await ctx.send("🗑️ Clearing all command registrations...")
         try:
             # Clear Global
