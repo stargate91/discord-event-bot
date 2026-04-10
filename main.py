@@ -6,6 +6,7 @@ import random
 from dotenv import load_dotenv
 import database
 import json
+import uuid
 from utils.logger import log
 from utils.i18n import t
 from cogs.event_ui import DynamicEventView, load_custom_sets
@@ -195,27 +196,67 @@ class EventBot(commands.Bot):
         """Periodically update the bot's rich presence from database or config."""
         await self.wait_until_ready()
         
+        last_index = -1
+        
         while not self.is_closed():
             try:
-                # Get active events count
-                event_count = await database.get_active_event_count()
+                # Default config
+                config = {
+                    "time": 30,
+                    "mode": "random",
+                    "statuses": [{"id": "default", "type": "watching", "text": t("PRESENCE_DEFAULT", guild_id=None)}]
+                }
                 
-                # 1. Try to load custom statuses from database
+                # Load from database
                 db_presence = await database.get_global_setting("bot_presence_list")
                 if db_presence:
-                    presence_list = json.loads(db_presence)
+                    parsed = json.loads(db_presence)
+                    if isinstance(parsed, list):
+                        # Migration from old format
+                        migrated_statuses = []
+                        for text in parsed:
+                            migrated_statuses.append({"id": str(uuid.uuid4()), "type": "watching", "text": text})
+                        config["statuses"] = migrated_statuses
+                        await database.save_global_setting("bot_presence_list", json.dumps(config))
+                    elif isinstance(parsed, dict):
+                        config.update(parsed)
                 else:
-                    # 2. Fallback to config.json (initial setup)
-                    presence_list = self.config.get("dynamic_status", [])
+                    # Fallback to config.json
+                    cfg_list = self.config.get("dynamic_status", [])
+                    if cfg_list:
+                        config["statuses"] = [{"id": str(uuid.uuid4()), "type": "watching", "text": text} for text in cfg_list]
+
+                statuses = config.get("statuses", [])
+                if not statuses:
+                    statuses = [{"id": "default", "type": "watching", "text": t("PRESENCE_DEFAULT", guild_id=None)}]
+
+                # Choose next status
+                if config.get("mode") == "sequential":
+                    last_index = (last_index + 1) % len(statuses)
+                    chosen = statuses[last_index]
+                else:
+                    chosen = random.choice(statuses)
+
+                # Get stats for placeholders
+                stats = await database.get_global_stats()
                 
-                if not presence_list:
-                    presence_list = [t("PRESENCE_DEFAULT", guild_id=None)]
+                # Replace placeholders
+                status_text = chosen.get("text", "")
+                status_text = status_text.replace("{event_count}", str(stats.get("events", 0)))
+                status_text = status_text.replace("{guild_count}", str(stats.get("guilds", 0)))
+                status_text = status_text.replace("{rsvp_count}", str(stats.get("rsvps", 0)))
                 
-                # Select random status and replace placeholders
-                status_text = random.choice(presence_list).replace("{event_count}", str(event_count))
+                # Map activity type
+                type_map = {
+                    "playing": discord.ActivityType.playing,
+                    "watching": discord.ActivityType.watching,
+                    "listening": discord.ActivityType.listening,
+                    "competing": discord.ActivityType.competing
+                }
+                act_type = type_map.get(chosen.get("type", "watching"), discord.ActivityType.watching)
                 
                 activity = discord.Activity(
-                    type=discord.ActivityType.watching,
+                    type=act_type,
                     name=status_text
                 )
                 await self.change_presence(activity=activity, status=discord.Status.online)
@@ -223,8 +264,9 @@ class EventBot(commands.Bot):
             except Exception as e:
                 log.error(f"[Presence] Error updating status: {e}")
             
-            # Rotate every 60 seconds
-            await asyncio.sleep(60)
+            # Rotate based on configured time (default 30s, minimum 15s to avoid API spam)
+            sleep_time = max(15, config.get("time", 30))
+            await asyncio.sleep(sleep_time)
 
     async def on_ready(self):
         log.info(f"Logged in as {self.user} (ID: {self.user.id})")
