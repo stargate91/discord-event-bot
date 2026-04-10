@@ -444,7 +444,7 @@ class EventWizardView(ui.View):
                 default=(current_set == set_id)
             ))
             
-        self.icon_set_select.options = final_options
+        self.icon_set_select.options = final_options[:25]
         
         # Localize Select placeholders and additional options
         self.recurrence_select.placeholder = t("SEL_REC_TYPE", guild_id=self.guild_id)
