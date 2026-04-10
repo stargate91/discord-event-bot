@@ -67,7 +67,7 @@ class MasterCommands(commands.GroupCog, name="master"):
         """Manage system-wide global emoji sets used by all guilds."""
         try:
             from cogs.emoji_wizard import EmojiWizardView
-            view = EmojiWizardView(self.bot, interaction.guild_id, is_global=True)
+            view = EmojiWizardView(self.bot, None, is_global=True)
             await view.refresh_message(interaction)
         except Exception as e:
             log.error(f"[Master] Error in global-sets: {e}")
@@ -238,6 +238,8 @@ class MasterPresenceView(ui.LayoutView):
             
         if interaction.response.is_done():
             await interaction.edit_original_response(embeds=[], view=self)
+        elif interaction.type == discord.InteractionType.component:
+            await interaction.response.edit_message(embeds=[], view=self)
         else:
             await interaction.response.send_message(view=self, ephemeral=True)
 
