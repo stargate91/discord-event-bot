@@ -216,7 +216,8 @@ class MasterPresenceView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(f"**{t('MASTER_PRESENCE_CFG', guild_id=None)}**\n{val}"),
             ui.Separator(),
-            ui.TextDisplay(f"**{t('MASTER_PRESENCE_ACTIVE', guild_id=None)}**\n{active_val}")
+            ui.TextDisplay(f"**{t('MASTER_PRESENCE_ACTIVE', guild_id=None)}**\n{active_val}"),
+            ui.Separator()
         ]
 
         if statuses:
@@ -236,7 +237,6 @@ class MasterPresenceView(ui.LayoutView):
             select.callback = select_cb
             
             row_select = ui.ActionRow(select)
-            container_items.append(ui.Separator())
             container_items.append(row_select)
 
         container_items.append(row_buttons)
