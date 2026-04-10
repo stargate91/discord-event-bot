@@ -93,7 +93,27 @@ class EmojiWizardView(ui.View):
     async def add_btn(self, interaction: discord.Interaction, button: ui.Button):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
-        await interaction.response.send_modal(CreateEmojiSetModal(self))
+        
+        view = TemplateChoiceView(self)
+        await interaction.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=self.guild_id), view=view, ephemeral=True)
+
+    @ui.button(label="👯 Másolás", style=discord.ButtonStyle.secondary, row=1)
+    async def clone_btn(self, interaction: discord.Interaction, button: ui.Button):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
+        if not self.selected_set_id:
+            return await interaction.response.send_message(t("ERR_NO_CUSTOM_SETS", guild_id=self.guild_id), ephemeral=True)
+        
+        # Fetch actual data from DB
+        sets = await database.get_emoji_sets(self.guild_id)
+        current = next((s for s in sets if s["set_id"] == self.selected_set_id), None)
+        if not current:
+             return await interaction.response.send_message("❌ Set not found.", ephemeral=True)
+
+        modal = EditEmojiSetModal(self, current)
+        modal.title = t("BTN_CLONE", guild_id=self.guild_id)
+        modal.is_clone = True # Mark as clone so on_submit generates a NEW set
+        await interaction.response.send_modal(modal)
 
     @ui.button(label="⚙️ Szerkesztés", style=discord.ButtonStyle.primary, row=1)
     async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
@@ -119,6 +139,50 @@ class EmojiWizardView(ui.View):
         self.selected_set_id = None
         await interaction.response.send_message(t("MSG_SET_DELETED", guild_id=self.guild_id), ephemeral=True)
         await self.refresh_message(interaction)
+
+class TemplateChoiceView(ui.View):
+    def __init__(self, wizard_view):
+        super().__init__(timeout=300)
+        self.wizard_view = wizard_view
+        
+    @ui.select(placeholder="Válassz sablont...", options=[
+        discord.SelectOption(label="Alap (Igen / Nem)", value="basic", emoji="✅"),
+        discord.SelectOption(label="Raid (Tank / Heal / DPS)", value="raid", emoji="⚔️"),
+        discord.SelectOption(label="Szavazás (👍 / 👎)", value="survey", emoji="📊"),
+        discord.SelectOption(label="Üres szett", value="empty", emoji="🆕")
+    ])
+    async def select_template(self, interaction: discord.Interaction, select: ui.Select):
+        template = select.values[0]
+        
+        # Pre-defined data for templates in the 6-column format
+        templates = {
+            "basic": "✅ | Résztveszek | Résztvevők | accepted | 0 | SPBG\n❓ | Talán | Bizonytalan | tentative | 0 | SB\n❌ | Nem jövök | - | declined | 0 | ER",
+            "raid": "🛡️ | Tank | Tankok | tank | 2 | SPBG\n🏥 | Heal | Healerek | heal | 4 | SPBG\n🗡️ | DPS | DPS-ek | dps | 10 | SPBG\n❓ | Tartalék | Tartalékok | backup | 0 | SB\n❌ | Nem jövök | - | declined | 0 | ER",
+            "survey": "👍 | Szuper | Szerintük jó | up | 0 | SPBG\n👎 | Rossz | Szerintük rossz | down | 0 | ER",
+            "empty": ""
+        }
+        
+        initial_text = templates.get(template, "")
+        
+        # Now show the CreateModal but passing the pre-filled text
+        modal = CreateEmojiSetModal(self.wizard_view)
+        # Note: We'll modify CreateEmojiSetModal to accept initial text if we want, 
+        # but for simplicity let's just use EditEmojiSetModal with a dummy record
+        dummy_record = {
+            "set_id": "",
+            "name": "",
+            "data": json.dumps({
+                "options": [], # Parsing logic will handle initial_text if we pass it correctly
+                "buttons_per_row": 5,
+                "show_mgmt": True
+            })
+        }
+        edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
+        edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
+        edit_modal.opts_input.default = initial_text
+        edit_modal.is_new = True 
+        
+        await interaction.response.send_modal(edit_modal)
 
 class CreateEmojiSetModal(ui.Modal):
     def __init__(self, wizard_view):
@@ -161,6 +225,8 @@ class EditEmojiSetModal(ui.Modal):
         super().__init__(title=t("MODAL_EDIT_SET_TITLE", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         self.set_id = set_record["set_id"]
+        self.is_clone = False # Set by cloned button
+        self.is_new = False # Set by template logic
         
         # Parse data
         s_data = set_record["data"]
@@ -169,6 +235,7 @@ class EditEmojiSetModal(ui.Modal):
         row_limit = sdata.get("buttons_per_row", 5)
         
         # Format options for text field: Emoji | Button | Embed | ID | Limit | Flags
+        color_rev = {"success": "G", "danger": "R", "primary": "B", "secondary": "Y"}
         lines = []
         for o in opts:
             limit = o.get("max_slots", 0)
@@ -180,6 +247,9 @@ class EditEmojiSetModal(ui.Modal):
             if style == "both": flags += "B"
             elif style == "emoji": flags += "E"
             elif style == "label": flags += "T"
+            
+            col = color_rev.get(o.get("button_color"), "")
+            flags += col
             
             btn_lbl = o.get("label", "")
             list_lbl = o.get("list_label", "")
@@ -214,55 +284,85 @@ class EditEmojiSetModal(ui.Modal):
         new_opts = []
         positive_count = 0
         lines = self.opts_input.value.strip().split("\n")
-        for line in lines:
+        
+        color_map = {"G": "success", "R": "danger", "B": "primary", "Y": "secondary"}
+        
+        for i, line in enumerate(lines, 1):
             line = line.strip()
             if not line: continue
             parts = [p.strip() for p in line.split("|")]
-            if len(parts) < 2: continue
+            if len(parts) < 2: 
+                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error="Too few columns"), ephemeral=True)
             
-            emoji = parts[0]
-            btn_label = parts[1]
-            list_label = parts[2] if len(parts) > 2 and parts[2] else ""
-            oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
-            
-            # Limit
-            limit = 0
-            if len(parts) > 4:
-                try: limit = int(parts[4])
-                except: pass
-            
-            # Flags (S=Show in list, P=Positive, B=Both, E=Emoji only, T=Text only)
-            flags = parts[5].upper() if len(parts) > 5 else "SPB"
-            show_in_list = "S" in flags
-            is_positive = "P" in flags
-            
-            if is_positive: positive_count += 1
-            
-            style = "both"
-            if "E" in flags: style = "emoji"
-            elif "T" in flags: style = "label"
-            
-            new_opts.append({
-                "id": oid, 
-                "emoji": emoji, 
-                "label": btn_label, 
-                "list_label": list_label,
-                "max_slots": limit,
-                "button_style": style,
-                "show_in_list": show_in_list,
-                "positive": is_positive
-            })
+            try:
+                emoji = parts[0]
+                btn_label = parts[1]
+                list_label = parts[2] if len(parts) > 2 and parts[2] else ""
+                oid = parts[3] if len(parts) > 3 and parts[3] else slugify(btn_label)
+                
+                # Limit
+                limit = 0
+                if len(parts) > 4:
+                    try: limit = int(parts[4])
+                    except: pass
+                
+                # Flags (S=Show in list, P=Positive, B/E/T=Style, G/R/B/Y=Color)
+                flags = parts[5].upper() if len(parts) > 5 else "SPB"
+                show_in_list = "S" in flags
+                is_positive = "P" in flags
+                if is_positive: positive_count += 1
+                
+                style = "both"
+                if "E" in flags: style = "emoji"
+                elif "T" in flags: style = "label"
+                
+                # Color
+                btn_color = "secondary"
+                for code, name in color_map.items():
+                    if code in flags:
+                        btn_color = name
+                        break
+                
+                new_opts.append({
+                    "id": oid, 
+                    "emoji": emoji, 
+                    "label": btn_label, 
+                    "list_label": list_label,
+                    "max_slots": limit,
+                    "button_style": style,
+                    "button_color": btn_color,
+                    "show_in_list": show_in_list,
+                    "positive": is_positive
+                })
+            except Exception as e:
+                return await interaction.response.send_message(t("ERR_PARSING_LINE", guild_id=interaction.guild_id, line=i, error=str(e)), ephemeral=True)
 
         if not new_opts:
             return await interaction.response.send_message("❌ You must have at least one icon.", ephemeral=True)
 
         new_data = {
             "options": new_opts,
-            "positive_count": positive_count, # Redundant but good for backward compatibility
+            "positive_count": positive_count,
             "buttons_per_row": row_l,
             "show_mgmt": show_m
         }
+
+        # Handling ID for cloning or new template-based sets
+        target_id = self.set_id
+        if getattr(self, "is_clone", False) or getattr(self, "is_new", False):
+            target_id = slugify(self.name_input.value)
+            # Check for collisions
+            sets = await database.get_emoji_sets(interaction.guild_id)
+            existing_ids = [s["set_id"] for s in sets]
+            
+            base_id = target_id
+            counter = 2
+            while target_id in existing_ids:
+                target_id = f"{base_id}_{counter}"
+                counter += 1
         
-        await database.save_emoji_set(self.wizard_view.guild_id, self.set_id, self.name_input.value, new_data)
-        await interaction.response.send_message("✅ Emoji set updated successfully.", ephemeral=True)
+        await database.save_emoji_set(self.wizard_view.guild_id, target_id, self.name_input.value, new_data)
+        
+        msg = t("MSG_SET_CLONED") if getattr(self, "is_clone", False) else "✅ Done!"
+        await interaction.response.send_message(msg, ephemeral=True)
         await self.wizard_view.refresh_message(interaction)

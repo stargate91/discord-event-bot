@@ -126,8 +126,17 @@ class DynamicEventView(discord.ui.View):
             btn_emoji = opt.get("emoji") if btn_style in ["both", "emoji"] else None
             btn_label = label if btn_style in ["both", "label"] else None
 
+            # Color logic
+            color_map = {
+                "success": discord.ButtonStyle.green,
+                "danger": discord.ButtonStyle.red,
+                "primary": discord.ButtonStyle.primary,
+                "secondary": discord.ButtonStyle.secondary
+            }
+            btn_color = color_map.get(opt.get("button_color"), discord.ButtonStyle.secondary)
+
             btn = discord.ui.Button(
-                style=discord.ButtonStyle.secondary, 
+                style=btn_color, 
                 emoji=btn_emoji or None,
                 label=btn_label or None,
                 custom_id=f"{role_id}_{event_id}",
