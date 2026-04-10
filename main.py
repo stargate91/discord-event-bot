@@ -124,22 +124,51 @@ class EventBot(commands.Bot):
         if "logging_level" in globals_cfg:
             set_log_level(globals_cfg["logging_level"])
 
+        # Master Guild configuration
+        self.master_guild_id = self.config.get("guild_id")
+
         try:
-            # Load cogs
-            extensions = [
+            # Load standard (Global) extensions
+            global_extensions = [
                 "cogs.event_commands",
                 "cogs.scheduler_task",
                 "cogs.server_setup",
                 "cogs.emoji_wizard"
             ]
             
-            for ext in extensions:
+            # Load Master (Restricted) extensions
+            master_extensions = [
+                "cogs.master_commands"
+            ]
+            
+            # 1. Load global extensions
+            for ext in global_extensions:
                 try:
                     await self.load_extension(ext)
                     log.info(f"Loaded extension: {ext}")
                 except Exception as e:
                     log.error(f"Failed to load extension {ext}: {e}", exc_info=True)
             
+            # 2. Load master extensions
+            for ext in master_extensions:
+                try:
+                    await self.load_extension(ext)
+                    log.info(f"Loaded master extension: {ext}")
+                except Exception as e:
+                    log.error(f"Failed to load master extension {ext}: {e}", exc_info=True)
+
+            # 3. Handle Special Synchronization Logic
+            if self.master_guild_id:
+                master_guild = discord.Object(id=self.master_guild_id)
+                # We specifically find the 'master' command group and bind it to our master guild
+                # This ensures it's NOT in the global tree and only shows up in the master guild
+                master_cog = self.get_cog("MasterCommands")
+                if master_cog:
+                    # In discord.py 2.x, GroupCog automatically registers to global tree
+                    # We move it to the guild tree for isolation
+                    self.tree.add_command(master_cog, guild=master_guild)
+                    log.info(f"Master Hub isolated to guild {self.master_guild_id}")
+
             # Load custom emoji sets into cache before persistent views
             await load_custom_sets()
             
@@ -153,16 +182,9 @@ class EventBot(commands.Bot):
                 except Exception as e:
                     log.error(f"Failed to load persistent view for event {event.get('event_id')}: {e}", guild_id=event.get('guild_id'))
                 
-            # Sync slash commands
-            guild_id = self.config.get("guild_id")
-            if guild_id:
-                guild = discord.Object(id=guild_id)
-                self.tree.copy_global_to(guild=guild)
-                synced = await self.tree.sync(guild=guild)
-                log.info(f"Synced {len(synced)} commands to guild {guild_id}", guild_id=guild_id)
-            else:
-                synced = await self.tree.sync()
-                log.info("Synced commands globally")
+            # NOTE: Automatic sync removed per user request for manual 'master system sync' control.
+            log.info("Setup complete. Manual sync required via /master system sync.")
+
         except Exception as e:
             log.error(f"Critical error during setup_hook: {e}", exc_info=True)
 
