@@ -27,6 +27,7 @@ class WizardStartView(ui.View):
     async def single_btn(self, interaction: discord.Interaction, button: ui.Button):
         # Starts the fast-track wizard
         view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
+        await view.refresh_ui()
         embed = discord.Embed(
             title=t("TITLE_SINGLE_EVENT", guild_id=self.guild_id), 
             description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
@@ -38,6 +39,7 @@ class WizardStartView(ui.View):
     async def recurring_btn(self, interaction: discord.Interaction, button: ui.Button):
         # Starts the full-track wizard
         view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
+        await view.refresh_ui()
         embed = discord.Embed(
             title=t("TITLE_RECURRING_EVENT", guild_id=self.guild_id), 
             description=t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()), 
@@ -392,7 +394,6 @@ class EventWizardView(ui.View):
         self.messages_btn.label = t("BTN_MESSAGES", guild_id=guild_id)
         self.save_preview_btn.label = t("BTN_SAVE_PREVIEW", guild_id=guild_id)
         
-        self.sync_ui()
         if not self.data.get("image_urls") and self.data.get("image_url"):
             self.data["image_urls"] = self.data["image_url"]
 

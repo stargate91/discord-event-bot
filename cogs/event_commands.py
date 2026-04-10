@@ -168,6 +168,7 @@ class EventCommands(commands.GroupCog, name="event"):
 
         try:
             view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
+            await view.refresh_ui()
             title = t("WIZARD_TITLE", guild_id=interaction.guild_id)
             if bulk_ids: title = f"📦 {title} {t('LBL_BULK_EDIT', guild_id=interaction.guild_id)}"
             
@@ -294,6 +295,7 @@ class EventCommands(commands.GroupCog, name="event"):
         if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
+        await view.refresh_ui()
         embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.blue())
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
