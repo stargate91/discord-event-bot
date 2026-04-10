@@ -120,51 +120,5 @@ class MasterPresenceView(ui.View):
             log.error(f"[Master] Error in global-sets: {e}")
             await interaction.response.send_message(f"❌ Error opening Global Emoji Wizard: {e}", ephemeral=True)
 
-    # --- PREFIXED COMMANDS (Manual management as requested) ---
-
-    # These are for the Bot Owner to manage the command tree manually.
-
-    @commands.command(name="sync", aliases=["sync_nexus"])
-    @commands.guild_only()
-    async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
-        """Manual sync: !sync (guild), !sync copy (copy global to guild), !sync global"""
-        if not await is_admin(ctx):
-            return await ctx.send("❌ No permission.")
-        await ctx.send("🔄 Starting synchronization...")
-        try:
-            if spec == "global":
-                synced = await self.bot.tree.sync()
-                await ctx.send(f"✅ Synced {len(synced)} commands globally.")
-            elif spec == "copy":
-                self.bot.tree.copy_global_to(guild=ctx.guild)
-                synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(f"✅ Global commands copied and synced to this guild ({len(synced)} total).")
-            else:
-                # Default: Guild only
-                synced = await self.bot.tree.sync(guild=ctx.guild)
-                await ctx.send(f"✅ Synced {len(synced)} commands to this guild.")
-        except Exception as e:
-            await ctx.send(f"❌ Sync failed: `{e}`")
-
-    @commands.command(name="clear_commands", aliases=["clear_commands_nexus"])
-    @commands.guild_only()
-    async def clear_commands_prefix(self, ctx: commands.Context):
-        """Totally clear slash commands tree."""
-        if not await is_admin(ctx):
-            return await ctx.send("❌ No permission.")
-        await ctx.send("🗑️ Clearing all command registrations...")
-        try:
-            # Clear Global
-            self.bot.tree.clear_commands(guild=None)
-            await self.bot.tree.sync(guild=None)
-            # Clear Guild
-            self.bot.tree.clear_commands(guild=ctx.guild)
-            await self.bot.tree.sync(guild=ctx.guild)
-            
-            await ctx.send("✅ Command tree cleared. Use `!sync` to re-register.")
-        except Exception as e:
-            await ctx.send(f"❌ Clear failed: `{e}`")
-
 async def setup(bot):
     await bot.add_cog(MasterCommands(bot))
-
