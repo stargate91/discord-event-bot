@@ -1,47 +1,86 @@
-# Discord Event Scheduler Bot
+# Nexus - Discord Event Bot
 
-This is a Discord bot I made to help with scheduling events for my server. It allows users to create events with a start time, description, and even an optional image. Then it posts an embed message that has buttons so people can RSVP (Accept, Decline, Tentative).
+Nexus is a professional-grade Discord event scheduling and management bot designed for gaming communities, e-sports organizers, and corporate servers. It features an interactive wizard-driven event creation process, robust recurring event logic, and deep integration with Discord roles.
 
-I also added a feature to support recurring events. If you set an event to be daily or weekly, the bot has a background task that checks the time. When the event is over, it will post a new cloned event for the next occurance and reset all the RSVPs.
+![Nexus Banner](file:///e:/projects/python/bot_imgs/nexus_banner.jpg)
 
-## Technologies I Used
-- Python 3.10
-- discord.py (for the bot framework and slash commands)
-- aiosqlite (for asynchronous SQLite database handling)
-- python-dotenv (to hide the bot token)
+## ✨ Features
 
-## How to Set It Up
+- **Interactive Event Wizard**: Create complex events step-by-step using modern Discord Components V2.
+- **Recurring Events**: Support for Daily, Weekly, Monthly, and custom weekday recurrences with automatic reposting.
+- **Dynamic RSVP System**: Custom buttons (Accept, Decline, Tentative) with real-time participant lists.
+- **Advanced Slot Management**:
+    - **Role Limits**: Define slots for specific roles (e.g., Tank, Heal, DPS).
+    - **Waiting Lists**: Automatic promotion from queue when slots open up.
+- **Smart Notifications**:
+    - **Reminders**: Automatic Pings or DMs before events start.
+    - **Temp Roles**: Automatically give participants a role for the duration of the event.
+- **Full Localization**: Seamlessly switch between **Hungarian (HU)** and **English (EN)**.
+- **Custom Branding**: Create and manage your own emoji/button sets for different event types.
+- **Professional Admin Hub**: Dedicated console for server-wide settings and defaults.
 
-1. Install the requirements:
-`pip install discord.py aiosqlite python-dotenv`
+## 🛠️ Technology Stack
 
-2. Set up the Environment Variables:
-Create a file called `.env` in the root folder and add your bot token:
-`BOT_TOKEN=your_bot_token_here`
+- **Language**: Python 3.10+
+- **Library**: [discord.py](https://github.com/Rapptz/discord.py) (v2.0+)
+- **Database**: [PostgreSQL](https://www.postgresql.org/) (via `asyncpg` for high performance)
+- **Time Handling**: Centralized timezone management with `python-dateutil`.
+- **UI Architecture**: Custom `LayoutView` system optimized for Components V2.
 
-3. Set up the Configuration:
-Create a `config.json` file in the root directory like this:
+## 🚀 Getting Started
+
+### 1. Requirements
+- Python 3.10 or higher
+- PostgreSQL 13+
+- Discord Bot Token (with Message Content Intent)
+
+### 2. Installation
+```powershell
+# Clone the repository
+git clone https://github.com/your-repo/nexus-bot.git
+cd nexus-bot
+
+# Install dependencies
+pip install -r requirements.txt
+```
+
+### 3. Configuration
+Create a `.env` file in the root directory:
+```env
+BOT_TOKEN=your_discord_token_here
+DATABASE_URL=postgres://user:password@localhost:5432/nexus_db
+```
+
+Configure `config.json` for your master guild:
 ```json
 {
   "guild_id": 1234567890,
-  "ping_role_id": null,
+  "command_prefix": "!",
   "language": "hu",
-  "command_suffix": "_ev",
-  "command_prefix": "!"
+  "support_invite": "https://discord.gg/your-invite"
 }
 ```
-Note: If you leave `guild_id` as null, slash commands will sync globally (it might take an hour). If you put your server ID there, it syncs instantly.
 
-4. Run the bot:
-`python main.py`
+### 4. Running the Bot
+```powershell
+python main.py
+```
 
-## Commands
-Slash command:
-- `/event_create`: Opens a modal window to create a new event.
+## 🎮 Commands
 
-Prefix commands (Admin only):
-- `!sync_ev`: Syncs slash commands into the server.
-- `!clear_commands_ev`: Clears old disabled slash commands.
+### General User Commands
+- `/event create`: Start the interactive creation wizard.
+- `/event list`: Show all active events in the server.
+- `/event search`: Find specific events by ID or title.
 
-## Learnings
-Working with persistent views was a bit tricky at first because Discord forgets the buttons when the bot restarts. I fixed it by making the bot load active events from the database on startup and re-adding the view with dynamic custom IDs. 
+### Administrative Commands
+- `/event admin setup`: Open the visual configuration console.
+- `/event admin emojis`: Start the Emoji Wizard to create custom button sets.
+- `/event admin messages`: Manage custom bot strings and localization.
+- `/master system sync`: (Owner only) Sync slash commands globally or to the guild.
+
+## 🤝 Support
+If you have questions or need help setting up Nexus, join our community: [Support Server](https://discord.gg/your-invite)
+
+---
+*Created with ❤️ by Nexus Team*

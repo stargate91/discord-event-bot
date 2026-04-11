@@ -18,7 +18,10 @@ ENV/
 data/*.db
 data/*.sqlite3
 
-
 # VS Code / IDEs
 .vscode/
 .idea/
+
+# Project specifics
+logs/
+scratch/
