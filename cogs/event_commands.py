@@ -74,12 +74,7 @@ class EventCommands(commands.Cog):
                 
             from cogs.server_setup import ServerSetupView
             view = ServerSetupView(self.bot, guild_id)
-            embed = discord.Embed(
-                title="⚙️ " + t("BTN_GENERAL", guild_id=guild_id),
-                description=t("SETUP_GENERAL_DESC", guild_id=guild_id),
-                color=discord.Color.blue()
-            )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            await view.refresh_message(interaction)
         except Exception as e:
             await interaction.response.send_message(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
