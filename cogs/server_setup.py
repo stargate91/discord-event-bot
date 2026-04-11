@@ -198,10 +198,20 @@ class ReminderSetupView(ui.LayoutView):
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
+        # Reminder Offset button
+        offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def offset_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+            modal = SimpleConfigModal(self.guild_id, "default_reminder_offset", t("SETTING_REMINDER_OFFSET", guild_id=self.guild_id), 
+                                     placeholder=t("PH_REMINDER_OFFSET", guild_id=self.guild_id), default_val=curr, parent_view=self)
+            await it.response.send_modal(modal)
+        offset_btn.callback = offset_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### ⚙️ {t('BTN_REMINDERS', guild_id=self.guild_id).replace('🔔 ', '')}"),
             ui.Separator(),
             ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn),
+            ui.ActionRow(offset_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)

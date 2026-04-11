@@ -185,7 +185,8 @@ class Step3Modal(ui.Modal):
 
         self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or "Europe/Budapest"), required=True)
         self.cleanup_offset = ui.TextInput(label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id), placeholder="4h", default=data.get("cleanup_offset", "4h"), required=True)
-        self.rem_offset = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=guild_id), placeholder="15m", default=data.get("reminder_offset", "15m"), required=True)
+        def_offset = data.get("reminder_offset", "15m")
+        self.rem_offset = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=guild_id), placeholder=t("PH_REMINDER_OFFSET", guild_id=guild_id), default=def_offset, required=True)
         self.rec_limit = ui.TextInput(label=t("LBL_RECURRENCE_LIMIT", guild_id=guild_id), default=str(data.get("recurrence_limit", 0)), required=True)
         self.rem_type = ui.TextInput(label=t("LBL_REMINDER_TYPE", guild_id=guild_id), default=data.get("reminder_type", "none"), required=True)
 
@@ -390,6 +391,16 @@ class EventWizardView(ui.LayoutView):
     async def refresh_ui_data(self):
         current_set = self.data.get("icon_set", "standard")
         current_rec = self.data.get("recurrence_type", "none")
+        
+        # Load server-level defaults if missing in data
+        if "reminder_offset" not in self.data:
+            self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+        if "reminder_type" not in self.data:
+            self.data["reminder_type"] = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
+        if "color" not in self.data:
+            self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x3498db")
+        if "timezone" not in self.data:
+            self.data["timezone"] = await database.get_guild_setting(self.guild_id, "timezone", default="Europe/Budapest")
         
         # Build options for hardcoded templates
         self.icon_set_options = []
