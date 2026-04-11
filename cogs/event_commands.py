@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord import app_commands, ui
 import database
+from database import DEFAULT_TIMEZONE
 import time
 import uuid
 import datetime
@@ -242,7 +243,7 @@ class EventCommands(commands.Cog):
 
         if status == "postponed" and new_time:
             try:
-                local_tz = tz.gettz("Europe/Budapest")
+                local_tz = tz.gettz(DEFAULT_TIMEZONE)
                 dt = parser.parse(new_time).replace(tzinfo=local_tz)
                 await database.update_event_time(event_id, dt.timestamp())
             except Exception as e:
@@ -296,13 +297,16 @@ class EventCommands(commands.Cog):
             if temp_role_id:
                 guild = interaction.guild
                 if guild:
-                    try:
-                        role = guild.get_role(int(temp_role_id))
-                        if role:
-                            await role.delete(reason=f"Event {eid} removed by {interaction.user}")
-                            log.info(f"[Remove] Deleted temp role {temp_role_id} for event {eid}")
-                    except Exception as e:
-                        log.error(f"[Remove] Failed to delete role {temp_role_id}: {e}")
+                    if not guild.me.guild_permissions.manage_roles:
+                        log.warning(f"[Remove] Missing 'Manage Roles' permission to delete role {temp_role_id} in guild {guild.id}")
+                    else:
+                        try:
+                            role = guild.get_role(int(temp_role_id))
+                            if role:
+                                await role.delete(reason=f"Event {eid} removed by {interaction.user}")
+                                log.info(f"[Remove] Deleted temp role {temp_role_id} for event {eid}")
+                        except Exception as e:
+                            log.error(f"[Remove] Failed to delete role {temp_role_id}: {e}")
 
             await database.delete_active_event(eid, interaction.guild_id)
         

@@ -109,15 +109,18 @@ class SchedulerTask(commands.Cog):
         if should_delete:
             guild = self.bot.get_guild(int(db_event["guild_id"]))
             if guild:
-                try:
-                    role = guild.get_role(int(temp_role_id))
-                    if role:
-                        await role.delete(reason=f"Event {db_event['event_id']} finished/closed.")
-                        log.info(f"[Scheduler] Deleted temp role {temp_role_id} for event {db_event['event_id']}")
-                except Exception as e:
-                    log.error(f"[Scheduler] Failed to delete role {temp_role_id}: {e}")
+                if not guild.me.guild_permissions.manage_roles:
+                    log.warning(f"[Scheduler] Missing 'Manage Roles' permission to delete role {temp_role_id} in guild {guild.id}")
+                else:
+                    try:
+                        role = guild.get_role(int(temp_role_id))
+                        if role:
+                            await role.delete(reason=f"Event {db_event['event_id']} finished/closed.")
+                            log.info(f"[Scheduler] Deleted temp role {temp_role_id} for event {db_event['event_id']}")
+                    except Exception as e:
+                        log.error(f"[Scheduler] Failed to delete role {temp_role_id}: {e}")
             
-            # Clear from DB to prevent re-attempts
+            # Clear from DB to prevent re-attempts even if permission was missing (admin must manually cleanup then)
             await database.pool.execute("UPDATE active_events SET temp_role_id = 0 WHERE event_id = $1", db_event["event_id"])
 
     async def handle_reposting(self, db_event, now):
@@ -237,19 +240,18 @@ class SchedulerTask(commands.Cog):
         event_id = db_event["event_id"]
         guild_id = db_event.get("guild_id")
         
+        # Optimized RSVP fetch: get once, use for both ping and DM logic
+        rsvps = await database.get_event_rsvps(event_id)
+        participants = [r for r in rsvps if r["status"] == "accepted"]
+        if not participants:
+            await database.mark_reminder_sent(event_id)
+            return
+
         # Temp Role Logic for Pings
         temp_role_id = db_event.get("temp_role_id")
         if temp_role_id:
             mention_str = f"<@&{temp_role_id}>"
-            participants = [] # We'll still need this for DMs if enabled
-            rsvps = await database.get_event_rsvps(event_id)
-            participants = [r for r in rsvps if r["status"] == "accepted"]
         else:
-            rsvps = await database.get_event_rsvps(event_id)
-            participants = [r for r in rsvps if r["status"] == "accepted"]
-            if not participants:
-                await database.mark_reminder_sent(event_id)
-                return
             mention_str = ", ".join([f"<@{p['user_id']}>" for p in participants])
         
         send_ping = rem_type in ["ping", "both"]

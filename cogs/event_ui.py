@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 import database
 from utils.i18n import t
+from database import DEFAULT_TIMEZONE
 import json
 from utils.logger import log
 import time
@@ -267,7 +268,7 @@ class DynamicEventView(discord.ui.View):
     async def _open_wizard(self, interaction, db_event, bulk_ids=None):
         from dateutil import tz
         import datetime
-        local_tz = tz.gettz(db_event.get("timezone", "Europe/Budapest"))
+        local_tz = tz.gettz(db_event.get("timezone", DEFAULT_TIMEZONE))
         if db_event.get("start_time"):
             start_dt = datetime.datetime.fromtimestamp(db_event["start_time"], tz=local_tz)
             db_event["start_str"] = start_dt.strftime("%Y-%m-%d %H:%M")

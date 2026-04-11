@@ -2,6 +2,7 @@ import discord
 from discord import ui
 import uuid
 import database
+from database import DEFAULT_TIMEZONE
 from utils.i18n import t
 from utils.logger import log
 import datetime
@@ -153,7 +154,7 @@ class SingleEventSupplementaryModal(ui.Modal):
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
 
-        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or "Europe/Budapest"), required=True)
+        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
         self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
         self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
 
@@ -237,7 +238,7 @@ class Step3Modal(ui.Modal):
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
 
-        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or "Europe/Budapest"), required=True)
+        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
         self.cleanup_offset = ui.TextInput(label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id), placeholder="4h", default=data.get("cleanup_offset", "4h"), required=True)
         def_offset = data.get("reminder_offset", "15m")
         self.rem_offset = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=guild_id), placeholder=t("PH_REMINDER_OFFSET", guild_id=guild_id), default=def_offset, required=True)
@@ -415,10 +416,9 @@ class EventWizardView(ui.LayoutView):
         self.can_publish = False
         self.chan_warning = ""
         self.steps_completed = {
-            "step1": bool(self.data.get("title") or self.data.get("config_name")),
-            "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
-            "step3": bool(self.data.get("repost_offset")),
-            "step4": bool(self.data.get("recurrence_limit") or self.data.get("repost_offset"))
+            "step1": bool(self.data.get("title") and (self.data.get("start_str") if self.wizard_type == "single" else True)),
+            "step2": bool(self.data.get("start_str") or self.data.get("start_time")) if self.wizard_type == "series" else bool(self.data.get("timezone")),
+            "step3": bool(self.data.get("timezone")) if self.wizard_type == "series" else True,
         }
 
     async def refresh_message(self, interaction: discord.Interaction):
@@ -734,7 +734,7 @@ class EventWizardView(ui.LayoutView):
         if "color" not in self.data:
             self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x3498db")
         if "timezone" not in self.data:
-            self.data["timezone"] = await database.get_guild_setting(self.guild_id, "timezone", default="Europe/Budapest")
+            self.data["timezone"] = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
         
         if "max_accepted" not in self.data:
             m = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
@@ -806,15 +806,15 @@ class EventWizardView(ui.LayoutView):
         self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
-        s1 = "✅" if self.steps_completed["step1"] else "⏳"
+        s1 = "✅" if self.steps_completed["step1"] else "❌"
         
         if self.wizard_type == "single":
-            s2 = "✅" if self.steps_completed["step2"] else "💡 Opcionális"
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id, default='2. Kiegészítő')}: {s2}"
+            s2 = "✅" if self.steps_completed.get("step2") else "💡 (Opcionális)"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id)}: {s2}"
         else:
-            s2 = "✅" if self.steps_completed["step2"] else "💡"
-            s3 = "✅" if self.steps_completed["step3"] else "💡"
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id, default='2. Ismétlődés')}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id, default='3. Kiegészítő')}: {s3}"
+            s2 = "✅" if self.steps_completed.get("step2") else "❌"
+            s3 = "✅" if self.steps_completed.get("step3") else "💡 (Opcionális)"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
@@ -854,7 +854,7 @@ class EventWizardView(ui.LayoutView):
         self.data = clean_data
 
         try:
-            local_tz = tz.gettz(str(self.data.get("timezone") or "Europe/Budapest"))
+            local_tz = tz.gettz(str(self.data.get("timezone") or DEFAULT_TIMEZONE))
             start_dt = parser.parse(str(self.data["start_str"])).replace(tzinfo=local_tz)
             self.data["start_time"] = start_dt.timestamp()
             

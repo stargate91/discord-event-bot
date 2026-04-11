@@ -1,6 +1,5 @@
-import discord
-from discord import ui
 import database
+from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations
 from utils.auth import is_admin
 from utils.logger import log
@@ -22,11 +21,12 @@ class ServerSetupView(ui.LayoutView):
             await v.refresh_message(it)
         general_btn.callback = general_cb
 
-        local_btn = ui.Button(label=t("BTN_LOCAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        curr_tz = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
+        local_label = f"{t('BTN_LOCAL', guild_id=self.guild_id)} ({curr_tz})"
+        local_btn = ui.Button(label=local_label, style=discord.ButtonStyle.secondary)
         async def local_cb(it):
-            curr = await database.get_guild_setting(self.guild_id, "timezone", default="")
             modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
-                                     placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), default_val=curr, parent_view=self)
+                                     placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), default_val=curr_tz, parent_view=self)
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 

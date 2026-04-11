@@ -6,6 +6,7 @@ import re
 from utils.logger import log
 
 _pool = None
+DEFAULT_TIMEZONE = DEFAULT_TIMEZONE
 
 async def set_pool(pool):
     global _pool
@@ -170,7 +171,7 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     recurrence = data.get("recurrence_type", "none")
     repost_trigger = data.get("repost_trigger", "before_start")
     repost_offset = data.get("repost_offset", "1h")
-    timezone = data.get("timezone", "Europe/Budapest")
+    timezone = data.get("timezone", DEFAULT_TIMEZONE)
     creator_id = str(data.get("creator_id") or "System")
     
     reminder_type = data.get("reminder_type", "none")
@@ -254,7 +255,7 @@ async def update_active_event(event_id, data):
     recurrence = data.get("recurrence_type", "none")
     repost_trigger = data.get("repost_trigger", "before_start")
     repost_offset = data.get("repost_offset", "1h")
-    timezone = data.get("timezone", "Europe/Budapest")
+    timezone = data.get("timezone", DEFAULT_TIMEZONE)
     creator_id = str(data.get("creator_id") or "System")
     
     reminder_type = data.get("reminder_type", "none")
