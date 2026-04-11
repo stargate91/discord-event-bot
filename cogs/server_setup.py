@@ -261,6 +261,8 @@ class SimpleConfigModal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         val = str(self.input_field.value).strip()
+        from utils.logger import log
+        log.info(f"MODAL: Submitting key {self.key} with value {val} for GID {self.guild_id}")
         await database.save_guild_setting(self.guild_id, self.key, val)
         
         # Trigger cache reload if it affects localization/auth context

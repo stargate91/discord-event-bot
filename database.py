@@ -304,6 +304,7 @@ async def delete_translation(guild_id, key):
 async def save_guild_setting(guild_id: int, key: str, value: str):
     """Upsert a guild setting."""
     pool = await get_pool()
+    log.info(f"DB: Saving guild setting - GID: {guild_id} ({type(guild_id)}), Key: {key}, Val: {value}")
     await pool.execute('''
         INSERT INTO guild_settings (guild_id, key, value) 
         VALUES ($1, $2, $3)
@@ -314,6 +315,7 @@ async def get_guild_setting(guild_id: int, key: str, default=None):
     """Get a specific guild setting."""
     pool = await get_pool()
     row = await pool.fetchrow("SELECT value FROM guild_settings WHERE guild_id = $1 AND key = $2", str(guild_id), key)
+    log.info(f"DB: Get guild setting - GID: {guild_id}, Key: {key}, Found: {row is not None}")
     if row:
         return row['value']
     return default
