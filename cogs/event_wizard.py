@@ -269,6 +269,41 @@ class Step3Modal(ui.Modal):
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
 
+class RecurrenceSettingsModal(ui.Modal):
+    """Step 4 for Series: recurrence_limit + repost_offset."""
+    def __init__(self, wizard_view):
+        super().__init__(title=t("BTN_STEP_4_SERIES", guild_id=wizard_view.guild_id, default="4. Ismétlődés")[:45])
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+        guild_id = wizard_view.guild_id
+        
+        self.repost_input = ui.TextInput(label=t("SETTING_REPOST_OFFSET", guild_id=guild_id), placeholder=t("PH_DURATION", guild_id=guild_id), default=str(data.get("repost_offset", "1h")), required=False)
+        self.limit_input = ui.TextInput(label=t("LBL_RECURRENCE_LIMIT", guild_id=guild_id), default=str(data.get("recurrence_limit", 0)), required=False)
+        
+        self.add_item(self.repost_input)
+        self.add_item(self.limit_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["repost_offset"] = str(self.repost_input.value)
+        
+        limit_val = str(self.limit_input.value).strip()
+        if limit_val.isdigit():
+            self.wizard_view.data["recurrence_limit"] = int(limit_val)
+        else:
+            try:
+                dt = parser.parse(limit_val)
+                extra = self.wizard_view.data.get("extra_data", {})
+                if isinstance(extra, str): extra = json.loads(extra)
+                extra["recurrence_limit_date"] = dt.timestamp()
+                self.wizard_view.data["extra_data"] = json.dumps(extra)
+                self.wizard_view.data["recurrence_limit"] = 0
+            except:
+                self.wizard_view.data["recurrence_limit"] = 0
+        
+        self.wizard_view.steps_completed["step4"] = True
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.refresh_message(interaction)
+
 class AdvancedSettingsModal(ui.Modal):
     def __init__(self, wizard_view):
         super().__init__(title=t("TITLE_ADVANCED_SETTINGS", guild_id=wizard_view.guild_id))
@@ -377,7 +412,8 @@ class EventWizardView(ui.LayoutView):
         self.steps_completed = {
             "step1": bool(self.data.get("title") or self.data.get("config_name")),
             "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
-            "step3": bool(self.data.get("repost_offset"))
+            "step3": bool(self.data.get("repost_offset")),
+            "step4": bool(self.data.get("recurrence_limit") or self.data.get("repost_offset"))
         }
 
     async def refresh_message(self, interaction: discord.Interaction):
@@ -401,12 +437,14 @@ class EventWizardView(ui.LayoutView):
         step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
-        async def s3_cb(it): await it.response.send_modal(Step3Modal(view))
-        step3 = ui.Button(label=t("BTN_STEP_3", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def s3_cb(it):
+            if view.wizard_type == "single": pass
+            else: await it.response.send_modal(SingleEventSupplementaryModal(view))
+        step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id, default="3. Kiegészítő"), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
 
-        async def s4_cb(it): await it.response.send_modal(AdvancedSettingsModal(view))
-        step4 = ui.Button(label=t("BTN_STEP_4", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def s4_cb(it): await it.response.send_modal(RecurrenceSettingsModal(view))
+        step4 = ui.Button(label=t("BTN_STEP_4_SERIES", guild_id=self.guild_id, default="4. Ismétlődés"), style=discord.ButtonStyle.gray)
         step4.callback = s4_cb
 
         async def role_cb(it):
@@ -628,11 +666,21 @@ class EventWizardView(ui.LayoutView):
         else:
             container_items.append(ui.ActionRow(step1, step2, step3, step4))
             
-            r2 = [role_btn, msg_btn, wait_btn, save_btn]
+            r2 = [adv_btn, rem_toggle_btn, save_btn]
             if view.can_publish: r2.append(pub_btn)
             container_items.append(ui.ActionRow(*r2))
             
-            container_items.append(ui.Separator())
+            if view.show_advanced:
+                container_items.append(ui.Separator())
+                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(color_sel))
+                container_items.append(ui.Separator())
+            elif view.show_reminder:
+                container_items.append(ui.Separator())
+                container_items.append(ui.ActionRow(rem_offset_btn))
+                container_items.append(ui.ActionRow(rem_type_sel))
+                container_items.append(ui.Separator())
+            
             container_items.append(ui.ActionRow(sel_rec))
             
             if view.data.get("recurrence_type") == "custom":
@@ -736,8 +784,9 @@ class EventWizardView(ui.LayoutView):
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id, default='2. Kiegészítő')}: {s2}"
         else:
             s2 = "✅" if self.steps_completed["step2"] else "⏳"
-            s3 = "✅" if self.steps_completed["step3"] else "⏳"
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3', guild_id=self.guild_id)}: {s3}"
+            s3 = "✅" if self.steps_completed["step3"] else "💡"
+            s4 = "✅" if self.steps_completed["step4"] else "💡"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id, default='3. Kiegészítő')}: {s3}\n- {t('BTN_STEP_4_SERIES', guild_id=self.guild_id, default='4. Ismétlődés')}: {s4}"
 
     async def save_to_draft(self):
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
