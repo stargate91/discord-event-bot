@@ -23,13 +23,17 @@ class ServerSetupView(ui.LayoutView):
 
         local_btn = ui.Button(label=t("BTN_LOCAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def local_cb(it):
-            modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), parent_view=self)
+            curr = await database.get_guild_setting(self.guild_id, "timezone", default="")
+            modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
+                                     placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), default_val=curr, parent_view=self)
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 
         color_btn = ui.Button(label=t("BTN_COLOR", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def color_cb(it):
-            modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder=t("PH_COLOR", guild_id=self.guild_id), parent_view=self)
+            curr = await database.get_guild_setting(self.guild_id, "default_color", default="")
+            modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), 
+                                     placeholder=t("PH_COLOR", guild_id=self.guild_id), default_val=curr, parent_view=self)
             await it.response.send_modal(modal)
         color_btn.callback = color_cb
 
@@ -82,15 +86,17 @@ class GeneralSetupView(ui.LayoutView):
 
         roles_btn = ui.Button(label=t("BTN_ADMIN_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def roles_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "admin_role_ids", default="")
             modal = SimpleConfigModal(self.guild_id, "admin_role_ids", t("SETTING_ADMIN_ROLES", guild_id=self.guild_id), 
-                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=self)
+                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, default_val=curr, parent_view=self)
             await it.response.send_modal(modal)
         roles_btn.callback = roles_cb
 
         channels_btn = ui.Button(label=t("BTN_ADMIN_CHANNELS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channels_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "admin_channel_ids", default="")
             modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", t("SETTING_ADMIN_CHANNELS", guild_id=self.guild_id), 
-                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=self)
+                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, default_val=curr, parent_view=self)
             await it.response.send_modal(modal)
         channels_btn.callback = channels_cb
 
@@ -182,14 +188,14 @@ class ReminderSetupView(ui.LayoutView):
             await interaction.response.edit_message(content=None, embeds=[], view=self)
 
 class SimpleConfigModal(ui.Modal):
-    def __init__(self, guild_id, key, title, placeholder="", is_long=False, parent_view=None):
+    def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
         super().__init__(title=title[:45])
         self.guild_id = guild_id
         self.key = key
         self.parent_view = parent_view
         
         style = discord.TextStyle.paragraph if is_long else discord.TextStyle.short
-        self.input_field = ui.TextInput(label=title, placeholder=placeholder, style=style, required=True)
+        self.input_field = ui.TextInput(label=title, placeholder=placeholder, style=style, default=default_val, required=True)
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):
