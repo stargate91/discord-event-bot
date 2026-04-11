@@ -21,28 +21,37 @@ class WizardStartView(ui.LayoutView):
         self.guild_id = guild_id
 
     async def refresh_message(self, interaction: discord.Interaction):
-        self.clear_items()
-        guild_id = self.guild_id
+        # Create a FRESH instance to avoid stale interaction issues (Components V2 pattern)
+        view = WizardStartView(self.bot, self.creator_id, self.guild_id)
+        view.clear_items()
         
-        # Localized content
+        guild_id = self.guild_id
         title = t("WIZARD_TITLE", guild_id=guild_id)
         desc = t("WIZARD_TYPE_DESC", guild_id=guild_id)
         
         # Action Buttons
         single_btn = ui.Button(
             label=t("BTN_SINGLE_EVENT", guild_id=guild_id),
-            style=discord.ButtonStyle.secondary
+            style=discord.ButtonStyle.primary
         )
         async def single_cb(it):
-            view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
-            await view.refresh_ui()
-            status = view.get_status_text()
-            embed = discord.Embed(
-                title=t("TITLE_SINGLE_EVENT", guild_id=self.guild_id), 
-                description=t("WIZARD_DESC", guild_id=self.guild_id, status=status), 
-                color=discord.Color.blue()
-            )
-            await it.response.edit_message(embed=embed, view=view)
+            try:
+                log.info(f"[Wizard] Single event button clicked by {it.user.id}")
+                new_view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
+                await new_view.refresh_ui()
+                status = new_view.get_status_text()
+                embed = discord.Embed(
+                    title=t("TITLE_SINGLE_EVENT", guild_id=self.guild_id), 
+                    description=t("WIZARD_DESC", guild_id=self.guild_id, status=status), 
+                    color=discord.Color.blue()
+                )
+                await it.response.edit_message(embed=embed, view=new_view)
+                log.info(f"[Wizard] Transitioned to single event wizard for {it.user.id}")
+            except Exception as e:
+                log.error(f"[Wizard] Error in single_cb: {e}", exc_info=True)
+                if not it.response.is_done():
+                    await it.response.send_message(f"❌ {e}", ephemeral=True)
+
         single_btn.callback = single_cb
         
         recurring_btn = ui.Button(
@@ -50,20 +59,27 @@ class WizardStartView(ui.LayoutView):
             style=discord.ButtonStyle.secondary
         )
         async def recurring_cb(it):
-            view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
-            await view.refresh_ui()
-            status = view.get_status_text()
-            embed = discord.Embed(
-                title=t("TITLE_RECURRING_EVENT", guild_id=self.guild_id), 
-                description=t("WIZARD_DESC", guild_id=self.guild_id, status=status), 
-                color=discord.Color.blue()
-            )
-            await it.response.edit_message(embed=embed, view=view)
+            try:
+                log.info(f"[Wizard] Recurring series button clicked by {it.user.id}")
+                new_view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="series")
+                await new_view.refresh_ui()
+                status = new_view.get_status_text()
+                embed = discord.Embed(
+                    title=t("TITLE_RECURRING_EVENT", guild_id=self.guild_id), 
+                    description=t("WIZARD_DESC", guild_id=self.guild_id, status=status), 
+                    color=discord.Color.blue()
+                )
+                await it.response.edit_message(embed=embed, view=new_view)
+                log.info(f"[Wizard] Transitioned to series wizard for {it.user.id}")
+            except Exception as e:
+                log.error(f"[Wizard] Error in recurring_cb: {e}", exc_info=True)
+                if not it.response.is_done():
+                    await it.response.send_message(f"❌ {e}", ephemeral=True)
+
         recurring_btn.callback = recurring_cb
         
         row = ui.ActionRow(single_btn, recurring_btn)
         
-        # Build Container
         container = ui.Container(
             ui.TextDisplay(f"### {title}"),
             ui.Separator(),
@@ -72,14 +88,14 @@ class WizardStartView(ui.LayoutView):
             row,
             accent_color=0x00bfff
         )
-        self.add_item(container)
+        view.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(embeds=[], view=self)
+            await interaction.edit_original_response(embeds=[], view=view)
         elif interaction.type == discord.InteractionType.component:
-            await interaction.response.edit_message(embeds=[], view=self)
+            await interaction.response.edit_message(embeds=[], view=view)
         else:
-            await interaction.response.send_message(view=self, ephemeral=True)
+            await interaction.response.send_message(view=view, ephemeral=True)
 
 class SingleEventModal(ui.Modal):
     """Fast-track modal combining Step 1 and parts of Step 2."""
