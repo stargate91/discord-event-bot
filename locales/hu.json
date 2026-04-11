@@ -51,7 +51,7 @@
   "BTN_REMINDER_TOGGLE": "🔔 Emlékeztető",
   "EMBED_ACC": "✅ Elfogadta ({count})",
   "EMBED_DEC": "❌ Elutasította ({count})",
-  "EMBED_FOOTER": "Esemény ID: {event_id} | Létrehozta @{creator_id}",
+  "EMBED_FOOTER": "Esemény ID: {event_id} | Létrehozta {creator_id}",
   "EMBED_FULL": "ESEMÉNY BETELT",
   "EMBED_NONE": "Senki",
   "EMBED_RECURRENCE": "Ismétlődés",

@@ -51,7 +51,7 @@
   "BTN_REMINDER_TOGGLE": "🔔 Reminder",
   "EMBED_ACC": "✅ Accepted ({count})",
   "EMBED_DEC": "❌ Declined ({count})",
-  "EMBED_FOOTER": "Event ID: {event_id} | Created by @{creator_id}",
+  "EMBED_FOOTER": "Event ID: {event_id} | Created by {creator_id}",
   "EMBED_FULL": "EVENT FULL",
   "EMBED_NONE": "None",
   "EMBED_RECURRENCE": "Recurrence",
