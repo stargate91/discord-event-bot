@@ -12,9 +12,7 @@ class ServerSetupView(ui.LayoutView):
         self.guild_id = guild_id
 
     async def refresh_message(self, interaction: discord.Interaction):
-        # Fresh view instance for V2 dispatching
-        view = ServerSetupView(self.bot, self.guild_id)
-        view.clear_items()
+        self.clear_items()
         
         # Action Buttons
         general_btn = ui.Button(label=t("BTN_GENERAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
@@ -25,13 +23,13 @@ class ServerSetupView(ui.LayoutView):
 
         local_btn = ui.Button(label=t("BTN_LOCAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def local_cb(it):
-            modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), parent_view=view)
+            modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), parent_view=self)
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 
         color_btn = ui.Button(label=t("BTN_COLOR", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def color_cb(it):
-            modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder=t("PH_COLOR", guild_id=self.guild_id), parent_view=view)
+            modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), placeholder=t("PH_COLOR", guild_id=self.guild_id), parent_view=self)
             await it.response.send_modal(modal)
         color_btn.callback = color_cb
 
@@ -50,12 +48,12 @@ class ServerSetupView(ui.LayoutView):
             ui.ActionRow(color_btn, reminder_btn),
             accent_color=0x00bfff
         )
-        view.add_item(container)
+        self.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=view)
+            await interaction.edit_original_response(content=None, embeds=[], view=self)
         else:
-            await interaction.response.edit_message(content=None, embeds=[], view=view)
+            await interaction.response.edit_message(content=None, embeds=[], view=self)
 
 class GeneralSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -64,8 +62,7 @@ class GeneralSetupView(ui.LayoutView):
         self.guild_id = guild_id
 
     async def refresh_message(self, interaction: discord.Interaction):
-        view = GeneralSetupView(self.bot, self.guild_id)
-        view.clear_items()
+        self.clear_items()
         
         # Get current language from DB
         cur_lang = await database.get_guild_setting(self.guild_id, "language", default="en")
@@ -74,27 +71,27 @@ class GeneralSetupView(ui.LayoutView):
             label=t("LBL_LANG_HU", guild_id=self.guild_id), 
             style=discord.ButtonStyle.success if cur_lang == "hu" else discord.ButtonStyle.secondary
         )
-        async def hu_cb(it): await view._set_lang(it, "hu")
+        async def hu_cb(it): await self._set_lang(it, "hu")
         lang_hu.callback = hu_cb
 
         lang_en = ui.Button(
             label=t("LBL_LANG_EN", guild_id=self.guild_id), 
             style=discord.ButtonStyle.success if cur_lang == "en" else discord.ButtonStyle.secondary
         )
-        async def en_cb(it): await view._set_lang(it, "en")
+        async def en_cb(it): await self._set_lang(it, "en")
         lang_en.callback = en_cb
 
         roles_btn = ui.Button(label=t("BTN_ADMIN_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def roles_cb(it):
             modal = SimpleConfigModal(self.guild_id, "admin_role_ids", t("SETTING_ADMIN_ROLES", guild_id=self.guild_id), 
-                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=view)
+                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=self)
             await it.response.send_modal(modal)
         roles_btn.callback = roles_cb
 
         channels_btn = ui.Button(label=t("BTN_ADMIN_CHANNELS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channels_cb(it):
             modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", t("SETTING_ADMIN_CHANNELS", guild_id=self.guild_id), 
-                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=view)
+                                     placeholder=t("PH_ID_LIST", guild_id=self.guild_id), is_long=True, parent_view=self)
             await it.response.send_modal(modal)
         channels_btn.callback = channels_cb
 
@@ -113,17 +110,17 @@ class GeneralSetupView(ui.LayoutView):
             ui.ActionRow(roles_btn, channels_btn, back_btn),
             accent_color=0x00bfff
         )
-        view.add_item(container)
+        self.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=view)
+            await interaction.edit_original_response(content=None, embeds=[], view=self)
         else:
-            await interaction.response.edit_message(content=None, embeds=[], view=view)
+            await interaction.response.edit_message(content=None, embeds=[], view=self)
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
         await load_guild_translations(self.guild_id) # Reload cache
-        await interaction.response.send_message(t("MSG_LANG_SET", guild_id=self.guild_id, lang=lang), ephemeral=True)
+        # No ephemeral popup here for smoother transition
         await self.refresh_message(interaction)
 
 class ReminderSetupView(ui.LayoutView):
@@ -133,16 +130,15 @@ class ReminderSetupView(ui.LayoutView):
         self.guild_id = guild_id
 
     async def refresh_message(self, interaction: discord.Interaction):
-        view = ReminderSetupView(self.bot, self.guild_id)
-        view.clear_items()
+        self.clear_items()
         
         # Get current reminder type from DB
         cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
 
         async def set_rem(it, rtype):
             await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
-            await it.response.send_message(t("MSG_REM_TYPE_SET", guild_id=self.guild_id) + f": `{rtype}`", ephemeral=True)
-            await view.refresh_message(it)
+            # No ephemeral popup here for smoother transition
+            await self.refresh_message(it)
 
         rem_none = ui.Button(
             label=t("SEL_REM_NONE", guild_id=self.guild_id), 
@@ -181,12 +177,12 @@ class ReminderSetupView(ui.LayoutView):
             ui.ActionRow(rem_dm, rem_both, back_btn),
             accent_color=0x00bfff
         )
-        view.add_item(container)
+        self.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=view)
+            await interaction.edit_original_response(content=None, embeds=[], view=self)
         else:
-            await interaction.response.edit_message(content=None, embeds=[], view=view)
+            await interaction.response.edit_message(content=None, embeds=[], view=self)
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, parent_view=None):
