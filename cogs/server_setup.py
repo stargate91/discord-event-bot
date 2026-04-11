@@ -1,3 +1,5 @@
+import discord
+from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations

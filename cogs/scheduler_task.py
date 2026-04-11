@@ -121,7 +121,8 @@ class SchedulerTask(commands.Cog):
                         log.error(f"[Scheduler] Failed to delete role {temp_role_id}: {e}")
             
             # Clear from DB to prevent re-attempts even if permission was missing (admin must manually cleanup then)
-            await database.pool.execute("UPDATE active_events SET temp_role_id = 0 WHERE event_id = $1", db_event["event_id"])
+            pool = await database.get_pool()
+            await pool.execute("UPDATE active_events SET temp_role_id = 0 WHERE event_id = $1", db_event["event_id"])
 
     async def handle_reposting(self, db_event, now):
         """Checks if a recurring event needs to be reposted."""
