@@ -66,12 +66,21 @@ class GeneralSetupView(ui.LayoutView):
     async def refresh_message(self, interaction: discord.Interaction):
         view = GeneralSetupView(self.bot, self.guild_id)
         view.clear_items()
+        
+        # Get current language from DB
+        cur_lang = await database.get_guild_setting(self.guild_id, "language", default="en")
 
-        lang_hu = ui.Button(label=t("LBL_LANG_HU", guild_id=self.guild_id), style=discord.ButtonStyle.success)
+        lang_hu = ui.Button(
+            label=t("LBL_LANG_HU", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_lang == "hu" else discord.ButtonStyle.secondary
+        )
         async def hu_cb(it): await view._set_lang(it, "hu")
         lang_hu.callback = hu_cb
 
-        lang_en = ui.Button(label=t("LBL_LANG_EN", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        lang_en = ui.Button(
+            label=t("LBL_LANG_EN", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_lang == "en" else discord.ButtonStyle.secondary
+        )
         async def en_cb(it): await view._set_lang(it, "en")
         lang_en.callback = en_cb
 
@@ -122,22 +131,37 @@ class ReminderSetupView(ui.LayoutView):
     async def refresh_message(self, interaction: discord.Interaction):
         view = ReminderSetupView(self.bot, self.guild_id)
         view.clear_items()
+        
+        # Get current reminder type from DB
+        cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
 
         async def set_rem(it, rtype):
             await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
             await it.response.send_message(t("MSG_REM_TYPE_SET", guild_id=self.guild_id) + f": `{rtype}`", ephemeral=True)
             await view.refresh_message(it)
 
-        rem_none = ui.Button(label=t("SEL_REM_NONE", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        rem_none = ui.Button(
+            label=t("SEL_REM_NONE", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_rem == "none" else discord.ButtonStyle.secondary
+        )
         rem_none.callback = lambda it: set_rem(it, "none")
 
-        rem_ping = ui.Button(label=t("SEL_REM_PING", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        rem_ping = ui.Button(
+            label=t("SEL_REM_PING", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_rem == "ping" else discord.ButtonStyle.secondary
+        )
         rem_ping.callback = lambda it: set_rem(it, "ping")
 
-        rem_dm = ui.Button(label=t("SEL_REM_DM", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        rem_dm = ui.Button(
+            label=t("SEL_REM_DM", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_rem == "dm" else discord.ButtonStyle.secondary
+        )
         rem_dm.callback = lambda it: set_rem(it, "dm")
 
-        rem_both = ui.Button(label=t("SEL_REM_BOTH", guild_id=self.guild_id), style=discord.ButtonStyle.success)
+        rem_both = ui.Button(
+            label=t("SEL_REM_BOTH", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.success if cur_rem == "both" else discord.ButtonStyle.secondary
+        )
         rem_both.callback = lambda it: set_rem(it, "both")
 
         back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
