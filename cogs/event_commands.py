@@ -256,27 +256,41 @@ class EventCommands(commands.Cog):
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+        
         log.info(f"[Remove] Looking for event_id={event_id!r} guild_id={interaction.guild_id!r}")
-        db_event = await database.get_active_event(event_id, interaction.guild_id)
-        if not db_event:
-            db_event = await database.get_active_event(event_id)
-        if not db_event:
+        
+        target_events = []
+        if event_id.startswith("series:"):
+            config_name = event_id.replace("series:", "")
+            target_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
+        else:
+            db_event = await database.get_active_event(event_id, interaction.guild_id)
+            if not db_event:
+                db_event = await database.get_active_event(event_id)
+            if db_event:
+                target_events = [db_event]
+
+        if not target_events:
             all_events = await database.get_active_events(interaction.guild_id)
             all_ids = [e["event_id"] for e in all_events]
             log.warning(f"[Remove] Not found! All event IDs in guild: {all_ids}")
             return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
         
-        try:
-            channel = self.bot.get_channel(db_event["channel_id"])
-            if channel and db_event.get("message_id"):
-                msg = await channel.fetch_message(db_event["message_id"])
-                embed = msg.embeds[0]
-                embed.title = f"{t('TAG_PAST', guild_id=interaction.guild_id)} {embed.title}"
-                embed.color = discord.Color.red()
-                await msg.edit(embed=embed, view=None)
-        except: pass
+        for ev in target_events:
+            eid = ev["event_id"]
+            try:
+                channel = self.bot.get_channel(ev["channel_id"])
+                if channel and ev.get("message_id"):
+                    msg = await channel.fetch_message(ev["message_id"])
+                    embed = msg.embeds[0]
+                    embed.title = f"{t('TAG_PAST', guild_id=interaction.guild_id)} {embed.title}"
+                    embed.color = discord.Color.red()
+                    await msg.edit(embed=embed, view=None)
+            except Exception as e:
+                log.debug(f"[Remove] Could not edit message {eid}: {e}")
+            
+            await database.delete_active_event(eid, interaction.guild_id)
         
-        await database.delete_active_event(event_id, interaction.guild_id)
         await interaction.response.send_message(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)
 
     @remove_event.autocomplete("event_id")
