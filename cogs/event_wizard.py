@@ -481,10 +481,10 @@ class EventWizardView(ui.LayoutView):
 
         if view.wizard_type == "single":
             container_items.append(ui.ActionRow(step1, step2, adv_btn, save_btn))
-            container_items.append(ui.ActionRow(sel_icon))
             if view.show_advanced:
                 container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
+            container_items.append(ui.ActionRow(sel_icon))
         else:
             container_items.append(ui.ActionRow(step1, step2, step3, step4))
             container_items.append(ui.ActionRow(role_btn, msg_btn, wait_btn, save_btn))
