@@ -290,7 +290,7 @@ class EventDefaultsView(ui.LayoutView):
         wait_btn.callback = wait_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### 📋 {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.ActionRow(channel_btn, max_acc_btn, wait_btn),
             ui.ActionRow(back_btn),
