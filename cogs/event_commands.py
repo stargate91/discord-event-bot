@@ -256,11 +256,15 @@ class EventCommands(commands.Cog):
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
-        
+        log.info(f"[Remove] Looking for event_id={event_id!r} guild_id={interaction.guild_id!r}")
         db_event = await database.get_active_event(event_id, interaction.guild_id)
         if not db_event:
             db_event = await database.get_active_event(event_id)
-        if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
+        if not db_event:
+            all_events = await database.get_active_events(interaction.guild_id)
+            all_ids = [e["event_id"] for e in all_events]
+            log.warning(f"[Remove] Not found! All event IDs in guild: {all_ids}")
+            return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
         
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
