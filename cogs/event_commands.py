@@ -225,7 +225,19 @@ class EventCommands(commands.Cog):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
 
         await interaction.response.defer(ephemeral=True)
-        db_event = await database.get_active_event(event_id)
+
+        db_event = None
+        if event_id.startswith("series:"):
+            config_name = event_id.replace("series:", "")
+            series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
+            if series_events:
+                db_event = series_events[0]
+                event_id = db_event["event_id"]
+        else:
+            db_event = await database.get_active_event(event_id, interaction.guild_id)
+            if not db_event:
+                db_event = await database.get_active_event(event_id)
+
         if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
 
         if status == "postponed" and new_time:
