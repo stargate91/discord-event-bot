@@ -167,19 +167,12 @@ class EventCommands(commands.Cog):
             return
 
         try:
+            from cogs.event_wizard import EventWizardView
             view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
-            await view.refresh_ui()
-            title = t("WIZARD_TITLE", guild_id=interaction.guild_id)
-            if bulk_ids: title = f"📦 {title} {t('LBL_BULK_EDIT', guild_id=interaction.guild_id)}"
-            
-            embed = discord.Embed(
-                title=title, 
-                description=t("WIZARD_DESC", guild_id=interaction.guild_id, status=view.get_status_text()), 
-                color=discord.Color.gold()
-            )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            await view.refresh_message(interaction)
         except Exception as e:
-            await interaction.response.send_message(f"{t('ERR_CRITICAL_EDIT', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+            log.error(f"Error starting edit wizard: {e}")
+            await interaction.followup.send(f"{t('ERR_CRITICAL_EDIT', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @edit_event.autocomplete("event_id")
     async def edit_event_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -295,9 +288,7 @@ class EventCommands(commands.Cog):
         if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
-        await view.refresh_ui()
-        embed = discord.Embed(title=t("WIZARD_TITLE"), description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.blue())
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await view.refresh_message(interaction)
 
     @continue_draft.autocomplete("draft_id")
     async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
