@@ -967,7 +967,13 @@ class EventWizardView(ui.LayoutView):
                     except:
                         pass
             
-            msg = await target_chan.send(content=t("MSG_DEFAULT_PROMO", guild_id=self.guild_id), embed=embed, view=view)
+            ping_role_id = self.data.get("ping_role")
+            if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
+                ping_text = f"<@&{ping_role_id}>"
+            else:
+                ping_text = ""
+            promo_content = t("MSG_DEFAULT_PROMO", guild_id=self.guild_id).replace("@everyone", ping_text).strip()
+            msg = await target_chan.send(content=promo_content, embed=embed, view=view)
             await database.set_event_message(event_id, msg.id)
             self.bot.add_view(view)
             await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
