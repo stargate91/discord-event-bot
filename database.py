@@ -205,9 +205,9 @@ async def get_active_events(guild_id=None):
         return await pool.fetch("SELECT * FROM active_events WHERE guild_id = $1", str(guild_id))
     return await pool.fetch("SELECT * FROM active_events")
 
-async def get_all_active_events():
-    """Alias for get_active_events() used during bot startup."""
-    return await get_active_events()
+async def get_all_active_events(guild_id=None):
+    """Alias for get_active_events() used during bot startup and autocomplete."""
+    return await get_active_events(guild_id)
 
 async def get_active_events_by_config(config_name, guild_id):
     """Fetch all active events belonging to a specific series/configuration."""
