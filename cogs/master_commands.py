@@ -68,6 +68,32 @@ class MasterCommands(commands.GroupCog, name="master"):
             log.error(f"[Master] Error in global-sets: {e}")
             await interaction.response.send_message(t("MASTER_EMOJI_ERR", guild_id=None).replace("{e}", str(e)), ephemeral=True)
 
+    @app_commands.command(name="reset-global-sets")
+    async def reset_global_sets_cmd(self, interaction: discord.Interaction):
+        """Reset all global emoji sets to match the hardcoded templates in utils/templates.py."""
+        await interaction.response.defer(ephemeral=True)
+        
+        try:
+            from utils.templates import ICON_SET_TEMPLATES, get_template_data
+            from cogs.event_ui import load_custom_sets
+            
+            count = 0
+            for tid, tmpl in ICON_SET_TEMPLATES.items():
+                # Use translated label if possible as the name
+                name = t(tmpl.get("label_key"), guild_id=None) if "label_key" in tmpl else tid
+                data = get_template_data(tid)
+                if data:
+                    await database.save_global_emoji_set(tid, name, data)
+                    count += 1
+            
+            # Refresh cache
+            await load_custom_sets()
+            
+            await interaction.followup.send(t('MSG_GLOBAL_RESETS_SUCCESS', guild_id=None, val=count) if count > 0 else f'Success: {count} sets')
+        except Exception as e:
+            log.error(f"[Master] Error resetting global sets: {e}")
+            await interaction.followup.send(f"❌ {e}")
+
 import uuid
 
 class PresenceConfigModal(ui.Modal):

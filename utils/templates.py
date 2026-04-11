@@ -3,15 +3,15 @@ from utils.emoji_utils import parse_emoji_config
 # Canonical Template IDs and their human-readable strings (6-column format)
 # Format: Emoji | Label | List Label | Limit | Flags
 ICON_SET_TEMPLATES = {
-    "basic": {
-        "id": "basic",
-        "label_key": "TEMP_BASIC", # "Alap (Igen / Nem)"
+    "standard": {
+        "id": "standard",
+        "label_key": "TEMP_STANDARD", # "Alap (Igen / Nem)"
         "emoji": "",
         "text": "✅ | I'm coming | Coming | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY"
     },
-    "raid": {
-        "id": "raid",
-        "label_key": "TEMP_RAID", # "Raid (Tank / Heal / DPS)"
+    "mmo": {
+        "id": "mmo",
+        "label_key": "TEMP_MMO", # "Raid (Tank / Heal / DPS)"
         "emoji": "",
         "text": "🛡️ | Tank | Tanks | 0 | SPEY\n🏥 | Heal | Healers | 0 | SPEY\n🗡️ | DPS | DPSes | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY"
     },
