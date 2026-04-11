@@ -607,7 +607,7 @@ class EventWizardView(ui.LayoutView):
             self.data["start_time"] = start_dt.timestamp()
             
             if self.data.get("end_str"):
-                end_dt = parser.parse(str(self.data["end_str"])).replace(tzinfo=local_tz)
+                end_dt = parser.parse(str(self.data["end_str"]), default=start_dt).replace(tzinfo=local_tz)
                 self.data["end_time"] = end_dt.timestamp()
             else:
                 self.data["end_time"] = None
