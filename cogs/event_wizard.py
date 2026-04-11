@@ -425,8 +425,7 @@ class EventWizardView(ui.LayoutView):
         # Components
         async def s1_cb(it):
             try:
-                if view.wizard_type == "single": await it.response.send_modal(SingleEventModal(view))
-                else: await it.response.send_modal(Step1Modal(view))
+                await it.response.send_modal(SingleEventModal(view))
             except Exception as e:
                 log.error(f"[Wizard] s1_cb error: {e}", exc_info=True)
                 if not it.response.is_done():
@@ -434,23 +433,19 @@ class EventWizardView(ui.LayoutView):
         step1 = ui.Button(label=t("BTN_STEP_1", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step1.callback = s1_cb
 
+        # Step 2: Single = Supplementary, Series = Recurrence Settings
         async def s2_cb(it):
             if view.wizard_type == "single": await it.response.send_modal(SingleEventSupplementaryModal(view))
-            else: await it.response.send_modal(Step2Modal(view))
+            else: await it.response.send_modal(RecurrenceSettingsModal(view))
         
-        s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id, default="2. Kiegészítő") if view.wizard_type == "single" else t("BTN_STEP_2", guild_id=self.guild_id)
+        s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id, default="2. Kiegészítő") if view.wizard_type == "single" else t("BTN_STEP_2_SERIES", guild_id=self.guild_id, default="2. Ismétlődés")
         step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
-        async def s3_cb(it):
-            if view.wizard_type == "single": pass
-            else: await it.response.send_modal(SingleEventSupplementaryModal(view))
+        # Step 3: Series only - Supplementary (timezone, max, channel)
+        async def s3_cb(it): await it.response.send_modal(SingleEventSupplementaryModal(view))
         step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id, default="3. Kiegészítő"), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
-
-        async def s4_cb(it): await it.response.send_modal(RecurrenceSettingsModal(view))
-        step4 = ui.Button(label=t("BTN_STEP_4_SERIES", guild_id=self.guild_id, default="4. Ismétlődés"), style=discord.ButtonStyle.gray)
-        step4.callback = s4_cb
 
         async def role_cb(it):
             from cogs.event_ui import get_active_set
@@ -669,7 +664,7 @@ class EventWizardView(ui.LayoutView):
                 
             container_items.append(ui.ActionRow(sel_icon))
         else:
-            container_items.append(ui.ActionRow(step1, step2, step3, step4))
+            container_items.append(ui.ActionRow(step1, step2, step3))
             
             r2 = [adv_btn, rem_toggle_btn, save_btn]
             if view.can_publish: r2.append(pub_btn)
@@ -788,10 +783,9 @@ class EventWizardView(ui.LayoutView):
             s2 = "✅" if self.steps_completed["step2"] else "💡 Opcionális"
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id, default='2. Kiegészítő')}: {s2}"
         else:
-            s2 = "✅" if self.steps_completed["step2"] else "⏳"
+            s2 = "✅" if self.steps_completed["step2"] else "💡"
             s3 = "✅" if self.steps_completed["step3"] else "💡"
-            s4 = "✅" if self.steps_completed["step4"] else "💡"
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id, default='3. Kiegészítő')}: {s3}\n- {t('BTN_STEP_4_SERIES', guild_id=self.guild_id, default='4. Ismétlődés')}: {s4}"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id, default='2. Ismétlődés')}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id, default='3. Kiegészítő')}: {s3}"
 
     async def save_to_draft(self):
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
