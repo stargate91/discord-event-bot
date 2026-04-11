@@ -205,8 +205,19 @@ async def get_active_events(guild_id=None):
         return await pool.fetch("SELECT * FROM active_events WHERE guild_id = $1", str(guild_id))
     return await pool.fetch("SELECT * FROM active_events")
 
-async def get_active_event(event_id):
+async def get_all_active_events():
+    """Alias for get_active_events() used during bot startup."""
+    return await get_active_events()
+
+async def get_active_events_by_config(config_name, guild_id):
+    """Fetch all active events belonging to a specific series/configuration."""
     pool = await get_pool()
+    return await pool.fetch("SELECT * FROM active_events WHERE config_name = $1 AND guild_id = $2", config_name, str(guild_id))
+
+async def get_active_event(event_id, guild_id=None):
+    pool = await get_pool()
+    if guild_id:
+        return await pool.fetchrow("SELECT * FROM active_events WHERE event_id = $1 AND guild_id = $2", event_id, str(guild_id))
     return await pool.fetchrow("SELECT * FROM active_events WHERE event_id = $1", event_id)
 
 async def update_active_event(event_id, data):
@@ -261,6 +272,36 @@ async def update_active_event(event_id, data):
         creator_id, reminder_type, reminder_offset, reminder_sent, 
         recurrence_limit, recurrence_count, icon_set, extra_data, 
         event_id
+    )
+
+async def update_event_status(event_id, status):
+    """Simplified status update for cancellation or postponement."""
+    pool = await get_pool()
+    await pool.execute("UPDATE active_events SET status = $1 WHERE event_id = $2", status, event_id)
+
+async def update_event_status_bulk(event_ids, status):
+    """Update status for multiple events at once."""
+    pool = await get_pool()
+    await pool.execute("UPDATE active_events SET status = $1 WHERE event_id = ANY($2)", status, event_ids)
+
+async def set_event_status(event_id, status):
+    """Another alias for update_event_status used by scheduler."""
+    await update_event_status(event_id, status)
+
+async def update_active_events_metadata_bulk(event_ids, data):
+    """Updates metadata (like extra_data) for multiple events, typically during bulk edit."""
+    pool = await get_pool()
+    extra_json = json.dumps(data.get("extra_data") or {}) if isinstance(data.get("extra_data"), dict) else data.get("extra_data")
+    
+    await pool.execute("""
+        UPDATE active_events SET 
+            title = $1, description = $2, image_urls = $3, 
+            color = $4, max_accepted = $5, icon_set = $6, extra_data = $7
+        WHERE event_id = ANY($8)
+    """, 
+        data.get("title"), data.get("description"), data.get("image_urls"),
+        data.get("color"), data.get("max_accepted"), data.get("icon_set"), 
+        extra_json, event_ids
     )
 
 async def set_event_message(event_id, message_id, guild_id=None):
@@ -357,6 +398,10 @@ async def get_rsvps(event_id):
     pool = await get_pool()
     return await pool.fetch("SELECT user_id, status FROM rsvps WHERE event_id = $1", event_id)
 
+async def get_event_rsvps(event_id):
+    """Alias for get_rsvps used by scheduler."""
+    return await get_rsvps(event_id)
+
 async def update_rsvp(event_id, user_id, status):
     now = time.time()
     pool = await get_pool()
@@ -413,9 +458,12 @@ async def get_draft(draft_id):
     pool = await get_pool()
     return await pool.fetchrow("SELECT * FROM event_drafts WHERE draft_id = $1", draft_id)
 
-async def delete_draft(draft_id):
+async def delete_draft(draft_id, guild_id=None):
     pool = await get_pool()
-    await pool.execute("DELETE FROM event_drafts WHERE draft_id = $1", draft_id)
+    if guild_id:
+        await pool.execute("DELETE FROM event_drafts WHERE draft_id = $1 AND guild_id = $2", draft_id, str(guild_id))
+    else:
+        await pool.execute("DELETE FROM event_drafts WHERE draft_id = $1", draft_id)
 
 async def save_emoji_set(guild_id, set_id, name, data):
     data_json = json.dumps(data)
@@ -431,6 +479,11 @@ async def save_emoji_set(guild_id, set_id, name, data):
 async def get_emoji_sets(guild_id):
     pool = await get_pool()
     return await pool.fetch("SELECT * FROM guild_emoji_sets WHERE guild_id = $1", str(guild_id))
+
+async def get_all_custom_emoji_sets():
+    """Fetch all guild-specific emoji sets."""
+    pool = await get_pool()
+    return await pool.fetch("SELECT * FROM guild_emoji_sets")
 
 async def delete_emoji_set(guild_id, set_id):
     pool = await get_pool()
