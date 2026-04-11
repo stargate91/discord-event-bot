@@ -31,7 +31,7 @@ class WizardStartView(ui.LayoutView):
         # Action Buttons
         single_btn = ui.Button(
             label=t("BTN_SINGLE_EVENT", guild_id=guild_id),
-            style=discord.ButtonStyle.primary
+            style=discord.ButtonStyle.secondary
         )
         async def single_cb(it):
             view = EventWizardView(self.bot, self.creator_id, guild_id=self.guild_id, wizard_type="single")
