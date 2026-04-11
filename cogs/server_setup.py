@@ -44,8 +44,7 @@ class ServerSetupView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
-            ui.ActionRow(general_btn, local_btn),
-            ui.ActionRow(color_btn, reminder_btn),
+            ui.ActionRow(general_btn, local_btn, color_btn, reminder_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)
@@ -106,8 +105,7 @@ class GeneralSetupView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
-            ui.ActionRow(lang_hu, lang_en),
-            ui.ActionRow(roles_btn, channels_btn, back_btn),
+            ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn, back_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)
@@ -173,8 +171,7 @@ class ReminderSetupView(ui.LayoutView):
         container = ui.Container(
             ui.TextDisplay(f"### ⚙️ {t('BTN_REMINDERS', guild_id=self.guild_id).replace('🔔 ', '')}"),
             ui.Separator(),
-            ui.ActionRow(rem_none, rem_ping),
-            ui.ActionRow(rem_dm, rem_both, back_btn),
+            ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)
