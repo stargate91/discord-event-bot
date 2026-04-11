@@ -614,11 +614,15 @@ class EventWizardView(ui.LayoutView):
             container_items.append(ui.ActionRow(*r1))
             
             if view.show_advanced:
+                container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
+                container_items.append(ui.Separator())
             elif view.show_reminder:
+                container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(rem_offset_btn))
                 container_items.append(ui.ActionRow(rem_type_sel))
+                container_items.append(ui.Separator())
                 
             container_items.append(ui.ActionRow(sel_icon))
         else:
