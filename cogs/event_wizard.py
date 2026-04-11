@@ -278,24 +278,46 @@ class AdvancedSettingsModal(ui.Modal):
 
 class RoleLimitsModal(ui.Modal):
     def __init__(self, wizard_view, icon_set_data):
-        super().__init__(title=t("WIZARD_LIMITS_TITLE", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("WIZARD_LIMITS_TITLE", guild_id=wizard_view.guild_id)[:45])
         self.wizard_view = wizard_view
         self.options = icon_set_data.get("options", [])
+        
         extra_data = wizard_view.data.get("extra_data")
         existing_limits = {}
         if extra_data:
             try: existing_limits = json.loads(extra_data).get("role_limits", {})
             except: pass
-        self.inputs = {}
-        for opt in self.options[:5]:
-            role_id = opt["id"]
-            field_label = f"{opt.get('emoji', '')} {opt.get('label') or role_id}"[:45]
-            text_input = ui.TextInput(label=field_label, default=str(existing_limits.get(role_id, opt.get("max_slots", ""))), required=False)
-            self.inputs[role_id] = text_input
-            self.add_item(text_input)
+            
+        lines = []
+        for opt in self.options:
+            rid = opt["id"]
+            lim = existing_limits.get(rid, opt.get("max_slots", 0))
+            emoji = opt.get("emoji", "")
+            lines.append(f"{emoji} {rid}: {lim}".strip())
+            
+        self.limits_input = ui.TextInput(
+            label="Format: EMOJI ID: Limit",
+            style=discord.TextStyle.paragraph,
+            default="\n".join(lines),
+            required=False
+        )
+        self.add_item(self.limits_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        role_limits = {rid: (int(ti.value) if ti.value.isdigit() else 0) for rid, ti in self.inputs.items()}
+        role_limits = {}
+        lines = str(self.limits_input.value).split("\n")
+        for line in lines:
+            if ":" not in line: continue
+            left, right = line.rsplit(":", 1)
+            right = right.strip()
+            matched_id = None
+            for opt in self.options:
+                if opt["id"] in left:
+                    matched_id = opt["id"]
+                    break
+            if matched_id and right.isdigit():
+                role_limits[matched_id] = int(right)
+                
         extra = self.wizard_view.data.get("extra_data", {})
         if isinstance(extra, str): extra = json.loads(extra)
         extra["role_limits"] = role_limits
@@ -391,7 +413,7 @@ class EventWizardView(ui.LayoutView):
         wait_btn = ui.Button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
         wait_btn.callback = wait_cb
 
-        save_style = discord.ButtonStyle.secondary if view.wizard_type == "single" else discord.ButtonStyle.primary
+        save_style = discord.ButtonStyle.green
         save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
         async def save_cb(it): await view.handle_save_preview(it)
         save_btn.callback = save_cb
