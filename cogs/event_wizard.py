@@ -32,7 +32,7 @@ class WizardStartView(ui.LayoutView):
         # Action Buttons
         single_btn = ui.Button(
             label=t("BTN_SINGLE_EVENT", guild_id=guild_id),
-            style=discord.ButtonStyle.primary
+            style=discord.ButtonStyle.secondary
         )
         async def single_cb(it):
             try:
@@ -465,7 +465,7 @@ class EventWizardView(ui.View):
             final_options.append(discord.SelectOption(
                 label=label, 
                 value=tid, 
-                emoji=t_info["emoji"], 
+                emoji=t_info["emoji"] or None, 
                 default=(current_set == tid)
             ))
         
