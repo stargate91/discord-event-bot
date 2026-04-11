@@ -7,7 +7,7 @@ import database
 from utils.i18n import t
 from utils.auth import is_admin
 from utils.emoji_utils import slugify, parse_emoji_config
-from utils.templates import ICON_SET_TEMPLATES
+from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
 async def send_emoji_help(interaction: discord.Interaction, guild_id):
@@ -213,9 +213,10 @@ class TemplateChoiceView(ui.LayoutView):
                 log.debug(f"[EmojiWizard] Template selected: {template}")
                 
                 initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
+                tmpl_data = get_template_data(template) if template != "empty" else {"options": [], "buttons_per_row": 5, "show_mgmt": False}
                 dummy_record = {
                     "set_id": "", "name": "",
-                    "data": json.dumps({"options": [], "buttons_per_row": 5, "show_mgmt": True})
+                    "data": json.dumps(tmpl_data)
                 }
                 edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
                 edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
