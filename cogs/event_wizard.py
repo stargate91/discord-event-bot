@@ -469,13 +469,21 @@ class EventWizardView(ui.LayoutView):
         msg_btn = ui.Button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         msg_btn.callback = msg_cb
 
-        async def wait_cb(it):
-            view.data["use_waiting_list"] = not view.data.get("use_waiting_list", False)
-            await view.save_to_draft()
-            await view.refresh_message(it)
-        use_waiting = view.data.get("use_waiting_list", False)
         wait_btn = ui.Button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
         wait_btn.callback = wait_cb
+
+        # Temp Role Toggle
+        async def temp_role_cb(it):
+            view.data["use_temp_role"] = not view.data.get("use_temp_role", False)
+            await view.save_to_draft()
+            await view.refresh_message(it)
+        
+        use_temp = view.data.get("use_temp_role", False)
+        temp_role_btn = ui.Button(
+            label=t("LBL_WIZ_TEMP_ROLE", guild_id=self.guild_id) + (f": {t('LBL_TEMP_ROLE_ON', guild_id=self.guild_id)}" if use_temp else f": {t('LBL_TEMP_ROLE_OFF', guild_id=self.guild_id)}"),
+            style=discord.ButtonStyle.green if use_temp else discord.ButtonStyle.gray
+        )
+        temp_role_btn.callback = temp_role_cb
 
         save_style = discord.ButtonStyle.green
         save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
@@ -664,7 +672,7 @@ class EventWizardView(ui.LayoutView):
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
@@ -683,7 +691,7 @@ class EventWizardView(ui.LayoutView):
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
@@ -747,6 +755,10 @@ class EventWizardView(ui.LayoutView):
         if "use_waiting_list" not in self.data:
             val = await database.get_guild_setting(self.guild_id, "default_use_waiting_list", default="false")
             self.data["use_waiting_list"] = val.lower() == "true"
+        
+        if "use_temp_role" not in self.data:
+            val = await database.get_guild_setting(self.guild_id, "default_use_temp_role", default="false")
+            self.data["use_temp_role"] = val.lower() == "true"
         
         # Build options for hardcoded templates
         self.icon_set_options = []
@@ -933,6 +945,32 @@ class EventWizardView(ui.LayoutView):
         
         from cogs.event_ui import DynamicEventView
         event_id = self.data["event_id"]
+
+        # Temp Role Logic
+        if self.data.get("use_temp_role") and not self.data.get("temp_role_id"):
+            guild = self.bot.get_guild(int(self.guild_id))
+            if guild:
+                title = (self.data.get("title") or "Event")[:30]
+                date_str = ""
+                try:
+                    ts = float(self.data.get("start_time") or 0)
+                    if ts:
+                        dt = datetime.datetime.fromtimestamp(ts)
+                        date_str = dt.strftime("%m%d")
+                except: pass
+                
+                role_name = f"{title} - {date_str}" if date_str else title
+                try:
+                    new_role = await guild.create_role(name=role_name, mentionable=True, reason=f"Nexus Event: {event_id}")
+                    self.data["temp_role_id"] = new_role.id
+                    # Update database with new role id
+                    if self.is_edit and self.bulk_ids:
+                        await database.update_active_events_metadata_bulk(self.bulk_ids, {"temp_role_id": new_role.id})
+                    else:
+                        await database.update_active_event(event_id, self.data)
+                    log.info(f"[Wizard] Created temp role {new_role.name} ({new_role.id}) for event {event_id}")
+                except Exception as e:
+                    log.error(f"[Wizard] Failed to create temp role: {e}")
         
         if self.is_edit:
             target_ids = self.bulk_ids if self.bulk_ids else [event_id]

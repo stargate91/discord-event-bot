@@ -48,9 +48,17 @@ async def init_db():
                 recurrence_count INTEGER DEFAULT 0,
                 icon_set TEXT DEFAULT 'standard',
                 extra_data TEXT,
-                guild_id TEXT
+                guild_id TEXT,
+                temp_role_id BIGINT,
+                use_temp_role BOOLEAN DEFAULT FALSE
             )
         """)
+        
+        # Incremental Migrations
+        try: await conn.execute("ALTER TABLE active_events ADD COLUMN IF NOT EXISTS temp_role_id BIGINT")
+        except: pass
+        try: await conn.execute("ALTER TABLE active_events ADD COLUMN IF NOT EXISTS use_temp_role BOOLEAN DEFAULT FALSE")
+        except: pass
         
         # Table for storing who is coming to which event
         await conn.execute("""
@@ -173,6 +181,9 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     recurrence_count = int(data.get("recurrence_count") or 0)
     icon_set = str(data.get("icon_set") or "standard")
     extra_data = data.get("extra_data")
+    
+    temp_role_id = int(data.get("temp_role_id") or 0)
+    use_temp_role = bool(data.get("use_temp_role", False))
 
     pool = await get_pool()
     await pool.execute("""
@@ -183,10 +194,10 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
             repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent,
             recurrence_limit, recurrence_count, icon_set, extra_data,
-            guild_id
+            guild_id, temp_role_id, use_temp_role
         )
         VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26
         )
     """, 
         event_id, config_name, channel_id, start_time,
@@ -195,7 +206,7 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
         repost_offset, timezone, creator_id,
         reminder_type, reminder_offset, reminder_sent,
         recurrence_limit, recurrence_count, icon_set, extra_data,
-        str(guild_id)
+        str(guild_id), temp_role_id, use_temp_role
     )
     return event_id
 
@@ -255,6 +266,9 @@ async def update_active_event(event_id, data):
     icon_set = str(data.get("icon_set") or "standard")
     extra_data = data.get("extra_data")
 
+    temp_role_id = int(data.get("temp_role_id") or 0)
+    use_temp_role = bool(data.get("use_temp_role", False))
+
     pool = await get_pool()
     await pool.execute("""
         UPDATE active_events SET 
@@ -264,13 +278,15 @@ async def update_active_event(event_id, data):
             repost_trigger = $11, repost_offset = $12, timezone = $13,
             creator_id = $14, reminder_type = $15, reminder_offset = $16,
             reminder_sent = $17, recurrence_limit = $18, recurrence_count = $19,
-            icon_set = $20, extra_data = $21
-        WHERE event_id = $22
+            icon_set = $20, extra_data = $21,
+            temp_role_id = $22, use_temp_role = $23
+        WHERE event_id = $24
     """, 
         title, description, image_urls, color, max_acc, ping_role, 
         start_time, end_time, status, recurrence, repost_trigger, repost_offset, timezone, 
         creator_id, reminder_type, reminder_offset, reminder_sent, 
         recurrence_limit, recurrence_count, icon_set, extra_data, 
+        temp_role_id, use_temp_role,
         event_id
     )
 

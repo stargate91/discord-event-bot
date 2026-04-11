@@ -174,6 +174,38 @@ class SchedulerTask(commands.Cog):
                 await database.set_event_message(new_event_id, new_msg.id)
                 self.bot.add_view(view)
 
+            # 3. Role Cleanup
+            temp_role_id = db_event.get("temp_role_id")
+            if temp_role_id:
+                should_delete = False
+                end_ts = db_event.get("end_time")
+                start_ts = db_event["start_time"]
+                
+                if end_ts and now > end_ts:
+                    should_delete = True
+                elif not end_ts and now > (start_ts + 14400): # 4 hours fallback
+                    should_delete = True
+                
+                # Also if status is closed/cancelled/postponed? 
+                # Cancellations/Postponements should probably keep the role for a bit? 
+                # User asked for "when it ends".
+                if db_event.get("status") == "closed":
+                    should_delete = True
+
+                if should_delete:
+                    guild = self.bot.get_guild(int(db_event["guild_id"]))
+                    if guild:
+                        try:
+                            role = guild.get_role(int(temp_role_id))
+                            if role:
+                                await role.delete(reason=f"Event {db_event['event_id']} finished/closed.")
+                                log.info(f"[Scheduler] Deleted temp role {temp_role_id} for event {db_event['event_id']}")
+                        except Exception as e:
+                            log.error(f"[Scheduler] Failed to delete role {temp_role_id}: {e}")
+                    
+                    # Clear from DB
+                    await database.pool.execute("UPDATE active_events SET temp_role_id = 0 WHERE event_id = $1", db_event["event_id"])
+
     async def handle_reminders(self, db_event, now):
         # This function checks if we need to send a "Hey, it starts soon!" message
         rem_type = db_event.get("reminder_type", "none")
@@ -189,15 +221,22 @@ class SchedulerTask(commands.Cog):
 
         # Time to remind people!
         event_id = db_event["event_id"]
-        rsvps = await database.get_event_rsvps(event_id)
-        # We only remind those who said they are coming
-        participants = [r for r in rsvps if r["status"] == "accepted"]
+        guild_id = db_event.get("guild_id")
         
-        if not participants:
-            await database.mark_reminder_sent(event_id)
-            return
-
-        mentions = [f"<@{p['user_id']}>" for p in participants]
+        # Temp Role Logic for Pings
+        temp_role_id = db_event.get("temp_role_id")
+        if temp_role_id:
+            mention_str = f"<@&{temp_role_id}>"
+            participants = [] # We'll still need this for DMs if enabled
+            rsvps = await database.get_event_rsvps(event_id)
+            participants = [r for r in rsvps if r["status"] == "accepted"]
+        else:
+            rsvps = await database.get_event_rsvps(event_id)
+            participants = [r for r in rsvps if r["status"] == "accepted"]
+            if not participants:
+                await database.mark_reminder_sent(event_id)
+                return
+            mention_str = ", ".join([f"<@{p['user_id']}>" for p in participants])
         
         send_ping = rem_type in ["ping", "both"]
         send_dm = rem_type in ["dm", "both"]
@@ -216,13 +255,12 @@ class SchedulerTask(commands.Cog):
         if custom_reminder:
             rem_text = custom_reminder.format(title=db_event['title'])
         else:
-            rem_text = t("MSG_REM_DESC", guild_id=db_event.get("guild_id"), title=db_event['title'])
+            rem_text = t("MSG_REM_DESC", guild_id=guild_id, title=db_event['title'])
 
         # Send a message in the channel
         if send_ping:
             channel = self.bot.get_channel(db_event["channel_id"])
             if channel:
-                mention_str = ", ".join(mentions)
                 embed = discord.Embed(
                     title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
                     description=rem_text,

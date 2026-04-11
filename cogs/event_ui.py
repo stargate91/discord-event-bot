@@ -476,6 +476,21 @@ class DynamicEventView(discord.ui.View):
         await interaction.response.defer()
         await database.update_rsvp(self.event_id, interaction.user.id, target_status)
 
+        # Temp Role Management
+        temp_role_id = db_event.get("temp_role_id")
+        if temp_role_id and isinstance(interaction.user, discord.Member):
+            role = interaction.guild.get_role(int(temp_role_id))
+            if role:
+                try:
+                    if target_status in positive_statuses:
+                        if role not in interaction.user.roles:
+                            await interaction.user.add_roles(role, reason=f"RSVP positive: {self.event_id}")
+                    else:
+                        if role in interaction.user.roles:
+                            await interaction.user.remove_roles(role, reason=f"RSVP negative/left: {self.event_id}")
+                except Exception as e:
+                    log.error(f"[RSVP] Role management error: {e}")
+
         if old_status and old_status != target_status:
             old_role_limit = role_limits.get(old_status, next((o.get("max_slots") for o in self.active_set["options"] if o["id"] == old_status), None))
             if old_role_limit:
@@ -505,6 +520,17 @@ class DynamicEventView(discord.ui.View):
                 user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
                 if user: await user.send(msg)
             except: pass
+        
+        # Add to temp role if promoted
+        db_event = await database.get_active_event(self.event_id, interaction.guild_id)
+        if db_event and db_event.get("temp_role_id"):
+            guild = interaction.guild
+            member = guild.get_member(user_id) or await guild.fetch_member(user_id)
+            if member:
+                role = guild.get_role(int(db_event["temp_role_id"]))
+                if role and role not in member.roles:
+                    try: await member.add_roles(role, reason=f"Promoted to active: {self.event_id}")
+                    except: pass
 
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):

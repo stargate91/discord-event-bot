@@ -290,6 +290,20 @@ class EventCommands(commands.Cog):
         
         for ev in target_events:
             eid = ev["event_id"]
+            
+            # Role cleanup
+            temp_role_id = ev.get("temp_role_id")
+            if temp_role_id:
+                guild = interaction.guild
+                if guild:
+                    try:
+                        role = guild.get_role(int(temp_role_id))
+                        if role:
+                            await role.delete(reason=f"Event {eid} removed by {interaction.user}")
+                            log.info(f"[Remove] Deleted temp role {temp_role_id} for event {eid}")
+                    except Exception as e:
+                        log.error(f"[Remove] Failed to delete role {temp_role_id}: {e}")
+
             await database.delete_active_event(eid, interaction.guild_id)
         
         await interaction.response.send_message(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)

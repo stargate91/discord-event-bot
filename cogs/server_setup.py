@@ -297,10 +297,25 @@ class EventDefaultsView(ui.LayoutView):
             await it.response.send_modal(modal)
         repost_btn.callback = repost_cb
 
+        # Temp Role Toggle
+        temp_val = await database.get_guild_setting(self.guild_id, "default_use_temp_role", default="false")
+        is_temp_on = temp_val.lower() == "true"
+        temp_state_text = t("LBL_TEMP_ROLE_ON", guild_id=self.guild_id) if is_temp_on else t("LBL_TEMP_ROLE_OFF", guild_id=self.guild_id)
+        
+        temp_role_btn = ui.Button(
+            label=t("BTN_DEFAULT_TEMP_ROLE", guild_id=self.guild_id, state=temp_state_text),
+            style=discord.ButtonStyle.success if is_temp_on else discord.ButtonStyle.secondary
+        )
+        async def temp_cb(it):
+            new_val = "false" if is_temp_on else "true"
+            await database.save_guild_setting(self.guild_id, "default_use_temp_role", new_val)
+            await self.refresh_message(it)
+        temp_role_btn.callback = temp_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
-            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn),
+            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
             ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )
