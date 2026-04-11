@@ -70,11 +70,13 @@ class EmojiWizardView(ui.LayoutView):
             s_data = s["data"]
             sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
             opts = sdata.get("options", [])
-            preview = ", ".join([o.get("emoji") for o in opts[:3]]) if opts else t("LBL_NO_PREVIEW", guild_id=self.guild_id)
+            preview_emojis = [o.get("emoji") or "?" for o in opts[:3]]
+            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            label = (s["name"][:50] + preview_str)[:100]
+            
             options.append(discord.SelectOption(
-                label=s["name"], 
+                label=label, 
                 value=s["set_id"], 
-                description=preview,
                 default=(s["set_id"] == new_view.selected_set_id)
             ))
         if not options:
@@ -196,8 +198,11 @@ class TemplateChoiceView(ui.LayoutView):
         # Localize options
         options = []
         for k, v in ICON_SET_TEMPLATES.items():
-            label = t(v["label_key"], guild_id=self.wizard_view.guild_id) if "label_key" in v else v["id"]
-            options.append(discord.SelectOption(label=label, value=k, emoji=v["emoji"] or None))
+            opts, _ = parse_emoji_config(v["text"])
+            preview_emojis = [o["emoji"] for o in opts[:3]]
+            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            label = t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str
+            options.append(discord.SelectOption(label=label[:100], value=k, emoji=v["emoji"] or None))
         
         options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))
         
