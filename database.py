@@ -59,6 +59,7 @@ async def init_db():
                 user_id BIGINT,
                 status TEXT,
                 joined_at DOUBLE PRECISION,
+                attendance TEXT DEFAULT 'present',
                 PRIMARY KEY (event_id, user_id)
             )
         """)
@@ -122,6 +123,12 @@ async def init_db():
                 data TEXT
             )
         """)
+
+async def check_emoji_sets_empty(guild_id: int):
+    """Returns True if no emoji sets exist for this guild in the DB."""
+    pool = await get_pool()
+    row = await pool.fetchrow("SELECT 1 FROM guild_emoji_sets WHERE guild_id = $1 LIMIT 1", str(guild_id))
+    return row is None
 
 
 async def check_config_exists(guild_id, config_name):

@@ -66,12 +66,18 @@ class ServerSetupView(ui.LayoutView):
                 await self.refresh_message(it)
         color_sel.callback = color_cb
 
+        defaults_btn = ui.Button(label=t("BTN_EVENT_DEFAULTS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        async def defaults_cb(it):
+            v = EventDefaultsView(self.bot, self.guild_id)
+            await v.refresh_message(it)
+        defaults_btn.callback = defaults_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
-            ui.ActionRow(general_btn, local_btn, reminder_btn),
+            ui.ActionRow(general_btn, local_btn, reminder_btn, defaults_btn),
             ui.ActionRow(color_sel),
             accent_color=0x00bfff
         )
@@ -230,6 +236,74 @@ class ReminderSetupView(ui.LayoutView):
             ui.Separator(),
             ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn),
             ui.ActionRow(offset_btn),
+            accent_color=0x00bfff
+        )
+        self.add_item(container)
+        
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(view=self)
+                if interaction.message:
+                    await interaction.message.edit(view=self)
+            else:
+                await interaction.response.edit_message(view=self)
+        except Exception:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(view=self, ephemeral=True)
+            else:
+                try: await interaction.followup.send(view=self, ephemeral=True)
+                except: pass
+
+class EventDefaultsView(ui.LayoutView):
+    def __init__(self, bot, guild_id):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guild_id = guild_id
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        self.clear_items()
+        
+        channel_btn = ui.Button(label=t("BTN_DEFAULT_CHANNEL", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def channel_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "default_event_channel", default="")
+            modal = SimpleConfigModal(self.guild_id, "default_event_channel", t("LBL_SET_CHANNEL", guild_id=self.guild_id), 
+                                     placeholder="#channel-name", default_val=curr, parent_view=self)
+            await it.response.send_modal(modal)
+        channel_btn.callback = channel_cb
+
+        max_acc_btn = ui.Button(label=t("BTN_DEFAULT_MAX_ACC", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def max_acc_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
+            modal = SimpleConfigModal(self.guild_id, "default_max_participants", t("LBL_SET_MAX_ACC", guild_id=self.guild_id), 
+                                     placeholder="0", default_val=curr, parent_view=self)
+            await it.response.send_modal(modal)
+        max_acc_btn.callback = max_acc_cb
+
+        async def back_cb(it):
+            v = ServerSetupView(self.bot, self.guild_id)
+            await v.refresh_message(it)
+        back_btn.callback = back_cb
+
+        # Waitlist Toggle
+        wait_val = await database.get_guild_setting(self.guild_id, "default_use_waiting_list", default="false")
+        is_on = wait_val.lower() == "true"
+        state_text = t("LBL_WAITLIST_ON", guild_id=self.guild_id) if is_on else t("LBL_WAITLIST_OFF", guild_id=self.guild_id)
+        
+        wait_btn = ui.Button(
+            label=t("BTN_DEFAULT_WAITLIST", guild_id=self.guild_id, state=state_text),
+            style=discord.ButtonStyle.success if is_on else discord.ButtonStyle.secondary
+        )
+        async def wait_cb(it):
+            new_val = "false" if is_on else "true"
+            await database.save_guild_setting(self.guild_id, "default_use_waiting_list", new_val)
+            await self.refresh_message(it)
+        wait_btn.callback = wait_cb
+
+        container = ui.Container(
+            ui.TextDisplay(f"### 📋 {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
+            ui.Separator(),
+            ui.ActionRow(channel_btn, max_acc_btn, wait_btn),
+            ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)

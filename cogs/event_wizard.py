@@ -13,6 +13,18 @@ from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
 from utils.emoji_utils import parse_emoji_config
 
+async def resolve_channel(guild, channel_query):
+    """Tries to resolve a channel by ID or Name. Returns channel_id or None."""
+    if not channel_query: return None
+    query = str(channel_query).strip().lstrip('#')
+    if query.isdigit():
+        chan = guild.get_channel(int(query))
+        if chan: return chan.id
+    for chan in guild.text_channels:
+        if chan.name == query:
+            return chan.id
+    return None
+
 class WizardStartView(ui.LayoutView):
     """Initial choice: Single vs Recurring using Components V2."""
     def __init__(self, bot, creator_id, guild_id):
@@ -286,6 +298,7 @@ class EventWizardView(ui.LayoutView):
         self.wizard_type = wizard_type
         self.data = existing_data or {}
         self.can_publish = False
+        self.chan_warning = ""
         self.steps_completed = {
             "step1": bool(self.data.get("title") or self.data.get("config_name")),
             "step2": bool(self.data.get("start_str") or self.data.get("start_time")),
@@ -368,7 +381,7 @@ class EventWizardView(ui.LayoutView):
         container_items = [
             ui.TextDisplay(title_text),
             ui.Separator(),
-            ui.TextDisplay(t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text())),
+            ui.TextDisplay(self.chan_warning + "\n" + t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()) if self.chan_warning else t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text())),
             ui.Separator(),
             ui.ActionRow(step1, step2, step3, step4),
             ui.ActionRow(role_btn, msg_btn, wait_btn, save_btn)
@@ -401,6 +414,32 @@ class EventWizardView(ui.LayoutView):
             self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x3498db")
         if "timezone" not in self.data:
             self.data["timezone"] = await database.get_guild_setting(self.guild_id, "timezone", default="Europe/Budapest")
+        
+        if "max_accepted" not in self.data:
+            m = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
+            self.data["max_accepted"] = int(m) if str(m).isdigit() else 0
+            
+        # Resolve Channel
+        self.chan_warning = ""
+        raw_ch = self.data.get("channel_id")
+        if not raw_ch:
+            raw_ch = await database.get_guild_setting(self.guild_id, "default_event_channel", default="")
+        
+        if raw_ch:
+            guild = self.bot.get_guild(int(self.guild_id))
+            if guild:
+                ch_id = await resolve_channel(guild, raw_ch)
+                if ch_id:
+                    self.data["channel_id"] = ch_id
+                else:
+                    self.chan_warning = t("MSG_CHANNEL_NOT_FOUND", guild_id=self.guild_id).format(name=raw_ch)
+                    # Don't overwrite channel_id if it was already an ID? 
+                    # Actually if resolve failed, we should probably keep it as is for the user to fix 
+                    # but the warning will show up.
+        
+        if "use_waiting_list" not in self.data:
+            val = await database.get_guild_setting(self.guild_id, "default_use_waiting_list", default="false")
+            self.data["use_waiting_list"] = val.lower() == "true"
         
         # Build options for hardcoded templates
         self.icon_set_options = []
