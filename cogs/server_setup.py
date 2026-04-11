@@ -334,18 +334,30 @@ class SimpleConfigModal(ui.Modal):
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):
+        # 1. Defer immediately to close the modal and avoid timeout
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        
         val = str(self.input_field.value).strip()
         from utils.logger import log
         log.info(f"MODAL: Submitting key {self.key} with value {val} for GID {self.guild_id}")
-        await database.save_guild_setting(self.guild_id, self.key, val)
         
-        # Trigger cache reload if it affects localization/auth context
-        if self.key in ["language", "admin_role_ids", "admin_channel_ids"]:
-            await load_guild_translations(self.guild_id)
+        try:
+            # 2. Perform database operations
+            await database.save_guild_setting(self.guild_id, self.key, val)
+            
+            # 3. Trigger cache reload if it affects localization/auth context
+            if self.key in ["language", "admin_role_ids", "admin_channel_ids"]:
+                await load_guild_translations(self.guild_id)
 
-        await interaction.response.send_message(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), ephemeral=True)
-        if self.parent_view:
-            await self.parent_view.refresh_message(interaction)
+            # 4. Notify user via followup since response is already deferred
+            await interaction.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), ephemeral=True)
+            
+            # 5. Refresh the parent view if exists
+            if self.parent_view:
+                await self.parent_view.refresh_message(interaction)
+        except Exception as e:
+            log.error(f"Error in modal submit for {self.key}: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
 
 async def setup(bot):
     # This cog primarily provides the view classes for other cogs to use.
