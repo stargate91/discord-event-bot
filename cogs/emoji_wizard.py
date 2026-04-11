@@ -108,7 +108,7 @@ class EmojiWizardView(ui.LayoutView):
                         return await it.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
                 
                 view = TemplateChoiceView(new_view)
-                await it.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=new_view.guild_id), view=view, ephemeral=True)
+                await it.response.send_message(view=view, ephemeral=True)
                 log.info(f"[EmojiWizard] TemplateChoiceView sent for new set creation.")
             except Exception as e:
                 log.error(f"[EmojiWizard] CRITICAL ERROR in add_cb: {e}", exc_info=True)
