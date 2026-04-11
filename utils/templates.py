@@ -19,7 +19,7 @@ ICON_SET_TEMPLATES = {
         "id": "survey",
         "label_key": "TEMP_SURVEY", # "Szavazás (👍 / 👎)"
         "emoji": "",
-        "text": "👍 | Awesome | They think it’s good | 0 | SPEY\n👎 | Bad | They think it’s bad | 0 | SEY"
+        "text": "👍 | Like | Liked it | 0 | SPEY\n👎 | Dislike | Disliked it | 0 | SPEY"
     },
     "teams": {
         "id": "teams",
