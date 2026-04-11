@@ -11,6 +11,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
+from utils.emoji_utils import parse_emoji_config
 
 class WizardStartView(ui.LayoutView):
     """Initial choice: Single vs Recurring using Components V2."""
@@ -389,11 +390,39 @@ class EventWizardView(ui.LayoutView):
     async def refresh_ui_data(self):
         current_set = self.data.get("icon_set", "standard")
         current_rec = self.data.get("recurrence_type", "none")
-        self.icon_set_options = [discord.SelectOption(label=t(v["label_key"], guild_id=self.guild_id), value=k, emoji=v["emoji"] or None, default=(current_set == k)) for k, v in ICON_SET_TEMPLATES.items()]
+        
+        # Build options for hardcoded templates
+        self.icon_set_options = []
+        for k, v in ICON_SET_TEMPLATES.items():
+            opts, _ = parse_emoji_config(v["text"])
+            preview_emojis = [o["emoji"] for o in opts[:3]]
+            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            label = t(v["label_key"], guild_id=self.guild_id) + preview_str
+            
+            self.icon_set_options.append(discord.SelectOption(
+                label=label[:100], 
+                value=k, 
+                emoji=v["emoji"] or None, 
+                default=(current_set == k)
+            ))
+            
+        # Build options for DB-based sets
         db_sets = await database.get_emoji_sets(self.guild_id)
         for s in db_sets:
             if s["set_id"] in ICON_SET_TEMPLATES: continue
-            self.icon_set_options.append(discord.SelectOption(label=s["name"][:25], value=s["set_id"], default=(current_set == s["set_id"])))
+            
+            sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
+            opts = sdata.get("options", [])
+            preview_emojis = [o.get("emoji") or "?" for o in opts[:3]]
+            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            label = (s["name"][:30] + preview_str)[:100]
+            
+            self.icon_set_options.append(discord.SelectOption(
+                label=label, 
+                value=s["set_id"], 
+                default=(current_set == s["set_id"])
+            ))
+            
         self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in [("none", "❌"), ("daily", "📅"), ("weekly", "🗓️"), ("monthly", "📊")]]
 
     def get_status_text(self):
