@@ -800,7 +800,7 @@ class EventWizardView(ui.LayoutView):
 
     async def save_to_draft(self):
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
-        await database.save_draft(self.guild_id, self.data["draft_id"], self.creator_id, self.data.get("title") or "manual", self.data)
+        await database.save_draft(self.guild_id, self.data["draft_id"], str(self.creator_id), self.data.get("title") or "manual", self.data)
 
     async def handle_save_preview(self, interaction: discord.Interaction):
         """Processes the Save & Preview logic and updates the V2 UI."""
