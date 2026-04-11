@@ -38,13 +38,17 @@ class ServerSetupView(ui.LayoutView):
         # Color Dropdown Selection
         cur_color = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
         
+        # Determine if the current color is one of the presets
+        presets = ["0x00bfff", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
+        is_preset = cur_color in presets
+
         color_opts = [
             discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x00bfff", default=(cur_color=="0x00bfff")),
             discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
             discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
             discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
             discord.SelectOption(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
-            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom")
+            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(not is_preset))
         ]
         
         color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
