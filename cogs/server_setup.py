@@ -114,7 +114,11 @@ class GeneralSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         view.add_item(container)
-        await interaction.response.edit_message(content=None, embeds=[], view=view)
+        
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content=None, embeds=[], view=view)
+        else:
+            await interaction.response.edit_message(content=None, embeds=[], view=view)
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
@@ -178,7 +182,11 @@ class ReminderSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         view.add_item(container)
-        await interaction.response.edit_message(content=None, embeds=[], view=view)
+        
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content=None, embeds=[], view=view)
+        else:
+            await interaction.response.edit_message(content=None, embeds=[], view=view)
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, parent_view=None):
