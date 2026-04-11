@@ -289,10 +289,18 @@ class EventDefaultsView(ui.LayoutView):
             await self.refresh_message(it)
         wait_btn.callback = wait_cb
 
+        repost_btn = ui.Button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def repost_cb(it):
+            curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1h")
+            modal = SimpleConfigModal(self.guild_id, "default_repost_offset", t("SETTING_REPOST_OFFSET", guild_id=self.guild_id), 
+                                     placeholder=t("PH_DURATION", guild_id=self.guild_id), default_val=curr, parent_view=self)
+            await it.response.send_modal(modal)
+        repost_btn.callback = repost_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
-            ui.ActionRow(channel_btn, max_acc_btn, wait_btn),
+            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn),
             ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )

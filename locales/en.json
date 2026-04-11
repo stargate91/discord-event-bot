@@ -43,6 +43,8 @@
   "BTN_EVENT_DEFAULTS": "📋 Events",
   "BTN_DEFAULT_CHANNEL": "Default Channel",
   "BTN_DEFAULT_MAX_ACC": "Default Max Participants",
+  "BTN_DEFAULT_REPOST": "Repost Offset",
+  "SETTING_REPOST_OFFSET": "Repost Offset (e.g. 1h, 1d)",
   "EMBED_ACC": "✅ Accepted ({count})",
   "EMBED_DEC": "❌ Declined ({count})",
   "EMBED_FOOTER": "Event ID: {event_id} | Created by @{creator_id}",

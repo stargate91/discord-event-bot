@@ -601,6 +601,8 @@ class EventWizardView(ui.LayoutView):
         current_rec = self.data.get("recurrence_type", "none")
         
         # Load server-level defaults if missing in data
+        if "repost_offset" not in self.data:
+            self.data["repost_offset"] = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1h")
         if "reminder_offset" not in self.data:
             self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
         if "reminder_type" not in self.data:
