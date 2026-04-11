@@ -24,9 +24,12 @@ except Exception:
     EVENTS_CONFIG = []
 
 
-class EventCommands(commands.GroupCog, name="event"):
-    # Subgroup for administrative tasks
-    admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers")
+class EventCommands(commands.Cog):
+    """Cog for general event management commands."""
+    
+    event_group = app_commands.Group(name="event", description="Event management commands")
+    admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers", parent=event_group)
+    
     # --- CLEANUP: Master Hub logic moved to MasterCommands Cog ---
 
     def __init__(self, bot):
@@ -104,7 +107,7 @@ class EventCommands(commands.GroupCog, name="event"):
         except Exception as e:
             await interaction.response.send_message(f"{t('ERR_CRITICAL_EMOJI', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
-    @app_commands.command(name="create", description="Start the interactive event creation wizard")
+    @event_group.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
         from cogs.event_wizard import WizardStartView
         from utils.i18n import load_guild_translations
@@ -123,7 +126,7 @@ class EventCommands(commands.GroupCog, name="event"):
         except Exception as e:
             await interaction.response.send_message(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
-    @app_commands.command(name="edit", description="Edit an existing event")
+    @event_group.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
         event_id="The short ID or series name of the event to edit",
         occurrence="Optional: which occurrence number of a series to edit (1, 2, 3...)"
@@ -202,7 +205,7 @@ class EventCommands(commands.GroupCog, name="event"):
             results.append(discord.app_commands.Choice(name=label[:100], value=ev["event_id"]))
         return results[:25]
 
-    @app_commands.command(name="list", description="Show all active events")
+    @event_group.command(name="list", description="Show all active events")
     async def list_events(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
@@ -217,15 +220,15 @@ class EventCommands(commands.GroupCog, name="event"):
             text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
         await interaction.response.send_message(text, ephemeral=True)
 
-    @app_commands.command(name="cancel", description="Mark an event as CANCELLED")
+    @event_group.command(name="cancel", description="Mark an event as CANCELLED")
     async def cancel_event(self, interaction: discord.Interaction, event_id: str, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "cancelled", notify, occurrence)
 
-    @app_commands.command(name="postpone", description="Mark an event as POSTPONED")
+    @event_group.command(name="postpone", description="Mark an event as POSTPONED")
     async def postpone_event(self, interaction: discord.Interaction, event_id: str, new_time: str = None, notify: str = "none", occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "postponed", notify, occurrence, new_time)
 
-    @app_commands.command(name="activate", description="Set a cancelled/postponed event back to ACTIVE")
+    @event_group.command(name="activate", description="Set a cancelled/postponed event back to ACTIVE")
     async def activate_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "active", "none", occurrence)
 
@@ -261,7 +264,7 @@ class EventCommands(commands.GroupCog, name="event"):
     async def status_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.edit_event_autocomplete(interaction, current)
 
-    @app_commands.command(name="remove", description="Delete an active event message")
+    @event_group.command(name="remove", description="Delete an active event message")
     async def remove_event(self, interaction: discord.Interaction, event_id: str):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
@@ -286,7 +289,7 @@ class EventCommands(commands.GroupCog, name="event"):
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.edit_event_autocomplete(interaction, current)
 
-    @app_commands.command(name="continue-draft", description="Finish an event you started earlier")
+    @event_group.command(name="continue-draft", description="Finish an event you started earlier")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
         data = await database.get_draft(draft_id, interaction.guild_id)
         if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
@@ -305,7 +308,7 @@ class EventCommands(commands.GroupCog, name="event"):
             if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=d['draft_id']))
         return choices[:25]
 
-    @app_commands.command(name="delete-draft", description="Delete one of your drafts")
+    @event_group.command(name="delete-draft", description="Delete one of your drafts")
     async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
         await database.delete_draft(draft_id, interaction.guild_id)
         await interaction.response.send_message(t("MSG_DRAFT_DELETED"), ephemeral=True)
@@ -314,7 +317,7 @@ class EventCommands(commands.GroupCog, name="event"):
     async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.continue_draft_autocomplete(interaction, current)
 
-    @app_commands.command(name="delete-all-drafts", description="Delete all your drafts at once")
+    @event_group.command(name="delete-all-drafts", description="Delete all your drafts at once")
     async def delete_all_drafts(self, interaction: discord.Interaction):
         await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
@@ -379,9 +382,9 @@ class EventCommands(commands.GroupCog, name="event"):
             await self.bot.tree.sync(guild=None)
             self.bot.tree.clear_commands(guild=ctx.guild)
             await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_CLEAR_OK", guild_id=ctx.guild.id))
+            await ctx.send(t("SYNC_CLEAR_SUCCESS", guild_id=ctx.guild.id))
         except Exception as e:
-            await ctx.send(t("SYNC_CLEAR_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
+            await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))
