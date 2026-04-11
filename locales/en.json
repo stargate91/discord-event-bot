@@ -34,6 +34,7 @@
   "BTN_SINGLE_INSTANCE": "Only this instance",
   "BTN_STEP_1": "1. Basic Info",
   "BTN_STEP_2": "2. Details & Timing",
+  "BTN_STEP_2_SINGLE": "2. Extras",
   "BTN_STEP_3": "3. Timing & Recurrence",
   "BTN_STEP_4": "4. Advanced Settings",
   "BTN_SUBMIT": "Submit",

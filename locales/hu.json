@@ -34,6 +34,7 @@
   "BTN_SINGLE_INSTANCE": "Csak ezt a példányt",
   "BTN_STEP_1": "1. Alapadatok",
   "BTN_STEP_2": "2. Részletek & Időpont",
+  "BTN_STEP_2_SINGLE": "2. Kiegészítő",
   "BTN_STEP_3": "3. Időzítés & Ismétlődés",
   "BTN_STEP_4": "4. Haladó beállítások",
   "BTN_SUBMIT": "Beküldés",

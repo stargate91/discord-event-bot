@@ -143,7 +143,7 @@ class SingleEventModal(ui.Modal):
 class SingleEventSupplementaryModal(ui.Modal):
     """Step 2 for Single Events."""
     def __init__(self, wizard_view):
-        super().__init__(title=t("BTN_STEP_2", guild_id=wizard_view.guild_id)[:45])
+        super().__init__(title=t("BTN_STEP_2_SINGLE", guild_id=wizard_view.guild_id, default="2. Kiegészítő")[:45])
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
@@ -359,7 +359,9 @@ class EventWizardView(ui.LayoutView):
         async def s2_cb(it):
             if view.wizard_type == "single": await it.response.send_modal(SingleEventSupplementaryModal(view))
             else: await it.response.send_modal(Step2Modal(view))
-        step2 = ui.Button(label=t("BTN_STEP_2", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        
+        s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id, default="2. Kiegészítő") if view.wizard_type == "single" else t("BTN_STEP_2", guild_id=self.guild_id)
+        step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
         async def s3_cb(it): await it.response.send_modal(Step3Modal(view))
@@ -404,6 +406,7 @@ class EventWizardView(ui.LayoutView):
 
         sel_icon = ui.Select(placeholder=t("SEL_ICON_SET", guild_id=self.guild_id), options=view.icon_set_options)
         async def icon_cb(it):
+            await it.response.defer()
             view.data["icon_set"] = sel_icon.values[0]
             await view.save_to_draft()
             await view.refresh_message(it)
@@ -577,9 +580,14 @@ class EventWizardView(ui.LayoutView):
 
     def get_status_text(self):
         s1 = "✅" if self.steps_completed["step1"] else "⏳"
-        s2 = "✅" if self.steps_completed["step2"] else "⏳"
-        s3 = "✅" if self.steps_completed["step3"] else "⏳"
-        return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=self.guild_id)}: {s2}\n- Template: {s3}"
+        
+        if self.wizard_type == "single":
+            s2 = "✅" if self.steps_completed["step2"] else "💡 Opcionális"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id, default='2. Kiegészítő')}: {s2}"
+        else:
+            s2 = "✅" if self.steps_completed["step2"] else "⏳"
+            s3 = "✅" if self.steps_completed["step3"] else "⏳"
+            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
@@ -587,7 +595,7 @@ class EventWizardView(ui.LayoutView):
 
     async def handle_save_preview(self, interaction: discord.Interaction):
         """Processes the Save & Preview logic and updates the V2 UI."""
-        if not self.steps_completed["step1"] or not self.steps_completed["step2"]:
+        if not self.steps_completed["step1"] or (self.wizard_type != "single" and not self.steps_completed["step2"]):
             await interaction.response.send_message(t("ERR_FILL_STEPS", guild_id=self.guild_id), ephemeral=True)
             return
 
