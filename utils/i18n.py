@@ -42,7 +42,7 @@ async def load_guild_translations(guild_id):
     }
     return GUILD_CACHE[gid_str]
 
-def t(key: str, guild_id=None, **kwargs):
+def t(translation_key: str, guild_id=None, **kwargs):
     """
     Translates a key with multi-layer priority:
     1. Guild-specific override (DB)
@@ -57,21 +57,21 @@ def t(key: str, guild_id=None, **kwargs):
     # 1. Check Guild Cache for overrides and preferred language
     if gid_str and gid_str in GUILD_CACHE:
         cache = GUILD_CACHE[gid_str]
-        text = cache["overrides"].get(key)
+        text = cache["overrides"].get(translation_key)
         pref_lang = cache.get("lang", DEFAULT_LANG)
 
     # 2. If no override, try the preferred language file
     if text is None:
         lang_dict = ALL_MESSAGES.get(pref_lang, ALL_MESSAGES.get(DEFAULT_LANG, {}))
-        text = lang_dict.get(key)
+        text = lang_dict.get(translation_key)
 
     # 3. Fallback to default language if not found in preferred
     if text is None and pref_lang != DEFAULT_LANG:
-        text = ALL_MESSAGES.get(DEFAULT_LANG, {}).get(key)
+        text = ALL_MESSAGES.get(DEFAULT_LANG, {}).get(translation_key)
 
     # 4. Final fallback to key
     if text is None:
-        text = key
+        text = translation_key
     
     if kwargs:
         try:
