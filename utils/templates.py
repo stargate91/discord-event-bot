@@ -6,26 +6,26 @@ ICON_SET_TEMPLATES = {
     "basic": {
         "id": "basic",
         "label_key": "TEMP_BASIC", # "Alap (Igen / Nem)"
-        "emoji": "✅",
-        "text": "✅ | Résztveszek | Résztvevők | 0 | SPBG\n❓ | Talán | Bizonytalan | 0 | SB\n❌ | Nem jövök | - | 0 | ER"
+        "emoji": "",
+        "text": "✅ | I'm coming | Coming | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY"
     },
     "raid": {
         "id": "raid",
         "label_key": "TEMP_RAID", # "Raid (Tank / Heal / DPS)"
-        "emoji": "⚔️",
-        "text": "🛡️ | Tank | Tankok | 2 | SPBG\n🏥 | Heal | Healerek | 4 | SPBG\n🗡️ | DPS | DPS-ek | 10 | SPBG\n❓ | Tartalék | Tartalékok | 0 | SB\n❌ | Nem jövök | - | 0 | ER"
+        "emoji": "",
+        "text": "🛡️ | Tank | Tanks | 0 | SPEY\n🏥 | Heal | Healers | 0 | SPEY\n🗡️ | DPS | DPSes | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY"
     },
     "survey": {
         "id": "survey",
         "label_key": "TEMP_SURVEY", # "Szavazás (👍 / 👎)"
-        "emoji": "📊",
-        "text": "👍 | Szuper | Szerintük jó | 0 | SPBG\n👎 | Rossz | Szerintük rossz | 0 | ER"
+        "emoji": "",
+        "text": "👍 | Awesome | They think it’s good | 0 | SPEY\n👎 | Bad | They think it’s bad | 0 | SEY"
     },
     "teams": {
         "id": "teams",
         "label_key": "SET_TEAMS", # "Csapatok (🅰️, 🅱️, 👁️)"
-        "emoji": "🚩",
-        "text": "🅰️ | A Csapat | A Csapat | 0 | SPBG\n🅱️ | B Csapat | B Csapat | 0 | SPBG\n👁️ | Néző | Nézők | 0 | SB"
+        "emoji": "",
+        "text": "🅰️ | Team A | Team A | 0 | SPBB\n🅱️ | Team B | Team B | 0 | SPBB\n👀 | I'll spectate | Spectators | 0 | SPBB\n❓ | Maybe | Unsure | 0 | SBB\n❌ | Not coming | Not coming | 0 | SBB"
     }
 }
 
@@ -40,5 +40,5 @@ def get_template_data(template_id: str):
         "options": opts,
         "positive_count": pos_count,
         "buttons_per_row": 5,
-        "show_mgmt": True
+        "show_mgmt": False
     }
