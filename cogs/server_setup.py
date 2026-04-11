@@ -3,6 +3,7 @@ from discord import ui
 import database
 from utils.i18n import t, load_guild_translations
 from utils.auth import is_admin
+from utils.logger import log
 
 class ServerSetupView(ui.LayoutView):
     """Visual console for guild settings and defaults using Components V2."""
@@ -86,16 +87,12 @@ class ServerSetupView(ui.LayoutView):
         try:
             if interaction.response.is_done():
                 await interaction.edit_original_response(view=self)
-                if interaction.message:
-                    await interaction.message.edit(view=self)
             else:
                 await interaction.response.edit_message(view=self)
-        except Exception:
+        except Exception as e:
+            log.error(f"[ServerSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(view=self, ephemeral=True)
-            else:
-                try: await interaction.followup.send(view=self, ephemeral=True)
-                except: pass
 
 class GeneralSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -158,16 +155,12 @@ class GeneralSetupView(ui.LayoutView):
         try:
             if interaction.response.is_done():
                 await interaction.edit_original_response(view=self)
-                if interaction.message:
-                    await interaction.message.edit(view=self)
             else:
                 await interaction.response.edit_message(view=self)
-        except Exception:
+        except Exception as e:
+            log.error(f"[GeneralSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(view=self, ephemeral=True)
-            else:
-                try: await interaction.followup.send(view=self, ephemeral=True)
-                except: pass
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
@@ -243,16 +236,12 @@ class ReminderSetupView(ui.LayoutView):
         try:
             if interaction.response.is_done():
                 await interaction.edit_original_response(view=self)
-                if interaction.message:
-                    await interaction.message.edit(view=self)
             else:
                 await interaction.response.edit_message(view=self)
-        except Exception:
+        except Exception as e:
+            log.error(f"[ReminderSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(view=self, ephemeral=True)
-            else:
-                try: await interaction.followup.send(view=self, ephemeral=True)
-                except: pass
 
 class EventDefaultsView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -312,16 +301,12 @@ class EventDefaultsView(ui.LayoutView):
         try:
             if interaction.response.is_done():
                 await interaction.edit_original_response(view=self)
-                if interaction.message:
-                    await interaction.message.edit(view=self)
             else:
                 await interaction.response.edit_message(view=self)
-        except Exception:
+        except Exception as e:
+            log.error(f"[EventDefaultsView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(view=self, ephemeral=True)
-            else:
-                try: await interaction.followup.send(view=self, ephemeral=True)
-                except: pass
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
@@ -335,30 +320,30 @@ class SimpleConfigModal(ui.Modal):
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):
-        # 1. Defer immediately to close the modal and avoid timeout
-        await interaction.response.defer(ephemeral=True, thinking=True)
-        
         val = str(self.input_field.value).strip()
-        from utils.logger import log
         log.info(f"MODAL: Submitting key {self.key} with value {val} for GID {self.guild_id}")
         
         try:
-            # 2. Perform database operations
+            # 1. Save to database
             await database.save_guild_setting(self.guild_id, self.key, val)
             
-            # 3. Trigger cache reload if it affects localization/auth context
+            # 2. Trigger cache reload if it affects localization/auth context
             if self.key in ["language", "admin_role_ids", "admin_channel_ids"]:
                 await load_guild_translations(self.guild_id)
 
-            # 4. Notify user by editing the deferred 'thinking' message
-            await interaction.edit_original_response(content=t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), view=None)
-            
-            # 5. Refresh the parent view if exists
+            # 3. If parent view exists, refresh it in-place (this also handles the interaction response)
             if self.parent_view:
                 await self.parent_view.refresh_message(interaction)
+            else:
+                # No parent view, just confirm
+                await interaction.response.send_message(
+                    t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), 
+                    ephemeral=True
+                )
         except Exception as e:
             log.error(f"Error in modal submit for {self.key}: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
 
 async def setup(bot):
     # This cog primarily provides the view classes for other cogs to use.

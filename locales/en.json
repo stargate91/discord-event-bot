@@ -38,7 +38,7 @@
   "BTN_SUBMIT": "Submit",
   "BTN_TENTATIVE": "Tentative",
   "BTN_YAHOO": "Yahoo",
-  "BTN_EVENT_DEFAULTS": "Events",
+  "BTN_EVENT_DEFAULTS": "📋 Events",
   "BTN_DEFAULT_CHANNEL": "Default Channel",
   "BTN_DEFAULT_MAX_ACC": "Default Max Participants",
   "EMBED_ACC": "✅ Accepted ({count})",
