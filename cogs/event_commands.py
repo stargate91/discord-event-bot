@@ -121,10 +121,10 @@ class EventCommands(commands.Cog):
 
         try:
             view = WizardStartView(self.bot, interaction.user.id, guild_id=guild_id)
-            embed = discord.Embed(title=t("WIZARD_TITLE", guild_id=interaction.guild_id), description=t("WIZARD_TYPE_DESC", guild_id=interaction.guild_id), color=discord.Color.blue())
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            await view.refresh_message(interaction)
         except Exception as e:
-            await interaction.response.send_message(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+            log.error(f"Error starting wizard: {e}")
+            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @event_group.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
