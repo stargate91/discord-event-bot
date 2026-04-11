@@ -77,10 +77,19 @@ class ServerSetupView(ui.LayoutView):
         )
         self.add_item(container)
         
-        if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=self)
-        else:
-            await interaction.response.edit_message(content=None, embeds=[], view=self)
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(view=self)
+                if interaction.message:
+                    await interaction.message.edit(view=self)
+            else:
+                await interaction.response.edit_message(view=self)
+        except Exception:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(view=self, ephemeral=True)
+            else:
+                try: await interaction.followup.send(view=self, ephemeral=True)
+                except: pass
 
 class GeneralSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -140,10 +149,19 @@ class GeneralSetupView(ui.LayoutView):
         )
         self.add_item(container)
         
-        if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=self)
-        else:
-            await interaction.response.edit_message(content=None, embeds=[], view=self)
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(view=self)
+                if interaction.message:
+                    await interaction.message.edit(view=self)
+            else:
+                await interaction.response.edit_message(view=self)
+        except Exception:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(view=self, ephemeral=True)
+            else:
+                try: await interaction.followup.send(view=self, ephemeral=True)
+                except: pass
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
@@ -216,10 +234,19 @@ class ReminderSetupView(ui.LayoutView):
         )
         self.add_item(container)
         
-        if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=self)
-        else:
-            await interaction.response.edit_message(content=None, embeds=[], view=self)
+        try:
+            if interaction.response.is_done():
+                await interaction.edit_original_response(view=self)
+                if interaction.message:
+                    await interaction.message.edit(view=self)
+            else:
+                await interaction.response.edit_message(view=self)
+        except Exception:
+            if not interaction.response.is_done():
+                await interaction.response.send_message(view=self, ephemeral=True)
+            else:
+                try: await interaction.followup.send(view=self, ephemeral=True)
+                except: pass
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
