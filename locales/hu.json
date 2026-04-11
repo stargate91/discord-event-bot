@@ -45,6 +45,7 @@
   "BTN_DEFAULT_MAX_ACC": "Alapértelmezett létszám",
   "BTN_DEFAULT_REPOST": "Újraposztolás",
   "SETTING_REPOST_OFFSET": "Újraposztolás időzítése",
+  "BTN_REMINDER_TOGGLE": "🔔 Emlékeztető",
   "EMBED_ACC": "✅ Elfogadta ({count})",
   "EMBED_DEC": "❌ Elutasította ({count})",
   "EMBED_FOOTER": "Esemény ID: {event_id} | Létrehozta @{creator_id}",

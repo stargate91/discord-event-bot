@@ -361,7 +361,7 @@ class NotificationSettingsModal(ui.Modal):
 
 class EventWizardView(ui.LayoutView):
     """Main wizard controller using Components V2 architecture."""
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series", show_advanced=False):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series", show_advanced=False, show_reminder=False):
         super().__init__(timeout=600)
         self.bot = bot
         self.creator_id = creator_id
@@ -370,6 +370,7 @@ class EventWizardView(ui.LayoutView):
         self.bulk_ids = bulk_ids
         self.wizard_type = wizard_type
         self.show_advanced = show_advanced
+        self.show_reminder = show_reminder
         self.data = existing_data or {}
         self.can_publish = False
         self.chan_warning = ""
@@ -380,7 +381,7 @@ class EventWizardView(ui.LayoutView):
         }
 
     async def refresh_message(self, interaction: discord.Interaction):
-        view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, show_advanced=self.show_advanced)
+        view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, show_advanced=self.show_advanced, show_reminder=self.show_reminder)
         view.can_publish = self.can_publish
         view.clear_items()
         await view.refresh_ui_data()
@@ -452,8 +453,51 @@ class EventWizardView(ui.LayoutView):
         adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id) + (" 🔽" if view.show_advanced else " ◀️"), style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
             view.show_advanced = not view.show_advanced
+            if view.show_advanced:
+                view.show_reminder = False
             await view.refresh_message(it)
         adv_btn.callback = adv_cb
+
+        # Reminder Toggle
+        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id) + (" 🔽" if view.show_reminder else " ◀️"), style=discord.ButtonStyle.secondary)
+        async def rem_toggle_cb(it):
+            view.show_reminder = not view.show_reminder
+            if view.show_reminder:
+                view.show_advanced = False
+            await view.refresh_message(it)
+        rem_toggle_btn.callback = rem_toggle_cb
+
+        # Reminder Offset Button (for expanded reminder section)
+        rem_offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def rem_offset_cb(it):
+            class ReminderOffsetModal(ui.Modal):
+                def __init__(self, v):
+                    super().__init__(title=t("BTN_REMINDER_OFFSET", guild_id=v.guild_id)[:45])
+                    self.v = v
+                    self.inp = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=v.guild_id), default=str(v.data.get("reminder_offset", "15m")), required=True)
+                    self.add_item(self.inp)
+                async def on_submit(self, i):
+                    self.v.data["reminder_offset"] = str(self.inp.value)
+                    await self.v.save_to_draft()
+                    await self.v.refresh_message(i)
+            await it.response.send_modal(ReminderOffsetModal(view))
+        rem_offset_btn.callback = rem_offset_cb
+
+        # Reminder Type Dropdown
+        cur_rem_type = view.data.get("reminder_type", "none")
+        rem_type_opts = [
+            discord.SelectOption(label=t("SEL_REM_NONE", guild_id=self.guild_id), value="none", default=(cur_rem_type=="none")),
+            discord.SelectOption(label=t("SEL_REM_DM", guild_id=self.guild_id), value="dm", default=(cur_rem_type=="dm")),
+            discord.SelectOption(label=t("SEL_REM_PING", guild_id=self.guild_id), value="ping", default=(cur_rem_type=="ping")),
+            discord.SelectOption(label=t("SEL_REM_BOTH", guild_id=self.guild_id), value="both", default=(cur_rem_type=="both"))
+        ]
+        rem_type_sel = ui.Select(placeholder=t("BTN_REMINDERS", guild_id=self.guild_id), options=rem_type_opts)
+        async def rem_type_cb(it):
+            await it.response.defer()
+            view.data["reminder_type"] = rem_type_sel.values[0]
+            await view.save_to_draft()
+            await view.refresh_message(it)
+        rem_type_sel.callback = rem_type_cb
 
         creator_btn = ui.Button(label=t("LBL_WIZ_CREATOR", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def creator_cb(it):
@@ -565,13 +609,16 @@ class EventWizardView(ui.LayoutView):
             pub_btn.callback = pub_cb
 
         if view.wizard_type == "single":
-            r1 = [step1, step2, adv_btn, save_btn]
+            r1 = [step1, step2, adv_btn, rem_toggle_btn, save_btn]
             if view.can_publish: r1.append(pub_btn)
             container_items.append(ui.ActionRow(*r1))
             
             if view.show_advanced:
                 container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
+            elif view.show_reminder:
+                container_items.append(ui.ActionRow(rem_offset_btn))
+                container_items.append(ui.ActionRow(rem_type_sel))
                 
             container_items.append(ui.ActionRow(sel_icon))
         else:
