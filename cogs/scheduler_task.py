@@ -146,6 +146,18 @@ class SchedulerTask(commands.Cog):
             if rec_limit > 0 and (rec_count + 1) >= rec_limit:
                 log.info(f"[Scheduler] Limit ({rec_limit}) reached. No more events for today.", guild_id=db_event.get("guild_id"))
                 continue
+                
+            # Check for specific cut-off date limit
+            extra_data = db_event.get("extra_data")
+            if extra_data:
+                try:
+                    if isinstance(extra_data, str): extra_data = json.loads(extra_data)
+                    limit_ts = extra_data.get("recurrence_limit_date")
+                    if limit_ts and next_start > limit_ts:
+                        log.info(f"[Scheduler] Cut-off date limit reached. No more events.", guild_id=db_event.get("guild_id"))
+                        continue
+                except:
+                    pass
 
             # Create the brand new event in the database
             new_event_id = str(uuid.uuid4())[:8]

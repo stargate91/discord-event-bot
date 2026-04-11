@@ -249,7 +249,21 @@ class Step3Modal(ui.Modal):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["repost_offset"] = str(self.cleanup_offset.value)
         self.wizard_view.data["reminder_offset"] = str(self.rem_offset.value)
-        self.wizard_view.data["recurrence_limit"] = int(self.rec_limit.value) if str(self.rec_limit.value).isdigit() else 0
+        
+        limit_val = str(self.rec_limit.value).strip()
+        if limit_val.isdigit():
+            self.wizard_view.data["recurrence_limit"] = int(limit_val)
+        else:
+            try:
+                dt = parser.parse(limit_val)
+                extra = self.wizard_view.data.get("extra_data", {})
+                if isinstance(extra, str): extra = json.loads(extra)
+                extra["recurrence_limit_date"] = dt.timestamp()
+                self.wizard_view.data["extra_data"] = json.dumps(extra)
+                self.wizard_view.data["recurrence_limit"] = 0
+            except:
+                self.wizard_view.data["recurrence_limit"] = 0
+                
         self.wizard_view.data["reminder_type"] = str(self.rem_type.value).lower()
         self.wizard_view.steps_completed["step3"] = True
         await self.wizard_view.save_to_draft()

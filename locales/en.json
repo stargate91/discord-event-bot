@@ -100,7 +100,7 @@
   "LBL_NO_SETS": "No custom set",
   "LBL_OPTIONAL": "(Optional)",
   "LBL_PROMO_MSG": "Promotion Message (Variables: {user_id}, {role})",
-  "LBL_RECURRENCE_LIMIT": "Recurrence Limit (0 = infinite)",
+  "LBL_RECURRENCE_LIMIT": "Limit (Count/Date, 0=inf)",
   "LBL_REMINDER": "Reminder",
   "LBL_REMINDER_MSG": "Reminder Message (Variable: {title})",
   "LBL_REMINDER_OFFSET": "Reminder Offset (e.g. 15m)",

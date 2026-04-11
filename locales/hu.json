@@ -100,7 +100,7 @@
   "LBL_NO_SETS": "Nincs egyedi szett",
   "LBL_OPTIONAL": "(Opcionális)",
   "LBL_PROMO_MSG": "Értesítés szövege",
-  "LBL_RECURRENCE_LIMIT": "Ismétlődések száma (0 = végtelen)",
+  "LBL_RECURRENCE_LIMIT": "Limit (szám v. Dátum, 0=nincs)",
   "LBL_REMINDER": "Emlékeztető",
   "LBL_REMINDER_MSG": "Emlékeztető szövege",
   "LBL_REMINDER_OFFSET": "Emlékeztető időzítése (pl. 15m)",
