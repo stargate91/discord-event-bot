@@ -42,7 +42,7 @@ class ServerSetupView(ui.LayoutView):
         reminder_btn.callback = reminder_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### ⚙️ {t('BTN_GENERAL', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
@@ -67,11 +67,11 @@ class GeneralSetupView(ui.LayoutView):
         view = GeneralSetupView(self.bot, self.guild_id)
         view.clear_items()
 
-        lang_hu = ui.Button(label="🇭🇺 Hungarian", style=discord.ButtonStyle.success)
+        lang_hu = ui.Button(label=t("LBL_LANG_HU", guild_id=self.guild_id), style=discord.ButtonStyle.success)
         async def hu_cb(it): await view._set_lang(it, "hu")
         lang_hu.callback = hu_cb
 
-        lang_en = ui.Button(label="🇺🇸 English", style=discord.ButtonStyle.primary)
+        lang_en = ui.Button(label=t("LBL_LANG_EN", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
         async def en_cb(it): await view._set_lang(it, "en")
         lang_en.callback = en_cb
 
@@ -89,14 +89,14 @@ class GeneralSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         channels_btn.callback = channels_cb
 
-        back_btn = ui.Button(label="◀️", style=discord.ButtonStyle.secondary)
+        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
@@ -140,14 +140,14 @@ class ReminderSetupView(ui.LayoutView):
         rem_both = ui.Button(label=t("SEL_REM_BOTH", guild_id=self.guild_id), style=discord.ButtonStyle.success)
         rem_both.callback = lambda it: set_rem(it, "both")
 
-        back_btn = ui.Button(label="◀️", style=discord.ButtonStyle.secondary)
+        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### 🔔 {t('BTN_REMINDERS', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### ⚙️ {t('BTN_REMINDERS', guild_id=self.guild_id).replace('🔔 ', '')}"),
             ui.Separator(),
             ui.ActionRow(rem_none, rem_ping),
             ui.ActionRow(rem_dm, rem_both, back_btn),

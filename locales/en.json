@@ -245,7 +245,7 @@
   "SETTING_COLOR": "Default Embed Color",
   "SETTING_TIMEZONE": "Default Timezone",
   "SETUP_GENERAL_DESC": "Manage bot language, admin roles, and restricted channels.",
-  "SETUP_GENERAL_TITLE": "🌐 General Settings",
+  "SETUP_GENERAL_TITLE": "General Settings",
   "SET_MMO": "MMO / Raid",
   "SET_STANDARD": "Standard",
   "SET_TEAM": "Teams",
@@ -311,5 +311,8 @@
   "SYNC_GLOBAL_OK": "✅ Synced {count} commands globally.",
   "SYNC_COPY_OK": "✅ Global commands copied and synced to this guild ({count} total).",
   "SYNC_GUILD_OK": "✅ Synced {count} commands to this guild.",
-  "SYNC_FAILED": "❌ Sync failed: `{e}`"
+  "SYNC_FAILED": "❌ Sync failed: `{e}`",
+  "LBL_LANG_HU": "🇭🇺 Hungarian",
+  "LBL_LANG_EN": "🇺🇸 English",
+  "BTN_BACK": "◀️"
 }
