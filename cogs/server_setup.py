@@ -279,6 +279,7 @@ class EventDefaultsView(ui.LayoutView):
             await it.response.send_modal(modal)
         max_acc_btn.callback = max_acc_cb
 
+        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
