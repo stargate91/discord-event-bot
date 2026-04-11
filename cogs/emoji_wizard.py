@@ -28,6 +28,10 @@ class EmojiWizardView(ui.LayoutView):
         self.selected_set_id = selected_set_id
         self.is_global = is_global
 
+    async def prepare(self):
+        """Dummy prepare method to satisfy UI expectations if called from other components."""
+        pass
+
 
     async def refresh_message(self, interaction: discord.Interaction, status_msg=None):
         desc = t("EMOJI_WIZ_INIT_DESC", guild_id=self.guild_id)
@@ -89,12 +93,29 @@ class EmojiWizardView(ui.LayoutView):
         # 2. Buttons
         add_btn = ui.Button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
-            if not new_view.is_global and not await is_admin(it):
-                return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=new_view.guild_id), ephemeral=True)
-            if new_view.is_global and not await new_view.bot.is_owner(it.user):
-                return await it.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
-            view = TemplateChoiceView(new_view)
-            await it.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=new_view.guild_id), view=view, ephemeral=True)
+            try:
+                log.debug(f"[EmojiWizard] Interaction 'New set' triggered. is_global: {new_view.is_global}, guild_id: {new_view.guild_id}, user: {it.user.id}")
+                
+                if not new_view.is_global and not await is_admin(it):
+                    log.warning(f"[EmojiWizard] Non-admin tried to create new set in guild {new_view.guild_id}")
+                    return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=new_view.guild_id), ephemeral=True)
+                
+                if new_view.is_global:
+                    is_owner = await new_view.bot.is_owner(it.user)
+                    log.debug(f"[EmojiWizard] Global check - User {it.user.id} is_owner: {is_owner}")
+                    if not is_owner:
+                        log.warning(f"[EmojiWizard] Non-owner tried to create global set: {it.user.id}")
+                        return await it.response.send_message(t("ERR_OWNER_ONLY"), ephemeral=True)
+                
+                view = TemplateChoiceView(new_view)
+                await it.response.send_message(t("LBL_CHOOSE_TEMPLATE", guild_id=new_view.guild_id), view=view, ephemeral=True)
+                log.info(f"[EmojiWizard] TemplateChoiceView sent for new set creation.")
+            except Exception as e:
+                log.error(f"[EmojiWizard] CRITICAL ERROR in add_cb: {e}", exc_info=True)
+                if not it.response.is_done():
+                    await it.response.send_message(f"❌ {t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e))}", ephemeral=True)
+                else:
+                    await it.followup.send(f"❌ {t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e))}", ephemeral=True)
         add_btn.callback = add_cb
         
         clone_btn = ui.Button(label=t("BTN_CLONE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
@@ -170,6 +191,7 @@ class TemplateChoiceView(ui.LayoutView):
     def __init__(self, wizard_view):
         super().__init__(timeout=300)
         self.wizard_view = wizard_view
+        log.debug(f"[EmojiWizard] Initializing TemplateChoiceView. Global: {wizard_view.is_global}")
         
         # Localize options
         options = []
@@ -181,17 +203,24 @@ class TemplateChoiceView(ui.LayoutView):
         
         select_template = ui.Select(placeholder=t("SEL_TEMPLATE", guild_id=self.wizard_view.guild_id), options=options)
         async def select_callback(interaction: discord.Interaction):
-            template = select_template.values[0]
-            initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
-            dummy_record = {
-                "set_id": "", "name": "",
-                "data": json.dumps({"options": [], "buttons_per_row": 5, "show_mgmt": True})
-            }
-            edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
-            edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
-            edit_modal.opts_input.default = initial_text
-            edit_modal.is_new = True 
-            await interaction.response.send_modal(edit_modal)
+            try:
+                template = select_template.values[0]
+                log.debug(f"[EmojiWizard] Template selected: {template}")
+                
+                initial_text = ICON_SET_TEMPLATES.get(template, {}).get("text", "") if template != "empty" else ""
+                dummy_record = {
+                    "set_id": "", "name": "",
+                    "data": json.dumps({"options": [], "buttons_per_row": 5, "show_mgmt": True})
+                }
+                edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
+                edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
+                edit_modal.opts_input.default = initial_text
+                edit_modal.is_new = True 
+                await interaction.response.send_modal(edit_modal)
+                log.info(f"[EmojiWizard] EditEmojiSetModal sent for template: {template}")
+            except Exception as e:
+                log.error(f"[EmojiWizard] Error in TemplateChoiceView select_callback: {e}", exc_info=True)
+                await interaction.response.send_message(f"❌ {e}", ephemeral=True)
         select_template.callback = select_callback
 
         container = ui.Container(
