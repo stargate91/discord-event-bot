@@ -290,17 +290,6 @@ class EventCommands(commands.Cog):
         
         for ev in target_events:
             eid = ev["event_id"]
-            try:
-                channel = self.bot.get_channel(ev["channel_id"])
-                if channel and ev.get("message_id"):
-                    msg = await channel.fetch_message(ev["message_id"])
-                    embed = msg.embeds[0]
-                    embed.title = f"{t('TAG_PAST', guild_id=interaction.guild_id)} {embed.title}"
-                    embed.color = discord.Color.red()
-                    await msg.edit(embed=embed, view=None)
-            except Exception as e:
-                log.debug(f"[Remove] Could not edit message {eid}: {e}")
-            
             await database.delete_active_event(eid, interaction.guild_id)
         
         await interaction.response.send_message(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)

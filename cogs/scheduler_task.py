@@ -117,23 +117,6 @@ class SchedulerTask(commands.Cog):
             old_event_id = db_event["event_id"]
             await database.set_event_status(old_event_id, "closed")
 
-            # We disable the buttons on the old message so people don't click them
-            try:
-                channel = self.bot.get_channel(db_event["channel_id"])
-                if channel and db_event.get("message_id"):
-                    old_msg = await channel.fetch_message(db_event["message_id"])
-                    if old_msg:
-                        view = discord.ui.View.from_message(old_msg)
-                        for child in view.children:
-                            child.disabled = True
-                        if old_msg.embeds:
-                            guild_id = db_event.get("guild_id")
-                            embed = old_msg.embeds[0]
-                            embed.title = f"{t('TAG_PAST', guild_id=guild_id)} {embed.title}"
-                            await old_msg.edit(embed=embed, view=view)
-            except Exception as e:
-                log.error(f"[Scheduler] Could not update old message for {old_event_id}: {e}", guild_id=db_event.get("guild_id"))
-
             # Find the new start time
             next_start = calc_next_start(start_ts, event_conf)
             if next_start is None:
