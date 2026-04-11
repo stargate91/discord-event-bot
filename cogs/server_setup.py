@@ -349,8 +349,8 @@ class SimpleConfigModal(ui.Modal):
             if self.key in ["language", "admin_role_ids", "admin_channel_ids"]:
                 await load_guild_translations(self.guild_id)
 
-            # 4. Notify user via followup since response is already deferred
-            await interaction.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), ephemeral=True)
+            # 4. Notify user by editing the deferred 'thinking' message
+            await interaction.edit_original_response(content=t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), view=None)
             
             # 5. Refresh the parent view if exists
             if self.parent_view:
