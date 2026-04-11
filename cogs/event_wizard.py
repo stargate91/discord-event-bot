@@ -123,22 +123,27 @@ class SingleEventModal(ui.Modal):
         self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        title = str(self.title_input.value)
-        self.wizard_view.data["title"] = title
-        if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
-            self.wizard_view.data["config_name"] = slugify(title) or "event"
-        self.wizard_view.data["description"] = str(self.desc_input.value)
-        self.wizard_view.data["image_urls"] = str(self.images_input.value)
-        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
-        
-        # Parse combined time
-        time_parts = str(self.time_input.value).split(",")
-        self.wizard_view.data["start_str"] = time_parts[0].strip()
-        self.wizard_view.data["end_str"] = time_parts[1].strip() if len(time_parts) > 1 else ""
-        
-        self.wizard_view.steps_completed["step1"] = True
-        await self.wizard_view.save_to_draft()
-        await self.wizard_view.refresh_message(interaction)
+        try:
+            title = str(self.title_input.value)
+            self.wizard_view.data["title"] = title
+            if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
+                self.wizard_view.data["config_name"] = slugify(title) or "event"
+            self.wizard_view.data["description"] = str(self.desc_input.value)
+            self.wizard_view.data["image_urls"] = str(self.images_input.value)
+            self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
+            
+            # Parse combined time
+            time_parts = str(self.time_input.value).split(",")
+            self.wizard_view.data["start_str"] = time_parts[0].strip()
+            self.wizard_view.data["end_str"] = time_parts[1].strip() if len(time_parts) > 1 else ""
+            
+            self.wizard_view.steps_completed["step1"] = True
+            await self.wizard_view.save_to_draft()
+            await self.wizard_view.refresh_message(interaction)
+        except Exception as e:
+            log.error(f"[Wizard] SingleEventModal on_submit error: {e}", exc_info=True)
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ {e}", ephemeral=True)
 
 class SingleEventSupplementaryModal(ui.Modal):
     """Step 2 for Single Events."""
