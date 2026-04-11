@@ -469,6 +469,12 @@ class EventWizardView(ui.LayoutView):
         msg_btn = ui.Button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         msg_btn.callback = msg_cb
 
+        async def wait_cb(it):
+            view.data["use_waiting_list"] = not view.data.get("use_waiting_list", False)
+            await view.save_to_draft()
+            await view.refresh_message(it)
+        use_waiting = view.data.get("use_waiting_list", False)
+
         wait_btn = ui.Button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
         wait_btn.callback = wait_cb
 
