@@ -29,26 +29,43 @@ class ServerSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 
-        color_btn = ui.Button(label=t("BTN_COLOR", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
-        async def color_cb(it):
-            curr = await database.get_guild_setting(self.guild_id, "default_color", default="")
-            modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), 
-                                     placeholder=t("PH_COLOR", guild_id=self.guild_id), default_val=curr, parent_view=self)
-            await it.response.send_modal(modal)
-        color_btn.callback = color_cb
-
         reminder_btn = ui.Button(label=t("BTN_REMINDERS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def reminder_cb(it):
             v = ReminderSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
         reminder_btn.callback = reminder_cb
 
+        # Color Dropdown Selection
+        cur_color = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
+        
+        color_opts = [
+            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x00bfff", default=(cur_color=="0x00bfff")),
+            discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
+            discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
+            discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
+            discord.SelectOption(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
+            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom")
+        ]
+        
+        color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
+        async def color_cb(it):
+            val = color_sel.values[0]
+            if val == "custom":
+                modal = SimpleConfigModal(self.guild_id, "default_color", t("SETTING_COLOR", guild_id=self.guild_id), 
+                                         placeholder=t("PH_COLOR", guild_id=self.guild_id), default_val=cur_color, parent_view=self)
+                await it.response.send_modal(modal)
+            else:
+                await database.save_guild_setting(self.guild_id, "default_color", val)
+                await self.refresh_message(it)
+        color_sel.callback = color_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
-            ui.ActionRow(general_btn, local_btn, color_btn, reminder_btn),
+            ui.ActionRow(general_btn, local_btn, reminder_btn),
+            ui.ActionRow(color_sel),
             accent_color=0x00bfff
         )
         self.add_item(container)
