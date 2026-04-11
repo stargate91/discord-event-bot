@@ -95,35 +95,72 @@ class WizardStartView(ui.LayoutView):
             await interaction.response.send_message(view=view, ephemeral=True)
 
 class SingleEventModal(ui.Modal):
-    """Fast-track modal combining Step 1 and parts of Step 2."""
+    """Step 1 for Single Events."""
     def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_BASIC_INFO", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("TITLE_BASIC_INFO", guild_id=wizard_view.guild_id)[:45])
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
 
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=guild_id), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
-        self.start_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("start_str") or ""), required=True)
-        self.end_input = ui.TextInput(label=f"{t('LBL_WIZ_END', guild_id=guild_id)} {t('LBL_OPTIONAL', guild_id=guild_id)}", placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("end_str") or ""), required=False)
+        
+        # Combined time
+        combined_time = ""
+        if data.get("start_str"):
+            combined_time = str(data["start_str"])
+            if data.get("end_str"):
+                combined_time += f", {data['end_str']}"
+
+        self.time_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder="YYYY-MM-DD HH:MM, HH:MM", default=combined_time, required=True)
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
+        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
 
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
-        self.add_item(self.start_input)
-        self.add_item(self.end_input)
+        self.add_item(self.time_input)
         self.add_item(self.images_input)
+        self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         title = str(self.title_input.value)
         self.wizard_view.data["title"] = title
-        self.wizard_view.data["config_name"] = slugify(title) or "event"
+        if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
+            self.wizard_view.data["config_name"] = slugify(title) or "event"
         self.wizard_view.data["description"] = str(self.desc_input.value)
-        self.wizard_view.data["start_str"] = str(self.start_input.value)
-        self.wizard_view.data["end_str"] = str(self.end_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
+        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
+        
+        # Parse combined time
+        time_parts = str(self.time_input.value).split(",")
+        self.wizard_view.data["start_str"] = time_parts[0].strip()
+        self.wizard_view.data["end_str"] = time_parts[1].strip() if len(time_parts) > 1 else ""
         
         self.wizard_view.steps_completed["step1"] = True
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.refresh_message(interaction)
+
+class SingleEventSupplementaryModal(ui.Modal):
+    """Step 2 for Single Events."""
+    def __init__(self, wizard_view):
+        super().__init__(title=t("BTN_STEP_2", guild_id=wizard_view.guild_id)[:45])
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+        guild_id = self.wizard_view.guild_id
+
+        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or "Europe/Budapest"), required=True)
+        self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
+        self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
+
+        self.add_item(self.timezone_input)
+        self.add_item(self.max_acc_input)
+        self.add_item(self.channel_id_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["timezone"] = str(self.timezone_input.value)
+        self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
+        self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
+        
         self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -288,7 +325,7 @@ class NotificationSettingsModal(ui.Modal):
 
 class EventWizardView(ui.LayoutView):
     """Main wizard controller using Components V2 architecture."""
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series"):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series", show_advanced=False):
         super().__init__(timeout=600)
         self.bot = bot
         self.creator_id = creator_id
@@ -296,6 +333,7 @@ class EventWizardView(ui.LayoutView):
         self.guild_id = guild_id
         self.bulk_ids = bulk_ids
         self.wizard_type = wizard_type
+        self.show_advanced = show_advanced
         self.data = existing_data or {}
         self.can_publish = False
         self.chan_warning = ""
@@ -306,13 +344,12 @@ class EventWizardView(ui.LayoutView):
         }
 
     async def refresh_message(self, interaction: discord.Interaction):
-        view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type)
+        view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, show_advanced=self.show_advanced)
         view.can_publish = self.can_publish
         view.clear_items()
         await view.refresh_ui_data()
         
-        # 2. Build Component Rows
-        # Row 0: Wizard Steps
+        # Components
         async def s1_cb(it):
             if view.wizard_type == "single": await it.response.send_modal(SingleEventModal(view))
             else: await it.response.send_modal(Step1Modal(view))
@@ -320,14 +357,12 @@ class EventWizardView(ui.LayoutView):
         step1.callback = s1_cb
 
         async def s2_cb(it):
-            if view.wizard_type == "single": return await it.response.send_message(t("MSG_SINGLE_EVENT_HINT", guild_id=self.guild_id), ephemeral=True)
-            await it.response.send_modal(Step2Modal(view))
+            if view.wizard_type == "single": await it.response.send_modal(SingleEventSupplementaryModal(view))
+            else: await it.response.send_modal(Step2Modal(view))
         step2 = ui.Button(label=t("BTN_STEP_2", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
-        async def s3_cb(it):
-            if view.wizard_type == "single": return await it.response.send_message(t("MSG_RECURRING_ONLY_HINT", guild_id=self.guild_id), ephemeral=True)
-            await it.response.send_modal(Step3Modal(view))
+        async def s3_cb(it): await it.response.send_modal(Step3Modal(view))
         step3 = ui.Button(label=t("BTN_STEP_3", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
 
@@ -335,7 +370,6 @@ class EventWizardView(ui.LayoutView):
         step4 = ui.Button(label=t("BTN_STEP_4", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step4.callback = s4_cb
 
-        # Row 1: Advanced
         async def role_cb(it):
             from cogs.event_ui import get_active_set
             active_set = get_active_set(view.data.get("icon_set", "standard"))
@@ -355,8 +389,9 @@ class EventWizardView(ui.LayoutView):
         wait_btn = ui.Button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
         wait_btn.callback = wait_cb
 
+        save_style = discord.ButtonStyle.secondary if view.wizard_type == "single" else discord.ButtonStyle.primary
+        save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
         async def save_cb(it): await view.handle_save_preview(it)
-        save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=discord.ButtonStyle.primary, disabled=view.can_publish)
         save_btn.callback = save_cb
 
         # Selects
@@ -374,6 +409,62 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         sel_icon.callback = icon_cb
 
+        # Single Event specific Advanced Toggles
+        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id) + (" 🔽" if view.show_advanced else " ◀️"), style=discord.ButtonStyle.secondary)
+        async def adv_cb(it):
+            view.show_advanced = not view.show_advanced
+            await view.refresh_message(it)
+        adv_btn.callback = adv_cb
+
+        creator_btn = ui.Button(label=t("LBL_WIZ_CREATOR", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        async def creator_cb(it):
+            class CreatorModal(ui.Modal):
+                def __init__(self, v):
+                    super().__init__(title=t("LBL_WIZ_CREATOR", guild_id=v.guild_id)[:45])
+                    self.v = v
+                    self.inp = ui.TextInput(label=t("LBL_WIZ_CREATOR", guild_id=v.guild_id), default=str(v.data.get("creator_id") or v.creator_id), required=True)
+                    self.add_item(self.inp)
+                async def on_submit(self, i):
+                    self.v.data["creator_id"] = str(self.inp.value)
+                    await self.v.save_to_draft()
+                    await self.v.refresh_message(i)
+            await it.response.send_modal(CreatorModal(view))
+        creator_btn.callback = creator_cb
+
+        # Color Dropdown for Single Events
+        cur_color_raw = view.data.get("color", "0x3498db")
+        cur_color = cur_color_raw.lower().strip().replace("#", "0x")
+        if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
+        
+        color_opts = [
+            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x00bfff", default=(cur_color=="0x00bfff")),
+            discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
+            discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
+            discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
+            discord.SelectOption(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
+            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(cur_color not in ["0x00bfff","0x5865f2","0xffd700","0x57f287","0xeb459e"]))
+        ]
+        color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
+        async def color_cb(it):
+            val = color_sel.values[0]
+            if val == "custom":
+                class ColorModal(ui.Modal):
+                    def __init__(self, v):
+                        super().__init__(title=t("COLOR_CUSTOM", guild_id=v.guild_id)[:45])
+                        self.v = v
+                        self.inp = ui.TextInput(label=t("LBL_WIZ_COLOR", guild_id=v.guild_id), default=cur_color, required=True)
+                        self.add_item(self.inp)
+                    async def on_submit(self, i):
+                        self.v.data["color"] = str(self.inp.value)
+                        await self.v.save_to_draft()
+                        await self.v.refresh_message(i)
+                await it.response.send_modal(ColorModal(view))
+            else:
+                view.data["color"] = val
+                await view.save_to_draft()
+                await view.refresh_message(it)
+        color_sel.callback = color_cb
+
         # Container
         title_text = f"### {t('WIZARD_TITLE', guild_id=self.guild_id)}"
         if view.bulk_ids: title_text += f" {t('LBL_BULK_EDIT', guild_id=self.guild_id)}"
@@ -382,13 +473,22 @@ class EventWizardView(ui.LayoutView):
             ui.TextDisplay(title_text),
             ui.Separator(),
             ui.TextDisplay(self.chan_warning + "\n" + t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text()) if self.chan_warning else t("WIZARD_DESC", guild_id=self.guild_id, status=view.get_status_text())),
-            ui.Separator(),
-            ui.ActionRow(step1, step2, step3, step4),
-            ui.ActionRow(role_btn, msg_btn, wait_btn, save_btn)
+            ui.Separator()
         ]
-        if view.wizard_type == "series":
-            container_items.extend([ui.Separator(), ui.ActionRow(sel_rec)])
-        container_items.extend([ui.Separator(), ui.ActionRow(sel_icon)])
+
+        if view.wizard_type == "single":
+            container_items.append(ui.ActionRow(step1, step2, adv_btn, save_btn))
+            container_items.append(ui.ActionRow(sel_icon))
+            if view.show_advanced:
+                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(color_sel))
+        else:
+            container_items.append(ui.ActionRow(step1, step2, step3, step4))
+            container_items.append(ui.ActionRow(role_btn, msg_btn, wait_btn, save_btn))
+            container_items.append(ui.Separator())
+            container_items.append(ui.ActionRow(sel_rec))
+            container_items.append(ui.Separator())
+            container_items.append(ui.ActionRow(sel_icon))
 
         if view.can_publish:
             pub_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green)
