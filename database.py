@@ -454,8 +454,10 @@ async def save_draft(guild_id, draft_id, creator_id, title, data):
             updated_at = EXCLUDED.updated_at
     """, draft_id, creator_id, title, data_json, now, str(guild_id))
 
-async def get_draft(draft_id):
+async def get_draft(draft_id, guild_id=None):
     pool = await get_pool()
+    if guild_id:
+        return await pool.fetchrow("SELECT * FROM event_drafts WHERE draft_id = $1 AND guild_id = $2", draft_id, str(guild_id))
     return await pool.fetchrow("SELECT * FROM event_drafts WHERE draft_id = $1", draft_id)
 
 async def delete_draft(draft_id, guild_id=None):
