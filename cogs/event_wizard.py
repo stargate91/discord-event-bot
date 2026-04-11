@@ -490,7 +490,51 @@ class EventWizardView(ui.LayoutView):
                 await view.refresh_message(it)
         color_sel.callback = color_cb
 
-        # Container
+        # Complex Recurrence Selects
+        if view.wizard_type == "series" and view.data.get("recurrence_type") == "custom":
+            cust_days = view.data.get("custom_days", [])
+            day_opts = [
+                discord.SelectOption(label=t("DAY_MON", guild_id=self.guild_id), value="monday", default=("monday" in cust_days)),
+                discord.SelectOption(label=t("DAY_TUE", guild_id=self.guild_id), value="tuesday", default=("tuesday" in cust_days)),
+                discord.SelectOption(label=t("DAY_WED", guild_id=self.guild_id), value="wednesday", default=("wednesday" in cust_days)),
+                discord.SelectOption(label=t("DAY_THU", guild_id=self.guild_id), value="thursday", default=("thursday" in cust_days)),
+                discord.SelectOption(label=t("DAY_FRI", guild_id=self.guild_id), value="friday", default=("friday" in cust_days)),
+                discord.SelectOption(label=t("DAY_SAT", guild_id=self.guild_id), value="saturday", default=("saturday" in cust_days)),
+                discord.SelectOption(label=t("DAY_SUN", guild_id=self.guild_id), value="sunday", default=("sunday" in cust_days))
+            ]
+            cust_sel = ui.Select(placeholder=t("SEL_CUSTOM_DAYS", guild_id=self.guild_id), options=day_opts, min_values=1, max_values=7)
+            async def cust_cb(it):
+                await it.response.defer()
+                view.data["custom_days"] = cust_sel.values
+                await view.save_to_draft()
+                await view.refresh_message(it)
+            cust_sel.callback = cust_cb
+
+        if view.wizard_type == "series" and view.data.get("recurrence_type") == "relative":
+            rel_combo = view.data.get("relative_combo", [])
+            rel_opts = [
+                discord.SelectOption(label=t("REL_WEEK_1", guild_id=self.guild_id), value="wk_1", default=("wk_1" in rel_combo)),
+                discord.SelectOption(label=t("REL_WEEK_2", guild_id=self.guild_id), value="wk_2", default=("wk_2" in rel_combo)),
+                discord.SelectOption(label=t("REL_WEEK_3", guild_id=self.guild_id), value="wk_3", default=("wk_3" in rel_combo)),
+                discord.SelectOption(label=t("REL_WEEK_4", guild_id=self.guild_id), value="wk_4", default=("wk_4" in rel_combo)),
+                discord.SelectOption(label=t("REL_WEEK_LAST", guild_id=self.guild_id), value="wk_last", default=("wk_last" in rel_combo)),
+                discord.SelectOption(label=t("DAY_MON", guild_id=self.guild_id), value="day_monday", default=("day_monday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_TUE", guild_id=self.guild_id), value="day_tuesday", default=("day_tuesday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_WED", guild_id=self.guild_id), value="day_wednesday", default=("day_wednesday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_THU", guild_id=self.guild_id), value="day_thursday", default=("day_thursday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_FRI", guild_id=self.guild_id), value="day_friday", default=("day_friday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_SAT", guild_id=self.guild_id), value="day_saturday", default=("day_saturday" in rel_combo)),
+                discord.SelectOption(label=t("DAY_SUN", guild_id=self.guild_id), value="day_sunday", default=("day_sunday" in rel_combo))
+            ]
+            rel_sel = ui.Select(placeholder=t("SEL_REL_COMBO", guild_id=self.guild_id), options=rel_opts, min_values=1, max_values=2)
+            async def rel_cb(it):
+                await it.response.defer()
+                view.data["relative_combo"] = rel_sel.values
+                await view.save_to_draft()
+                await view.refresh_message(it)
+            rel_sel.callback = rel_cb
+
+        # Container Assembly
         title_text = f"### {t('WIZARD_TITLE', guild_id=self.guild_id)}"
         if view.bulk_ids: title_text += f" {t('LBL_BULK_EDIT', guild_id=self.guild_id)}"
         
@@ -501,25 +545,37 @@ class EventWizardView(ui.LayoutView):
             ui.Separator()
         ]
 
-        if view.wizard_type == "single":
-            container_items.append(ui.ActionRow(step1, step2, adv_btn, save_btn))
-            if view.show_advanced:
-                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(color_sel))
-            container_items.append(ui.ActionRow(sel_icon))
-        else:
-            container_items.append(ui.ActionRow(step1, step2, step3, step4))
-            container_items.append(ui.ActionRow(role_btn, msg_btn, wait_btn, save_btn))
-            container_items.append(ui.Separator())
-            container_items.append(ui.ActionRow(sel_rec))
-            container_items.append(ui.Separator())
-            container_items.append(ui.ActionRow(sel_icon))
-
         if view.can_publish:
             pub_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green)
             async def pub_cb(it): await view.publish_btn(it)
             pub_btn.callback = pub_cb
-            container_items.extend([ui.Separator(), ui.ActionRow(pub_btn)])
+
+        if view.wizard_type == "single":
+            r1 = [step1, step2, adv_btn, save_btn]
+            if view.can_publish: r1.append(pub_btn)
+            container_items.append(ui.ActionRow(*r1))
+            
+            if view.show_advanced:
+                container_items.append(ui.ActionRow(wait_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(color_sel))
+                
+            container_items.append(ui.ActionRow(sel_icon))
+        else:
+            container_items.append(ui.ActionRow(step1, step2, step3, step4))
+            
+            r2 = [role_btn, msg_btn, wait_btn, save_btn]
+            if view.can_publish: r2.append(pub_btn)
+            container_items.append(ui.ActionRow(*r2))
+            
+            container_items.append(ui.Separator())
+            container_items.append(ui.ActionRow(sel_rec))
+            
+            if view.data.get("recurrence_type") == "custom":
+                container_items.append(ui.ActionRow(cust_sel))
+            elif view.data.get("recurrence_type") == "relative":
+                container_items.append(ui.ActionRow(rel_sel))
+                
+            container_items.append(ui.ActionRow(sel_icon))
 
         view.add_item(ui.Container(*container_items, accent_color=0x00bfff))
         
@@ -598,7 +654,12 @@ class EventWizardView(ui.LayoutView):
                 default=(current_set == s["set_id"])
             ))
             
-        self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in [("none", "❌"), ("daily", "📅"), ("weekly", "🗓️"), ("monthly", "📊")]]
+        rec_types = [
+            ("daily", "📅"), ("weekly", "🗓️"), ("monthly", "📊"),
+            ("biweekly", "🔄"), ("weekdays", "🏢"), ("weekends", "🏖️"),
+            ("custom", "⚙️"), ("relative", "📆")
+        ]
+        self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
         s1 = "✅" if self.steps_completed["step1"] else "⏳"
@@ -620,6 +681,23 @@ class EventWizardView(ui.LayoutView):
         if not self.steps_completed["step1"] or (self.wizard_type != "single" and not self.steps_completed["step2"]):
             await interaction.response.send_message(t("ERR_FILL_STEPS", guild_id=self.guild_id), ephemeral=True)
             return
+            
+        if self.wizard_type == "series":
+            rtype = self.data.get("recurrence_type")
+            if rtype == "custom" and not self.data.get("custom_days"):
+                await interaction.response.send_message(t("ERR_FILL_CUSTOM_DAYS", guild_id=self.guild_id, default="⚠️ Kérlek válassz legalább 1 napot az Egyedi ismétlődéshez!"), ephemeral=True)
+                return
+            if rtype == "relative":
+                rel_combo = self.data.get("relative_combo", [])
+                if len(rel_combo) != 2:
+                    await interaction.response.send_message(t("ERR_FILL_RELATIVE", guild_id=self.guild_id, default="⚠️ A relatív ismétlődéshez pontosan 1 hetet ÉS 1 napot kell választanod a legördülőből!"), ephemeral=True)
+                    return
+                # Ensure they actually picked 1 week and 1 day, not 2 weeks or 2 days!
+                has_wk = any(c.startswith("wk_") for c in rel_combo)
+                has_day = any(c.startswith("day_") for c in rel_combo)
+                if not (has_wk and has_day):
+                    await interaction.response.send_message(t("ERR_FILL_RELATIVE_MIX", guild_id=self.guild_id, default="⚠️ 1 hetet (pl. Utolsó) és 1 napot (pl. Péntek) választhatsz csak ki!"), ephemeral=True)
+                    return
 
         clean_data = {}
         for k, v in self.data.items():
