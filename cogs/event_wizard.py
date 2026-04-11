@@ -425,7 +425,13 @@ class EventWizardView(ui.LayoutView):
         # Components
         async def s1_cb(it):
             try:
-                await it.response.send_modal(SingleEventModal(view))
+                log.info(f"[Wizard] s1_cb called. wizard_type={view.wizard_type}, guild_id={view.guild_id}")
+                modal = SingleEventModal(view)
+                log.info(f"[Wizard] Modal created. title='{modal.title}' ({len(modal.title)} chars), items={len(modal._children)}")
+                for idx, item in enumerate(modal._children):
+                    log.info(f"[Wizard] Field {idx}: label='{item.label}' ({len(item.label)} chars), default='{str(item.default)[:30]}' placeholder='{str(item.placeholder)[:30] if item.placeholder else ''}'")
+                await it.response.send_modal(modal)
+                log.info(f"[Wizard] Modal sent successfully")
             except Exception as e:
                 log.error(f"[Wizard] s1_cb error: {e}", exc_info=True)
                 if not it.response.is_done():
