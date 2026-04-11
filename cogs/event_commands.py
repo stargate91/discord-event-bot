@@ -258,7 +258,9 @@ class EventCommands(commands.Cog):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
         
         db_event = await database.get_active_event(event_id, interaction.guild_id)
-        if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+        if not db_event:
+            db_event = await database.get_active_event(event_id)
+        if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
         
         try:
             channel = self.bot.get_channel(db_event["channel_id"])
