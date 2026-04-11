@@ -36,9 +36,12 @@ class ServerSetupView(ui.LayoutView):
         reminder_btn.callback = reminder_cb
 
         # Color Dropdown Selection
-        cur_color = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
+        cur_color_raw = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
+        # Normalize color format for comparison
+        cur_color = cur_color_raw.lower().strip().replace("#", "0x")
+        if not cur_color.startswith("0x"):
+            cur_color = "0x" + cur_color
         
-        # Determine if the current color is one of the presets
         presets = ["0x00bfff", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
         is_preset = cur_color in presets
 
