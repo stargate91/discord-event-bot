@@ -312,12 +312,14 @@ async def update_active_events_metadata_bulk(event_ids, data):
     await pool.execute("""
         UPDATE active_events SET 
             title = $1, description = $2, image_urls = $3, 
-            color = $4, max_accepted = $5, icon_set = $6, extra_data = $7
-        WHERE event_id = ANY($8)
+            color = $4, max_accepted = $5, icon_set = $6, extra_data = $7,
+            temp_role_id = $8, use_temp_role = $9
+        WHERE event_id = ANY($10)
     """, 
         data.get("title"), data.get("description"), data.get("image_urls"),
         data.get("color"), data.get("max_accepted"), data.get("icon_set"), 
-        extra_json, event_ids
+        extra_json, data.get("temp_role_id"), data.get("use_temp_role", False),
+        event_ids
     )
 
 async def set_event_message(event_id, message_id, guild_id=None):

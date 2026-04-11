@@ -449,13 +449,13 @@ class EventWizardView(ui.LayoutView):
             if view.wizard_type == "single": await it.response.send_modal(SingleEventSupplementaryModal(view))
             else: await it.response.send_modal(RecurrenceSettingsModal(view))
         
-        s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id, default="2. Kiegészítő") if view.wizard_type == "single" else t("BTN_STEP_2_SERIES", guild_id=self.guild_id, default="2. Ismétlődés")
+        s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id) if view.wizard_type == "single" else t("BTN_STEP_2_SERIES", guild_id=self.guild_id)
         step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
         # Step 3: Series only - Supplementary (timezone, max, channel)
         async def s3_cb(it): await it.response.send_modal(SingleEventSupplementaryModal(view))
-        step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id, default="3. Kiegészítő"), style=discord.ButtonStyle.gray)
+        step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
 
         async def role_cb(it):
