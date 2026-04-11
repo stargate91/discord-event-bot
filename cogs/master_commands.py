@@ -77,6 +77,8 @@ class MasterCommands(commands.GroupCog, name="master"):
             from utils.templates import ICON_SET_TEMPLATES, get_template_data
             from cogs.event_ui import load_custom_sets
             
+            await database.clear_global_emoji_sets()
+            
             count = 0
             for tid, tmpl in ICON_SET_TEMPLATES.items():
                 # Use translated label if possible as the name

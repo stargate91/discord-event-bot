@@ -197,7 +197,7 @@ class TemplateChoiceView(ui.LayoutView):
         options = []
         for k, v in ICON_SET_TEMPLATES.items():
             label = t(v["label_key"], guild_id=self.wizard_view.guild_id) if "label_key" in v else v["id"]
-            options.append(discord.SelectOption(label=label, value=k, emoji=v["emoji"]))
+            options.append(discord.SelectOption(label=label, value=k, emoji=v["emoji"] or None))
         
         options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty", emoji="🆕"))
         

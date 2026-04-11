@@ -368,6 +368,11 @@ async def delete_global_emoji_set(set_id: str):
     pool = await get_pool()
     await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", set_id)
 
+async def clear_global_emoji_sets():
+    """Delete all global emoji sets."""
+    pool = await get_pool()
+    await pool.execute("DELETE FROM global_emoji_sets")
+
 async def update_active_event(event_id, data):
     title = data.get("title")
     description = data.get("description")
