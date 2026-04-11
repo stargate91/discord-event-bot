@@ -382,7 +382,7 @@ class EventCommands(commands.Cog):
             await self.bot.tree.sync(guild=None)
             self.bot.tree.clear_commands(guild=ctx.guild)
             await self.bot.tree.sync(guild=ctx.guild)
-            await ctx.send(t("SYNC_CLEAR_SUCCESS", guild_id=ctx.guild.id))
+            await ctx.send(t("SYNC_CLEAR_SUCCESS", guild_id=ctx.guild.id).replace("{suffix}", SUFFIX))
         except Exception as e:
             await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
