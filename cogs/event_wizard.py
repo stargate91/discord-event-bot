@@ -424,8 +424,13 @@ class EventWizardView(ui.LayoutView):
         
         # Components
         async def s1_cb(it):
-            if view.wizard_type == "single": await it.response.send_modal(SingleEventModal(view))
-            else: await it.response.send_modal(Step1Modal(view))
+            try:
+                if view.wizard_type == "single": await it.response.send_modal(SingleEventModal(view))
+                else: await it.response.send_modal(Step1Modal(view))
+            except Exception as e:
+                log.error(f"[Wizard] s1_cb error: {e}", exc_info=True)
+                if not it.response.is_done():
+                    await it.response.send_message(f"❌ {e}", ephemeral=True)
         step1 = ui.Button(label=t("BTN_STEP_1", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step1.callback = s1_cb
 
