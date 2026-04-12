@@ -1026,7 +1026,7 @@ class EventWizardView(ui.LayoutView):
                                 msg = await channel.fetch_message(curr_db_event["message_id"])
                                 view = DynamicEventView(self.bot, eid, self.data)
                                 embed = await view.generate_embed(curr_db_event)
-                                await msg.edit(embed=embed, view=view)
+                                await msg.edit(content=None, embed=embed, view=view)
                             except Exception as e:
                                 log.error(f"Error updating message {eid}: {e}")
                 
@@ -1045,7 +1045,10 @@ class EventWizardView(ui.LayoutView):
                 promo_msg = t("MSG_DEFAULT_PROMO", guild_id=self.guild_id)
                 promo_content = f"{ping_prefix}{promo_msg}".strip()
                 
-                msg = await target_chan.send(content=promo_content, embed=embed, view=view)
+                if promo_content:
+                    await target_chan.send(content=promo_content)
+                
+                msg = await target_chan.send(embed=embed, view=view)
                 await database.set_event_message(event_id, msg.id)
                 self.bot.add_view(view)
                 await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
