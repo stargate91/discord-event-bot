@@ -163,8 +163,10 @@ class EventCommands(commands.Cog):
             return
 
         try:
+            config_name = db_event.get("config_name")
+            wtype = "single" if not config_name or config_name == "manual" else "series"
             from cogs.event_wizard import EventWizardView
-            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
+            view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids, wizard_type=wtype)
             await view.refresh_message(interaction)
         except Exception as e:
             log.error(f"Error starting edit wizard: {e}")

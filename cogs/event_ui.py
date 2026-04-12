@@ -492,8 +492,10 @@ class DynamicEventView(discord.ui.LayoutView):
             db_event["end_str"] = end_dt.strftime("%Y-%m-%d %H:%M")
         else: db_event["end_str"] = ""
 
+        config_name = db_event.get("config_name")
+        wtype = "single" if not config_name or config_name == "manual" else "series"
         from cogs.event_wizard import EventWizardView
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids, wizard_type=wtype)
         await view.refresh_message(interaction)
 
     async def delete_callback(self, interaction: discord.Interaction):
