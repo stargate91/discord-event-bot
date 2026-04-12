@@ -501,19 +501,8 @@ class DynamicEventView(discord.ui.LayoutView):
     async def postpone_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
-        await interaction.response.defer()
-        await database.update_event_status(self.event_id, "postponed")
-        if not self.event_conf: self.event_conf = {}
-        self.event_conf["status"] = "postponed"
-        await self.prepare()
-        for child in self.children:
-            if isinstance(child, discord.ui.Container):
-                for row in child.children:
-                    if isinstance(row, discord.ui.ActionRow):
-                        for item in row.children:
-                            if isinstance(item, discord.ui.Button): item.disabled = True
-        await interaction.message.edit(view=self)
-        log.info(f"Event {self.event_id} postponed by {interaction.user}")
+        # Using the modal defined at the bottom of the file
+        await interaction.response.send_modal(PostponeModal(self.bot, self.event_id, self, interaction.guild_id))
 
     async def cancel_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
@@ -675,6 +664,74 @@ class DynamicEventView(discord.ui.LayoutView):
                             log.info(f"[Promotion] Added role {db_event['temp_role_id']} to {user_id} for event {self.event_id}")
                         except Exception as e:
                             log.error(f"[Promotion] Role management error: {e}")
+
+class PostponeModal(discord.ui.Modal):
+    def __init__(self, bot, event_id, parent_view, guild_id):
+        super().__init__(title=t("MODAL_POSTPONE_TITLE", guild_id=guild_id, default="Esemény elhalasztása"), timeout=300)
+        self.bot = bot
+        self.event_id = event_id
+        self.parent_view = parent_view
+        
+        self.start_input = discord.ui.TextInput(
+            label=t("MODAL_POSTPONE_START", guild_id=guild_id, default="Új kezdet (ÉÉÉÉ-HH-NN ÓÓ:PP)"),
+            placeholder="2026-05-15 18:00",
+            required=True
+        )
+        self.add_item(self.start_input)
+        
+        self.end_input = discord.ui.TextInput(
+            label=t("MODAL_POSTPONE_END", guild_id=guild_id, default="Új befejezés (opcionális)"),
+            placeholder="2026-05-15 20:00",
+            required=False
+        )
+        self.add_item(self.end_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        import datetime
+        from dateutil import parser, tz
+        from database import DEFAULT_TIMEZONE
+        import database
+        
+        local_tz = tz.gettz(DEFAULT_TIMEZONE)
+        
+        try:
+            start_dt = parser.parse(self.start_input.value).replace(tzinfo=local_tz)
+            start_ts = int(start_dt.timestamp())
+        except:
+            return await interaction.followup.send(t("ERR_INVALID_START", guild_id=interaction.guild_id, default="Érvénytelen kezdeti dátum!"), ephemeral=True)
+            
+        end_ts = None
+        if self.end_input.value:
+            try:
+                end_dt = parser.parse(self.end_input.value).replace(tzinfo=local_tz)
+                end_ts = int(end_dt.timestamp())
+            except:
+                return await interaction.followup.send(t("ERR_INVALID_END", guild_id=interaction.guild_id, default="Érvénytelen befejezési dátum!"), ephemeral=True)
+        
+        db_event = dict(await database.get_active_event(self.event_id))
+        db_event["start_time"] = start_ts
+        if end_ts:
+            db_event["end_time"] = end_ts
+        db_event["status"] = "postponed"
+        await database.update_active_event(self.event_id, db_event)
+        
+        if not self.parent_view.event_conf: self.parent_view.event_conf = {}
+        self.parent_view.event_conf["status"] = "postponed"
+        self.parent_view.event_conf["start_time"] = start_ts
+        if end_ts:
+            self.parent_view.event_conf["end_time"] = end_ts
+            
+        await self.parent_view.prepare()
+        for child in self.parent_view.children:
+            if isinstance(child, discord.ui.Container):
+                for row in child.children:
+                    if isinstance(row, discord.ui.ActionRow):
+                        for item in row.children:
+                            if isinstance(item, discord.ui.Button): item.disabled = True
+                            
+        await interaction.message.edit(view=self.parent_view)
+        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="postponed"), ephemeral=True)
 
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):
