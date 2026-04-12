@@ -215,11 +215,12 @@ class SchedulerTask(commands.Cog):
             embed = await view.generate_embed()
 
             guild_id = db_event.get("guild_id")
-            content = t("MSG_REC_ALERT", guild_id=guild_id)
             ping_role = event_conf.get("ping_role", "")
-            if ping_role:
-                content += f" <@&{ping_role}>"
+            ping_prefix = ""
+            if ping_role and str(ping_role).isdigit() and int(ping_role) > 0:
+                ping_prefix = f"📢 <@&{ping_role}> "
 
+            content = f"{ping_prefix}{t('MSG_REC_ALERT', guild_id=guild_id)}".strip()
             new_msg = await channel.send(content=content, embed=embed, view=view)
             await database.set_event_message(new_event_id, new_msg.id)
             self.bot.add_view(view)

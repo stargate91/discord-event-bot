@@ -589,13 +589,16 @@ class StatusChoiceView(discord.ui.View):
         else:
             status_text = self.new_status.upper()
             msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=title)
+        notification_msg = f"📢 {msg_body}"
         if self.notify_type in ["dm", "both"]:
             for uid in participants:
                 try:
                     user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
-                    if user: await user.send(msg_body)
+                    if user: await user.send(notification_msg)
                 except: pass
-        if self.notify_type in ["chat", "both"]: await interaction.channel.send(f"{msg_body}\n{' '.join([f'<@{uid}>' for uid in participants])}")
+        if self.notify_type in ["chat", "both"]:
+            pings = ' '.join([f'<@{uid}>' for uid in participants])
+            await interaction.channel.send(f"{notification_msg}\n{pings}")
 
 async def setup(bot):
     await load_custom_sets()

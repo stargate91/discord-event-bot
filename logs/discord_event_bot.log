@@ -6,3 +6,4 @@
 2026-04-09 08:19:46,231 - EventBot - INFO - Logged in as Nexus#0718 (ID: 1490237426424348752)
 2026-04-09 08:19:46,231 - EventBot - INFO - Nexus Event Bot is ready and monitoring events.
 2026-04-09 08:19:46,232 - EventBot - INFO - ------
+2026-04-11 19:42:31 - ERROR    - [Global] DATABASE_URL is not set in .env! Cannot start bot.
