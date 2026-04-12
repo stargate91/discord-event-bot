@@ -212,7 +212,7 @@ class SchedulerTask(commands.Cog):
         channel = self.bot.get_channel(channel_id)
         if channel:
             view = DynamicEventView(self.bot, new_event_id, event_conf)
-            embed = await view.generate_embed()
+            await view.prepare()
 
             guild_id = db_event.get("guild_id")
             ping_role = event_conf.get("ping_role", "")
@@ -221,7 +221,9 @@ class SchedulerTask(commands.Cog):
                 ping_prefix = f"📢 <@&{ping_role}> "
 
             content = f"{ping_prefix}{t('MSG_REC_ALERT', guild_id=guild_id)}".strip()
-            new_msg = await channel.send(content=content, embed=embed, view=view)
+            if content:
+                await channel.send(content=content)
+            new_msg = await channel.send(view=view)
             await database.set_event_message(new_event_id, new_msg.id)
             self.bot.add_view(view)
 
