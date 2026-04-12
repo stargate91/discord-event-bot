@@ -895,13 +895,9 @@ class EventWizardView(ui.LayoutView):
             self.data["event_id"] = event_id
             
             if self.is_edit:
+                # Do not save to DB yet, wait for publish
                 if "creator_id" not in self.data:
                     self.data["creator_id"] = str(self.creator_id)
-
-                if self.bulk_ids:
-                    await database.update_active_events_metadata_bulk(self.bulk_ids, self.data)
-                else:
-                    await database.update_active_event(event_id, self.data)
             else:
                 self.data["creator_id"] = str(self.data.get("creator_id") or self.creator_id)
                 self.data["guild_id"] = self.guild_id
@@ -909,22 +905,8 @@ class EventWizardView(ui.LayoutView):
                 target_channel_id = interaction.channel_id
                 if self.data.get("channel_id") and str(self.data["channel_id"]).isdigit():
                     target_channel_id = int(self.data["channel_id"])
-
-                # Check if we should update instead of creating (prevents duplicate key crash)
-                existing = await database.get_active_event(event_id, self.guild_id)
-                if existing:
-                    await database.update_active_event(event_id, self.data)
-                    log.info(f"[Wizard] Updated existing draft event {event_id}")
-                else:
-                    await database.create_active_event(
-                        guild_id=self.guild_id,
-                        event_id=event_id,
-                        config_name=str(self.data.get("config_name") or "manual"),
-                        channel_id=target_channel_id,
-                        start_time=self.data["start_time"],
-                        data=self.data
-                    )
-                    log.info(f"[Wizard] Created new draft event {event_id}")
+                    
+                self.data["target_channel_id"] = target_channel_id
 
             self.can_publish = True
             
@@ -972,62 +954,33 @@ class EventWizardView(ui.LayoutView):
             await self.refresh_message(interaction)
         except Exception as e:
             log.error(f"Error in handle_save_preview: {e}")
-            await interaction.followup.send(f"❌ Error during save: {e}", ephemeral=True)
-
     async def publish_btn(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
         from cogs.event_ui import DynamicEventView
         event_id = self.data["event_id"]
 
-        # Temp Role Logic
-        if self.data.get("use_temp_role") and not self.data.get("temp_role_id"):
-            guild = self.bot.get_guild(int(self.guild_id))
-            if guild:
-                title = (self.data.get("title") or "Event")[:30]
-                date_str = ""
-                try:
-                    ts = float(self.data.get("start_time") or 0)
-                    if ts:
-                        dt = datetime.datetime.fromtimestamp(ts)
-                        date_str = dt.strftime("%m%d")
-                except: pass
-                
-                role_name = f"{title} - {date_str}" if date_str else title
-                try:
-                    new_role = await guild.create_role(name=role_name, mentionable=True, reason=f"Nexus Event: {event_id}")
-                    self.data["temp_role_id"] = new_role.id
-                    # Update database with new role id
-                    if self.is_edit and self.bulk_ids:
-                        await database.update_active_events_metadata_bulk(self.bulk_ids, {"temp_role_id": new_role.id})
-                    else:
-                        await database.update_active_event(event_id, self.data)
-                    log.info(f"[Wizard] Created temp role {new_role.name} ({new_role.id}) for event {event_id}")
-                except Exception as e:
-                    log.error(f"[Wizard] Failed to create temp role: {e}")
-        
-        if self.is_edit:
-            target_ids = self.bulk_ids if self.bulk_ids else [event_id]
-            
-            for eid in target_ids:
-                curr_db_event = await database.get_active_event(eid, self.guild_id)
-                if curr_db_event and curr_db_event.get("message_id") and curr_db_event.get("channel_id"):
-                    channel = self.bot.get_channel(curr_db_event["channel_id"])
-                    if channel:
-                        try:
-                            msg = await channel.fetch_message(curr_db_event["message_id"])
-                            view = DynamicEventView(self.bot, eid, self.data)
-                            embed = await view.generate_embed(curr_db_event)
-                            await msg.edit(embed=embed, view=view)
-                        except Exception as e:
-                            log.error(f"Error updating message {eid}: {e}")
-            
-            msg_text = t("MSG_BULK_UPDATE_DONE", guild_id=self.guild_id) if self.bulk_ids else t("MSG_UPDATED", guild_id=self.guild_id)
-            await interaction.followup.send(msg_text, ephemeral=True)
-        else:
-            view = DynamicEventView(self.bot, event_id, self.data)
-            await view.prepare()
-            embed = await view.generate_embed()
+        try:
+            # Temp Role Logic
+            if self.data.get("use_temp_role") and not self.data.get("temp_role_id"):
+                guild = self.bot.get_guild(int(self.guild_id))
+                if guild:
+                    title = (self.data.get("title") or "Event")[:30]
+                    date_str = ""
+                    try:
+                        ts = float(self.data.get("start_time") or 0)
+                        if ts:
+                            dt = datetime.datetime.fromtimestamp(ts)
+                            date_str = dt.strftime("%m%d")
+                    except: pass
+                    
+                    role_name = f"{title} - {date_str}" if date_str else title
+                    try:
+                        new_role = await guild.create_role(name=role_name, mentionable=True, reason=f"Nexus Event: {event_id}")
+                        self.data["temp_role_id"] = new_role.id
+                        log.info(f"[Wizard] Created temp role {new_role.name} ({new_role.id}) for event {event_id}")
+                    except Exception as e:
+                        log.error(f"[Wizard] Failed to create temp role: {e}")
             
             target_chan = interaction.channel
             if self.data.get("channel_id") and str(self.data["channel_id"]).isdigit():
@@ -1039,19 +992,67 @@ class EventWizardView(ui.LayoutView):
                         target_chan = await self.bot.fetch_channel(int(self.data["channel_id"]))
                     except:
                         pass
-            
-            ping_role_id = self.data.get("ping_role")
-            ping_prefix = ""
-            if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
-                ping_prefix = f"📢 <@&{ping_role_id}> "
-            
-            promo_msg = t("MSG_DEFAULT_PROMO", guild_id=self.guild_id)
-            promo_content = f"{ping_prefix}{promo_msg}".strip()
-            msg = await target_chan.send(content=promo_content, embed=embed, view=view)
-            await database.set_event_message(event_id, msg.id)
-            self.bot.add_view(view)
-            await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
+                        
+            # Save to Database RIGHT NOW
+            if self.is_edit:
+                if self.bulk_ids:
+                    await database.update_active_events_metadata_bulk(self.bulk_ids, self.data)
+                else:
+                    await database.update_active_event(event_id, self.data)
+            else:
+                existing = await database.get_active_event(event_id, self.guild_id)
+                target_cid = target_chan.id if target_chan else interaction.channel_id
+                if not existing:
+                    await database.create_active_event(
+                        guild_id=self.guild_id,
+                        event_id=event_id,
+                        config_name=str(self.data.get("config_name") or "manual"),
+                        channel_id=target_cid,
+                        start_time=self.data["start_time"],
+                        data=self.data
+                    )
+                else:
+                    await database.update_active_event(event_id, self.data)
 
-        await interaction.edit_original_response(content=None, view=None)
-        self.stop()
+            if self.is_edit:
+                target_ids = self.bulk_ids if self.bulk_ids else [event_id]
+                
+                for eid in target_ids:
+                    curr_db_event = await database.get_active_event(eid, self.guild_id)
+                    if curr_db_event and curr_db_event.get("message_id") and curr_db_event.get("channel_id"):
+                        channel = self.bot.get_channel(curr_db_event["channel_id"])
+                        if channel:
+                            try:
+                                msg = await channel.fetch_message(curr_db_event["message_id"])
+                                view = DynamicEventView(self.bot, eid, self.data)
+                                embed = await view.generate_embed(curr_db_event)
+                                await msg.edit(embed=embed, view=view)
+                            except Exception as e:
+                                log.error(f"Error updating message {eid}: {e}")
+                
+                msg_text = t("MSG_BULK_UPDATE_DONE", guild_id=self.guild_id) if self.bulk_ids else t("MSG_UPDATED", guild_id=self.guild_id)
+                await interaction.followup.send(msg_text, ephemeral=True)
+            else:
+                view = DynamicEventView(self.bot, event_id, self.data)
+                await view.prepare()
+                embed = await view.generate_embed()
+                
+                ping_role_id = self.data.get("ping_role")
+                ping_prefix = ""
+                if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
+                    ping_prefix = f"📢 <@&{ping_role_id}> "
+                
+                promo_msg = t("MSG_DEFAULT_PROMO", guild_id=self.guild_id)
+                promo_content = f"{ping_prefix}{promo_msg}".strip()
+                
+                msg = await target_chan.send(content=promo_content, embed=embed, view=view)
+                await database.set_event_message(event_id, msg.id)
+                self.bot.add_view(view)
+                await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
+
+            await interaction.edit_original_response(content=None, view=None)
+            self.stop()
+        except Exception as e:
+            log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
+            await interaction.followup.send(f"❌ Failed to publish: {e}", ephemeral=True)
         await database.delete_draft(self.data.get("draft_id"), self.guild_id)
