@@ -127,8 +127,7 @@ class SingleEventModal(ui.Modal):
         try:
             title = str(self.title_input.value)
             self.wizard_view.data["title"] = title
-            if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
-                self.wizard_view.data["config_name"] = slugify(title) or "event"
+            self.wizard_view.data["config_name"] = "manual"
             self.wizard_view.data["description"] = str(self.desc_input.value)
             self.wizard_view.data["image_urls"] = str(self.images_input.value)
             self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
@@ -199,7 +198,8 @@ class Step1Modal(ui.Modal):
         title = str(self.title_input.value)
         self.wizard_view.data["title"] = title
         if not self.wizard_view.data.get("config_name") or self.wizard_view.data.get("config_name") == "manual":
-            self.wizard_view.data["config_name"] = slugify(title) or "event"
+            base_slug = slugify(title) or "ev"
+            self.wizard_view.data["config_name"] = f"{base_slug}-{uuid.uuid4().hex[:6]}"
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
