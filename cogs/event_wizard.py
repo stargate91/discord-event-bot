@@ -439,7 +439,7 @@ class EventWizardView(ui.LayoutView):
             "step3": bool(self.data.get("timezone")) if self.wizard_type == "series" else True,
         }
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def refresh_message(self, interaction: discord.Interaction, send_followup: bool = False):
         view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, show_advanced=self.show_advanced, show_reminder=self.show_reminder)
         view.can_publish = self.can_publish
         view.clear_items()
@@ -754,7 +754,8 @@ class EventWizardView(ui.LayoutView):
 
         view.add_item(ui.Container(*container_items, accent_color=0x00bfff))
         
-        if interaction.response.is_done(): await interaction.edit_original_response(content=None, embeds=[], view=view)
+        if send_followup: await interaction.followup.send(content=None, embeds=[], view=view, ephemeral=True)
+        elif interaction.response.is_done(): await interaction.edit_original_response(content=None, embeds=[], view=view)
         else: await interaction.response.edit_message(content=None, embeds=[], view=view)
 
     async def refresh_ui_data(self):
