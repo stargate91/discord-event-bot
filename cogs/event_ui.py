@@ -360,13 +360,13 @@ class DynamicEventView(discord.ui.LayoutView):
         if self.active_set.get("show_mgmt", True) and added_count < 40:
             mgmt_items = []
 
-            edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{self.event_id}")
-            edit_btn.callback = self.edit_callback
-            mgmt_items.append(edit_btn)
+            postpone_btn = discord.ui.Button(label=t("TAG_POSTPONED", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
+            postpone_btn.callback = self.postpone_callback
+            mgmt_items.append(postpone_btn)
 
-            delete_btn = discord.ui.Button(label=t("BTN_DELETE", guild_id=guild_id), style=discord.ButtonStyle.danger, custom_id=f"delete_{self.event_id}")
-            delete_btn.callback = self.delete_callback
-            mgmt_items.append(delete_btn)
+            cancel_btn = discord.ui.Button(label=t("TAG_CANCELLED", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+            cancel_btn.callback = self.cancel_callback
+            mgmt_items.append(cancel_btn)
 
             if len(current_row_items) + len(mgmt_items) <= 5:
                 current_row_items.extend(mgmt_items)
@@ -497,6 +497,40 @@ class DynamicEventView(discord.ui.LayoutView):
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids, wizard_type=wtype)
         await view.refresh_message(interaction, send_followup=True)
+
+    async def postpone_callback(self, interaction: discord.Interaction):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
+        await interaction.response.defer()
+        await database.update_event_status(self.event_id, "postponed")
+        if not self.event_conf: self.event_conf = {}
+        self.event_conf["status"] = "postponed"
+        await self.prepare()
+        for child in self.children:
+            if isinstance(child, discord.ui.Container):
+                for row in child.children:
+                    if isinstance(row, discord.ui.ActionRow):
+                        for item in row.children:
+                            if isinstance(item, discord.ui.Button): item.disabled = True
+        await interaction.message.edit(view=self)
+        log.info(f"Event {self.event_id} postponed by {interaction.user}")
+
+    async def cancel_callback(self, interaction: discord.Interaction):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
+        await interaction.response.defer()
+        await database.update_event_status(self.event_id, "cancelled")
+        if not self.event_conf: self.event_conf = {}
+        self.event_conf["status"] = "cancelled"
+        await self.prepare()
+        for child in self.children:
+            if isinstance(child, discord.ui.Container):
+                for row in child.children:
+                    if isinstance(row, discord.ui.ActionRow):
+                        for item in row.children:
+                            if isinstance(item, discord.ui.Button): item.disabled = True
+        await interaction.message.edit(view=self)
+        log.info(f"Event {self.event_id} cancelled by {interaction.user}")
 
     async def delete_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
