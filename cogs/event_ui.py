@@ -228,8 +228,21 @@ class DynamicEventView(discord.ui.LayoutView):
                 # Anonymous mode: only show the count
                 role_sections.append(f"**{' '.join(name_parts)} ({count_text})**")
             else:
-                users_str = ", ".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
-                role_sections.append(f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
+                if not users:
+                    users_str = t("EMBED_NONE", guild_id=guild_id)
+                else:
+                    lines, cur_line, cur_len = [], [], 0
+                    for u in users:
+                        if cur_line and cur_len + len(u) > 45:
+                            lines.append(", ".join(cur_line))
+                            cur_line, cur_len = [u], len(u)
+                        else:
+                            cur_line.append(u)
+                            cur_len += len(u) + 2
+                    if cur_line: lines.append(", ".join(cur_line))
+                    users_str = "\n".join(lines)
+                    
+                role_sections.append(f"**{' '.join(name_parts)} ({count_text}):**\n{users_str}" if users else f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
@@ -246,8 +259,19 @@ class DynamicEventView(discord.ui.LayoutView):
         if waiting_list:
             container_items.append(discord.ui.Separator())
             wait_header = t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'
-            wait_str = f"**⏳ {wait_header} ({len(waiting_list)}):** " + ", ".join(waiting_list)
-            container_items.append(discord.ui.TextDisplay(wait_str))
+            
+            lines, cur_line, cur_len = [], [], 0
+            for u in waiting_list:
+                if cur_line and cur_len + len(u) > 45:
+                    lines.append(", ".join(cur_line))
+                    cur_line, cur_len = [u], len(u)
+                else:
+                    cur_line.append(u)
+                    cur_len += len(u) + 2
+            if cur_line: lines.append(", ".join(cur_line))
+            wait_str = "\n".join(lines)
+            
+            container_items.append(discord.ui.TextDisplay(f"**⏳ {wait_header} ({len(waiting_list)}):**\n{wait_str}"))
 
         # --- IMAGE ---
         image_url = None
