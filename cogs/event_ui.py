@@ -98,7 +98,6 @@ class DynamicEventView(discord.ui.LayoutView):
         self.clear_items()
         
         # Load db_event or use self.event_conf entirely
-        from cogs.database import database
         import time, json, random
         db_event = await database.get_active_event(self.event_id)
         if db_event and not self.event_conf:
