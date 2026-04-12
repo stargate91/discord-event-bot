@@ -912,6 +912,8 @@ class EventWizardView(ui.LayoutView):
             
             view = DynamicEventView(self.bot, event_id, self.data)
             await view.prepare()
+            embed = await view.generate_embed()
+            
             global_max = int(self.data.get("max_accepted") or 0)
             role_sum = 0
             
@@ -948,7 +950,7 @@ class EventWizardView(ui.LayoutView):
                 else:
                     warning += f"\nNéhány szerepkör gombja váratlanul kikapcsolhat **{global_max}** főnél."
 
-            await interaction.followup.send(t("MSG_SAVED_PREVIEW", guild_id=self.guild_id) + warning, view=view, ephemeral=True)
+            await interaction.followup.send(t("MSG_SAVED_PREVIEW", guild_id=self.guild_id) + warning, embed=embed, ephemeral=True)
             await self.refresh_message(interaction)
         except Exception as e:
             log.error(f"Error in handle_save_preview: {e}")
@@ -1023,8 +1025,8 @@ class EventWizardView(ui.LayoutView):
                             try:
                                 msg = await channel.fetch_message(curr_db_event["message_id"])
                                 view = DynamicEventView(self.bot, eid, self.data)
-                                await view.prepare()
-                                await msg.edit(content=None, embeds=[], view=view)
+                                embed = await view.generate_embed(curr_db_event)
+                                await msg.edit(content=None, embed=embed, view=view)
                             except Exception as e:
                                 log.error(f"Error updating message {eid}: {e}")
                 
@@ -1033,6 +1035,7 @@ class EventWizardView(ui.LayoutView):
             else:
                 view = DynamicEventView(self.bot, event_id, self.data)
                 await view.prepare()
+                embed = await view.generate_embed()
                 
                 ping_role_id = self.data.get("ping_role")
                 ping_prefix = ""
@@ -1045,7 +1048,7 @@ class EventWizardView(ui.LayoutView):
                 if promo_content:
                     await target_chan.send(content=promo_content)
                 
-                msg = await target_chan.send(view=view)
+                msg = await target_chan.send(embed=embed, view=view)
                 await database.set_event_message(event_id, msg.id)
                 self.bot.add_view(view)
                 await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
