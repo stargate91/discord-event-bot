@@ -95,3 +95,4 @@ CATEGORIES = {
         "MSG_EVENT_CANCELLED",
         "MSG_EVENT_POSTPONED"
     ]
+}
