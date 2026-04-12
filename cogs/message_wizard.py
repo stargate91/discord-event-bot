@@ -4,20 +4,41 @@ import database
 from utils.i18n import t, load_guild_translations, CATEGORIES
 from utils.auth import is_admin
 
-class MessageWizardView(ui.View):
+class MessageWizardView(ui.LayoutView):
     """Admin UI to manage message overrides."""
-    def __init__(self, bot, guild_id):
+    def __init__(self, bot, guild_id, selected_key=None):
         super().__init__(timeout=600)
         self.bot = bot
         self.guild_id = guild_id
+        # Default to first category available
         self.selected_category = "Notifications"
-        self.selected_key = None
+        self.selected_key = selected_key
+
     async def prepare(self):
         """Prepare the initial set of options for the wizard."""
+        pass # Not needed for LayoutView caching anymore, we do it in refresh
+
+    async def refresh_message(self, interaction: discord.Interaction):
         await load_guild_translations(self.guild_id)
         
-        # Populate key_select options based on default category (Embed)
-        keys = CATEGORIES.get(self.selected_category, [])
+        new_view = MessageWizardView(self.bot, self.guild_id, selected_key=self.selected_key)
+        new_view.clear_items()
+        
+        desc = t("MSG_WIZ_DESC", guild_id=self.guild_id)
+        
+        if new_view.selected_key:
+            current_val = t(new_view.selected_key, guild_id=self.guild_id)
+            preview = current_val.replace("{user_id}", f"<@{interaction.user.id}>")\
+                                 .replace("{title}", "Példa Esemény")\
+                                 .replace("{role}", "Tank")\
+                                 .replace("{emoji}", "🛡️")\
+                                 .replace("{status}", "AKTÍV")
+            
+            desc += f"\n\n**🔍 Preview ({new_view.selected_key}):**\n> {preview}"
+            desc += "\n\n**💡 Használható változók:**\n`{title}`, `{user_id}`, `{role}`, `{emoji}`, `{status}`"
+
+        # Key Select Dropdown (in a container)
+        keys = CATEGORIES.get(new_view.selected_category, [])
         options = []
         for k in keys:
             current_val = t(k, guild_id=self.guild_id)
@@ -26,94 +47,67 @@ class MessageWizardView(ui.View):
             options.append(discord.SelectOption(
                 label=label[:100], 
                 value=k, 
-                description=current_val[:100]
-            ))
-
-        if not options:
-            options.append(discord.SelectOption(label=t("ERR_NO_KEYS_AVAILABLE", guild_id=self.guild_id), value="none", disabled=True))
-            
-        self.key_select.options = options
-
-    async def refresh_message(self, interaction: discord.Interaction):
-        # Ensure cache is fresh for this view
-        await load_guild_translations(self.guild_id)
-        
-        desc = t("MSG_WIZ_DESC", guild_id=self.guild_id)
-        
-        if self.selected_key:
-            current_val = t(self.selected_key, guild_id=self.guild_id)
-            # Simulated preview
-            preview = current_val.replace("{user_id}", f"<@{interaction.user.id}>")\
-                                 .replace("{title}", "Raid: Onyxia's Lair")\
-                                 .replace("{role}", "Tank")\
-                                 .replace("{emoji}", "🛡️")\
-                                 .replace("{status}", "ACTIVE")
-            
-            desc += f"\n\n**🔍 Preview ({self.selected_key}):**\n> {preview}"
-            
-            # Placeholder Help
-            desc += "\n\n**💡 Használható változók:**\n`{title}`, `{user_id}`, `{role}`, `{emoji}`, `{status}`"
-
-        embed = discord.Embed(
-            title=t("MSG_WIZ_TITLE", guild_id=self.guild_id),
-            description=desc,
-            color=discord.Color.blue()
-        )
-        
-        # 1. Category Select
-        # 2. Key Select based on Category
-        
-        keys = CATEGORIES.get(self.selected_category, [])
-        options = []
-        for k in keys:
-            current_val = t(k, guild_id=self.guild_id)
-            is_overridden = (current_val != t(k)) # Simplified check
-            label = f"{'🔹 ' if is_overridden else ''}{k}"
-            options.append(discord.SelectOption(
-                label=label[:100], 
-                value=k, 
                 description=current_val[:100],
-                default=(k == self.selected_key)
+                default=(k == new_view.selected_key)
             ))
 
         if not options:
             options.append(discord.SelectOption(label=t("ERR_NO_KEYS_AVAILABLE", guild_id=self.guild_id), value="none", disabled=True))
             
-        self.key_select.options = options
+        key_select = ui.Select(placeholder=t("SEL_KEY", guild_id=self.guild_id), options=options)
+        async def key_callback(it: discord.Interaction):
+            if key_select.values[0] == "none": return await it.response.defer()
+            new_view.selected_key = key_select.values[0]
+            await new_view.refresh_message(it)
+        key_select.callback = key_callback
+
+        row_select = ui.ActionRow(key_select)
+
+        # Buttons
+        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        async def edit_cb(it: discord.Interaction):
+            if not await is_admin(it):
+                return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=new_view.guild_id), ephemeral=True)
+            if not new_view.selected_key:
+                return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=new_view.guild_id), ephemeral=True)
+            
+            current_val = t(new_view.selected_key, guild_id=new_view.guild_id)
+            await it.response.send_modal(MessageEditModal(new_view, new_view.selected_key, current_val, new_view.guild_id))
+        edit_btn.callback = edit_cb
+
+        reset_btn = ui.Button(label="Reset Default", style=discord.ButtonStyle.secondary) # Note: can be localized too
+        async def reset_cb(it: discord.Interaction):
+            if not await is_admin(it):
+                return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=new_view.guild_id), ephemeral=True)
+            if not new_view.selected_key:
+                return await it.response.send_message(t("ERR_SELECT_KEY_RESET", guild_id=new_view.guild_id), ephemeral=True)
+            
+            await database.delete_translation(new_view.guild_id, new_view.selected_key)
+            await load_guild_translations(new_view.guild_id)
+            await new_view.refresh_message(it)
+        reset_btn.callback = reset_cb
+
+        row_btns = ui.ActionRow(edit_btn, reset_btn)
+
+        container_items = [
+            ui.TextDisplay(f"### {t('MSG_WIZ_TITLE', guild_id=new_view.guild_id)}"),
+            ui.Separator(),
+            ui.TextDisplay(desc),
+            ui.Separator(),
+            row_select,
+            row_btns
+        ]
+        
+        container = ui.Container(*container_items, accent_color=0x4169E1)
+        new_view.add_item(container)
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.edit_original_response(embeds=[], view=new_view)
+        elif interaction.type in (discord.InteractionType.component, discord.InteractionType.modal_submit):
+            await interaction.response.edit_message(embeds=[], view=new_view)
         else:
-            await interaction.response.edit_message(embed=embed, view=self)
+            await interaction.response.send_message(view=new_view, ephemeral=True)
 
-
-    @ui.select(row=0, options=[discord.SelectOption(label="Loading...", value="none")])
-    async def key_select(self, interaction: discord.Interaction, select: ui.Select):
-        if select.values[0] == "none": return
-        self.selected_key = select.values[0]
-        await self.refresh_message(interaction)
-
-    @ui.button(label="BTN_EDIT", style=discord.ButtonStyle.primary, row=1)
-    async def edit_btn(self, interaction: discord.Interaction, button: ui.Button):
-        if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
-        if not self.selected_key:
-            return await interaction.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=self.guild_id), ephemeral=True)
-        
-        current_val = t(self.selected_key, guild_id=self.guild_id)
-        await interaction.response.send_modal(MessageEditModal(self, self.selected_key, current_val, self.guild_id))
-
-    @ui.button(label="Reset Default", style=discord.ButtonStyle.secondary, row=1)
-    async def reset_btn(self, interaction: discord.Interaction, button: ui.Button):
-        if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)
-        if not self.selected_key:
-            return await interaction.response.send_message(t("ERR_SELECT_KEY_RESET", guild_id=self.guild_id), ephemeral=True)
-        
-        await database.delete_translation(self.guild_id, self.selected_key)
-        await load_guild_translations(self.guild_id)
-        await interaction.response.send_message(t("MSG_RESET_SUCCESS_KEY", guild_id=self.guild_id, key=self.selected_key), ephemeral=True)
-        await self.refresh_message(interaction)
 
 class MessageEditModal(ui.Modal):
     def __init__(self, wizard_view, key, current_val, guild_id):
@@ -133,7 +127,6 @@ class MessageEditModal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         await database.save_translation(self.guild_id, self.key, self.text_input.value)
-        # Refresh cache
         await load_guild_translations(self.wizard_view.guild_id)
         await interaction.followup.send(t("MSG_KEY_SAVED", guild_id=self.wizard_view.guild_id, key=self.key), ephemeral=True)
         await self.wizard_view.refresh_message(interaction)
