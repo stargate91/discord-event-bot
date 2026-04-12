@@ -240,24 +240,8 @@ class DynamicEventView(discord.ui.LayoutView):
             except Exception:
                 container_items.append(discord.ui.Thumbnail(media=image_url))
 
-        # --- FOOTER ---
-        container_items.append(discord.ui.Separator())
-        creator_text = "System"
-        cid = event_conf.get("creator_id")
-        if cid and str(cid).isdigit():
-            user = self.bot.get_user(int(cid))
-            if not user:
-                try:
-                    user = await self.bot.fetch_user(int(cid))
-                except: pass
-            if user:
-                creator_text = f"@{user.display_name}"
-        elif cid:
-            creator_text = str(cid)
-        footer_text = t("EMBED_FOOTER", guild_id=guild_id, event_id=self.event_id, creator_id=creator_text)
-        container_items.append(discord.ui.TextDisplay(f"*{footer_text}*"))
-
         # === BUTTONS ===
+        container_items.append(discord.ui.Separator())
         per_row = self.active_set.get("buttons_per_row", 5)
         options = self.active_set.get("options", [])
         rows = []
@@ -335,6 +319,23 @@ class DynamicEventView(discord.ui.LayoutView):
 
         for r in rows:
             container_items.append(r)
+
+        # --- FOOTER ---
+        container_items.append(discord.ui.Separator())
+        creator_text = "System"
+        cid = event_conf.get("creator_id")
+        if cid and str(cid).isdigit():
+            user = self.bot.get_user(int(cid))
+            if not user:
+                try:
+                    user = await self.bot.fetch_user(int(cid))
+                except: pass
+            if user:
+                creator_text = f"@{user.display_name}"
+        elif cid:
+            creator_text = str(cid)
+        footer_text = t("EMBED_FOOTER", guild_id=guild_id, event_id=self.event_id, creator_id=creator_text)
+        container_items.append(discord.ui.TextDisplay(f"*{footer_text}*"))
 
         # Build container
         accent_color = int(str(event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
