@@ -254,36 +254,6 @@ class EventCommands(commands.Cog):
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
         return await self.edit_event_autocomplete(interaction, current)
 
-    @event_group.command(name="continue-draft", description="Finish an event you started earlier")
-    async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
-        data = await database.get_draft(draft_id, interaction.guild_id)
-        if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
-        from cogs.event_wizard import EventWizardView
-        view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
-        await view.refresh_message(interaction)
-
-    @continue_draft.autocomplete("draft_id")
-    async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        drafts = await database.get_user_drafts(interaction.guild_id, interaction.user.id)
-        choices = []
-        for d in drafts:
-            label = f"{d['title']} ({d['draft_id']})"
-            if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=d['draft_id']))
-        return choices[:25]
-
-    @event_group.command(name="delete-draft", description="Delete one of your drafts")
-    async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
-        await database.delete_draft(draft_id, interaction.guild_id)
-        await interaction.response.send_message(t("MSG_DRAFT_DELETED"), ephemeral=True)
-
-    @delete_draft_cmd.autocomplete("draft_id")
-    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
-        return await self.continue_draft_autocomplete(interaction, current)
-
-    @event_group.command(name="delete-all-drafts", description="Delete all your drafts at once")
-    async def delete_all_drafts(self, interaction: discord.Interaction):
-        await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
-        await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
 
 
     # --- PREFIXED COMMANDS (Sync/Clear) ---
@@ -417,6 +387,43 @@ class AdminCommands(commands.GroupCog, name="admin"):
         view.add_item(confirm_btn); view.add_item(cancel_btn)
         await interaction.response.send_message(t("MSG_RESET_WARNING", guild_id=guild_id), view=view, ephemeral=True)
 
+class DraftCommands(commands.GroupCog, name="draft"):
+    """Cog for users to manage their event drafts."""
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="continue", description="Finish an event you started earlier")
+    async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
+        data = await database.get_draft(draft_id, interaction.guild_id)
+        if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
+        from cogs.event_wizard import EventWizardView
+        view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
+        await view.refresh_message(interaction)
+
+    @continue_draft.autocomplete("draft_id")
+    async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        drafts = await database.get_user_drafts(interaction.guild_id, interaction.user.id)
+        choices = []
+        for d in drafts:
+            label = f"{d['title']} ({d['draft_id']})"
+            if current.lower() in label.lower(): choices.append(app_commands.Choice(name=label, value=d['draft_id']))
+        return choices[:25]
+
+    @app_commands.command(name="delete", description="Delete one of your drafts")
+    async def delete_draft_cmd(self, interaction: discord.Interaction, draft_id: str):
+        await database.delete_draft(draft_id, interaction.guild_id)
+        await interaction.response.send_message(t("MSG_DRAFT_DELETED"), ephemeral=True)
+
+    @delete_draft_cmd.autocomplete("draft_id")
+    async def delete_draft_autocomplete(self, interaction: discord.Interaction, current: str):
+        return await self.continue_draft_autocomplete(interaction, current)
+
+    @app_commands.command(name="delete-all", description="Delete all your drafts at once")
+    async def delete_all_drafts(self, interaction: discord.Interaction):
+        await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
+        await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))
     await bot.add_cog(AdminCommands(bot))
+    await bot.add_cog(DraftCommands(bot))
