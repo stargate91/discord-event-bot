@@ -179,7 +179,9 @@ class EventBot(commands.Bot):
             for event in active_events:
                 try:
                     conf = get_event_conf(event['config_name'])
-                    self.add_view(DynamicEventView(self, event['event_id'], conf))
+                    view = DynamicEventView(self, event['event_id'], conf)
+                    await view.prepare()
+                    self.add_view(view)
                 except Exception as e:
                     log.error(f"Failed to load persistent view for event {event.get('event_id')}: {e}", guild_id=event.get('guild_id'))
                 

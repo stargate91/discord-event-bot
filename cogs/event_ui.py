@@ -78,14 +78,14 @@ def get_active_set(key):
     
     return {"options": []}
 
-class DynamicEventView(discord.ui.View):
+class DynamicEventView(discord.ui.LayoutView):
     # This class creates the buttons people see under the event message
     def __init__(self, bot, event_id: str, event_conf: dict = None):
         super().__init__(timeout=None)
         self.bot = bot
         self.event_id = event_id
         self.event_conf = event_conf
-
+        
         # We check which icon set this event should use
         icon_set_key = "standard"
         if event_conf:
@@ -93,7 +93,12 @@ class DynamicEventView(discord.ui.View):
         
         self.active_set = get_active_set(icon_set_key).copy()
         
+    async def prepare(self):
+        """Builds the view using Components V2 Layouts."""
+        self.clear_items()
+        
         # Override limits if extra_data exists (per-event limits from Wizard)
+        event_conf = self.event_conf
         extra_data = event_conf.get("extra_data") if event_conf else None
         role_limits = {}
         if extra_data:
@@ -105,19 +110,27 @@ class DynamicEventView(discord.ui.View):
             except: pass
 
         per_row = self.active_set.get("buttons_per_row", 5)
-
-        # We loop through the options and make a button for each one
+        options = self.active_set.get("options", [])
+        
+        # We group the buttons into ActionRows
+        rows = []
+        current_row_items = []
         added_count = 0
-        for i, opt in enumerate(self.active_set.get("options", [])):
+        
+        guild_id = self.event_conf.get("guild_id") if self.event_conf else None
+
+        for opt in options:
+            if added_count >= 40: # V2 limit safety
+                break
+                
             role_id = opt.get("id")
-            if not role_id:
-                continue
+            if not role_id: continue
+            
             # Apply override if available
             if role_id in role_limits:
                 opt["max_slots"] = role_limits[role_id]
 
             label = opt.get("label") if "label" in opt else ""
-            guild_id = self.event_conf.get("guild_id") if self.event_conf else None
             
             # Try to localize standard button labels
             if role_id in ["accepted", "declined", "tentative"]:
@@ -126,18 +139,11 @@ class DynamicEventView(discord.ui.View):
                 if localized_label != label_key:
                     label = localized_label
 
-            row_idx = added_count // per_row
-            
-            if row_idx > 4:
-                log.warning(f"Row limit reached for event {event_id}. Skipping option {role_id}.")
-                break
-
-            # Button Style logic
+            # Button Style & Color
             btn_style = opt.get("button_style", "both")
             btn_emoji = opt.get("emoji") if btn_style in ["both", "emoji"] else None
             btn_label = label if btn_style in ["both", "label"] else None
 
-            # Color logic
             color_map = {
                 "success": discord.ButtonStyle.green,
                 "danger": discord.ButtonStyle.red,
@@ -150,8 +156,7 @@ class DynamicEventView(discord.ui.View):
                 style=btn_color, 
                 emoji=btn_emoji or None,
                 label=btn_label or None,
-                custom_id=f"{role_id}_{event_id}",
-                row=row_idx
+                custom_id=f"{role_id}_{self.event_id}"
             )
             
             def create_callback(status_id):
@@ -160,46 +165,70 @@ class DynamicEventView(discord.ui.View):
                 return callback
             
             btn.callback = create_callback(role_id)
-            self.add_item(btn)
+            current_row_items.append(btn)
             added_count += 1
-
-        # Calculate the next available row for utility buttons
-        next_row = (added_count - 1) // per_row + 1 if added_count > 0 else 0
-        if next_row > 4: next_row = 4
-
-        # Management and Utility buttons
-        if self.active_set.get("show_mgmt", True):
-            # Calendar icon
-            calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{event_id}", row=next_row)
-            calendar_btn.callback = self.calendar_callback
-            self.add_item(calendar_btn)
-
-            guild_id = self.event_conf.get("guild_id") if self.event_conf else None
             
-            edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{event_id}", row=next_row)
-            edit_btn.callback = self.edit_callback
-            self.add_item(edit_btn)
+            if len(current_row_items) >= per_row:
+                rows.append(discord.ui.ActionRow(*current_row_items))
+                current_row_items = []
 
-            delete_btn = discord.ui.Button(label=t("BTN_DELETE"), style=discord.ButtonStyle.danger, custom_id=f"delete_{event_id}", row=next_row)
+        if current_row_items:
+            rows.append(discord.ui.ActionRow(*current_row_items))
+
+        # Management buttons in a separate row
+        if self.active_set.get("show_mgmt", True) and added_count < 40:
+            mgmt_items = []
+            
+            # Calendar icon
+            calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{self.event_id}")
+            calendar_btn.callback = self.calendar_callback
+            mgmt_items.append(calendar_btn)
+
+            edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{self.event_id}")
+            edit_btn.callback = self.edit_callback
+            mgmt_items.append(edit_btn)
+
+            delete_btn = discord.ui.Button(label=t("BTN_DELETE", guild_id=guild_id), style=discord.ButtonStyle.danger, custom_id=f"delete_{self.event_id}")
             delete_btn.callback = self.delete_callback
-            self.add_item(delete_btn)
+            mgmt_items.append(delete_btn)
+            
+            rows.append(discord.ui.ActionRow(*mgmt_items))
+
+        # Build the final layout using a Container for that 'pro' look
+        # Optional: Add a Separator or TextDisplay if you want more V2 flavor
+        accent_color = int(str(self.event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
+        container = discord.ui.Container(*rows, accent_color=accent_color)
+        self.add_item(container)
 
     def update_button_states(self, rsvps_list, event_conf):
         """Disables buttons if limits are reached OR if status is inactive."""
         status = event_conf.get("status", "active")
         
+        # Helper to find all buttons in V2 layout (within Container -> ActionRows)
+        all_buttons = []
+        for child in self.children:
+            if isinstance(child, discord.ui.Container):
+                for row in child.children:
+                    if isinstance(row, discord.ui.ActionRow):
+                        for item in row.children:
+                            if isinstance(item, discord.ui.Button):
+                                all_buttons.append(item)
+                    elif isinstance(row, discord.ui.Button):
+                        all_buttons.append(row)
+            elif isinstance(child, discord.ui.Button):
+                all_buttons.append(child)
+
         if status in ["cancelled", "postponed"]:
-            for child in self.children:
-                if isinstance(child, discord.ui.Button) and not child.custom_id.startswith(("edit_", "delete_", "calendar_")):
-                    child.disabled = True
+            for btn in all_buttons:
+                if not btn.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                    btn.disabled = True
             return
 
         use_waiting = event_conf.get("use_waiting_list", True)
         if use_waiting:
-            for child in self.children:
-                if isinstance(child, discord.ui.Button):
-                    if "_" in child.custom_id and not child.custom_id.startswith(("edit_", "delete_", "calendar_")):
-                        child.disabled = False
+            for btn in all_buttons:
+                if btn.custom_id and "_" in btn.custom_id and not btn.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                    btn.disabled = False
             return
 
         max_acc = event_conf.get("max_accepted", 0)
@@ -221,18 +250,18 @@ class DynamicEventView(discord.ui.View):
         for _, s in rsvps_list:
             status_counts[s] = status_counts.get(s, 0) + 1
 
-        for child in self.children:
-            if not isinstance(child, discord.ui.Button) or not child.custom_id: continue
-            if child.custom_id.startswith(("edit_", "delete_", "calendar_")): continue
+        for btn in all_buttons:
+            if not btn.custom_id: continue
+            if btn.custom_id.startswith(("edit_", "delete_", "calendar_")): continue
 
-            parts = child.custom_id.split("_")
+            parts = btn.custom_id.split("_")
             if len(parts) < 2: continue
             role_id = "_".join(parts[:-1])
 
-            child.disabled = False
+            btn.disabled = False
 
             if role_id in positive_statuses and max_acc > 0:
-                if total_pos >= max_acc: child.disabled = True
+                if total_pos >= max_acc: btn.disabled = True
 
             role_limit = role_limits.get(role_id)
             if role_limit is None:
@@ -241,7 +270,7 @@ class DynamicEventView(discord.ui.View):
 
             if role_limit and role_limit > 0:
                 curr_role_count = status_counts.get(role_id, 0)
-                if curr_role_count >= role_limit: child.disabled = True
+                if curr_role_count >= role_limit: btn.disabled = True
 
     async def edit_callback(self, interaction: discord.Interaction):
         guild_id = interaction.guild_id

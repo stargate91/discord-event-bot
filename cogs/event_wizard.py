@@ -890,18 +890,26 @@ class EventWizardView(ui.LayoutView):
                 if self.data.get("channel_id") and str(self.data["channel_id"]).isdigit():
                     target_channel_id = int(self.data["channel_id"])
 
-                await database.create_active_event(
-                    guild_id=self.guild_id,
-                    event_id=event_id,
-                    config_name=str(self.data.get("config_name") or "manual"),
-                    channel_id=target_channel_id,
-                    start_time=self.data["start_time"],
-                    data=self.data
-                )
+                # Check if we should update instead of creating (prevents duplicate key crash)
+                existing = await database.get_active_event(event_id, self.guild_id)
+                if existing:
+                    await database.update_active_event(event_id, self.data)
+                    log.info(f"[Wizard] Updated existing draft event {event_id}")
+                else:
+                    await database.create_active_event(
+                        guild_id=self.guild_id,
+                        event_id=event_id,
+                        config_name=str(self.data.get("config_name") or "manual"),
+                        channel_id=target_channel_id,
+                        start_time=self.data["start_time"],
+                        data=self.data
+                    )
+                    log.info(f"[Wizard] Created new draft event {event_id}")
 
             self.can_publish = True
             
             view = DynamicEventView(self.bot, event_id, self.data)
+            await view.prepare()
             embed = await view.generate_embed()
             
             global_max = int(self.data.get("max_accepted") or 0)
@@ -998,6 +1006,7 @@ class EventWizardView(ui.LayoutView):
             await interaction.followup.send(msg_text, ephemeral=True)
         else:
             view = DynamicEventView(self.bot, event_id, self.data)
+            await view.prepare()
             embed = await view.generate_embed()
             
             target_chan = interaction.channel
