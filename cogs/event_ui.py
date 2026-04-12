@@ -357,10 +357,6 @@ class DynamicEventView(discord.ui.LayoutView):
                 rows.append(discord.ui.ActionRow(*current_row_items))
                 current_row_items = []
 
-        if current_row_items:
-            rows.append(discord.ui.ActionRow(*current_row_items))
-
-        # Management buttons in a separate row
         if self.active_set.get("show_mgmt", True) and added_count < 40:
             mgmt_items = []
 
@@ -372,7 +368,17 @@ class DynamicEventView(discord.ui.LayoutView):
             delete_btn.callback = self.delete_callback
             mgmt_items.append(delete_btn)
 
-            rows.append(discord.ui.ActionRow(*mgmt_items))
+            if len(current_row_items) + len(mgmt_items) <= 5:
+                current_row_items.extend(mgmt_items)
+                if current_row_items:
+                    rows.append(discord.ui.ActionRow(*current_row_items))
+            else:
+                if current_row_items:
+                    rows.append(discord.ui.ActionRow(*current_row_items))
+                rows.append(discord.ui.ActionRow(*mgmt_items))
+        else:
+            if current_row_items:
+                rows.append(discord.ui.ActionRow(*current_row_items))
 
         for r in rows:
             self.add_item(r)
