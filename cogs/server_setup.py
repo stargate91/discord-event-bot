@@ -310,11 +310,23 @@ class EventDefaultsView(ui.LayoutView):
 
         repost_btn = ui.Button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def repost_cb(it):
-            curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1d")
+            curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="12h")
             modal = SimpleConfigModal(self.guild_id, "default_repost_offset", t("SETTING_REPOST_OFFSET", guild_id=self.guild_id), 
                                      placeholder=t("PH_DURATION", guild_id=self.guild_id), default_val=curr, parent_view=self)
             await it.response.send_modal(modal)
         repost_btn.callback = repost_cb
+
+        cur_trig = await database.get_guild_setting(self.guild_id, "default_repost_trigger", default="after_end")
+        trig_opts = [
+            discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id) or "Before Start", value="before_start", default=(cur_trig=="before_start")),
+            discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id) or "After Start", value="after_start", default=(cur_trig=="after_start")),
+            discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id) or "After End", value="after_end", default=(cur_trig=="after_end"))
+        ]
+        trig_sel = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id) or "Repost Timing", options=trig_opts)
+        async def trig_cb(it):
+            await database.save_guild_setting(self.guild_id, "default_repost_trigger", trig_sel.values[0])
+            await self.refresh_message(it)
+        trig_sel.callback = trig_cb
 
         # Temp Role Toggle
         temp_val = await database.get_guild_setting(self.guild_id, "default_use_temp_role", default="false")
@@ -335,6 +347,7 @@ class EventDefaultsView(ui.LayoutView):
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
+            ui.ActionRow(trig_sel),
             ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )

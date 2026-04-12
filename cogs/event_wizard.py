@@ -301,7 +301,7 @@ class RecurrenceSettingsModal(ui.Modal):
         data = wizard_view.data
         guild_id = wizard_view.guild_id
         
-        self.repost_input = ui.TextInput(label=t("SETTING_REPOST_OFFSET", guild_id=guild_id), placeholder=t("PH_DURATION", guild_id=guild_id), default=str(data.get("repost_offset", "1h")), required=False)
+        self.repost_input = ui.TextInput(label=t("SETTING_REPOST_OFFSET", guild_id=guild_id), placeholder=t("PH_DURATION", guild_id=guild_id), default=str(data.get("repost_offset", "12h")), required=False)
         self.limit_input = ui.TextInput(label=t("LBL_RECURRENCE_LIMIT", guild_id=guild_id), default=str(data.get("recurrence_limit", 0)), required=False)
         
         self.add_item(self.repost_input)
@@ -522,6 +522,22 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         sel_rec.callback = rec_cb
 
+        # Repost Trigger Select (Series only)
+        if view.wizard_type == "series":
+            cur_trig = view.data.get("repost_trigger", "after_end")
+            trig_opts = [
+                discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id) or "Before Start", value="before_start", default=(cur_trig=="before_start")),
+                discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id) or "After Start", value="after_start", default=(cur_trig=="after_start")),
+                discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id) or "After End", value="after_end", default=(cur_trig=="after_end"))
+            ]
+            sel_trig = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id) or "Repost Timing", options=trig_opts)
+            async def trig_cb(it):
+                await it.response.defer()
+                view.data["repost_trigger"] = sel_trig.values[0]
+                await view.save_to_draft()
+                await view.refresh_message(it)
+            sel_trig.callback = trig_cb
+
         sel_icon = ui.Select(placeholder=t("SEL_ICON_SET", guild_id=self.guild_id), options=view.icon_set_options)
         async def icon_cb(it):
             await it.response.defer()
@@ -727,6 +743,7 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.Separator())
             
             container_items.append(ui.ActionRow(sel_rec))
+            container_items.append(ui.ActionRow(sel_trig))
             
             if view.data.get("recurrence_type") == "custom":
                 container_items.append(ui.ActionRow(cust_sel))
@@ -746,7 +763,9 @@ class EventWizardView(ui.LayoutView):
         
         # Load server-level defaults if missing in data
         if "repost_offset" not in self.data:
-            self.data["repost_offset"] = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1h")
+            self.data["repost_offset"] = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="12h")
+        if "repost_trigger" not in self.data:
+            self.data["repost_trigger"] = await database.get_guild_setting(self.guild_id, "default_repost_trigger", default="after_end")
         if "reminder_offset" not in self.data:
             self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
         if "reminder_type" not in self.data:
