@@ -494,10 +494,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids)
-        title = t("WIZARD_TITLE")
-        if bulk_ids: title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
-        embed = discord.Embed(title=title, description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.gold())
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await view.refresh_message(interaction)
 
     async def delete_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
