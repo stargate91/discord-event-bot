@@ -97,9 +97,41 @@ class DynamicEventView(discord.ui.LayoutView):
         """Builds the view using Components V2 Layouts."""
         self.clear_items()
         
-        # Override limits if extra_data exists (per-event limits from Wizard)
-        event_conf = self.event_conf
-        extra_data = event_conf.get("extra_data") if event_conf else None
+        # Load db_event or use self.event_conf entirely
+        from cogs.database import database
+        import time, json, random
+        db_event = await database.get_active_event(self.event_id)
+        if db_event and not self.event_conf:
+            self.event_conf = get_event_conf(db_event["config_name"])
+            if not self.event_conf:
+                self.event_conf = dict(db_event)
+                ex = db_event.get("extra_data")
+                if ex:
+                    try:
+                        d = json.loads(ex) if isinstance(ex, str) else ex
+                        if isinstance(d, dict): self.event_conf.update(d)
+                    except: pass
+        
+        event_conf = self.event_conf or {}
+        guild_id = event_conf.get("guild_id")
+        
+        # Calculate RSVPs for lists and button states
+        rsvps = await database.get_rsvps(self.event_id)
+        status_map = {}
+        total_positive_count = 0
+        positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
+        if not positive_statuses and "positive_count" in self.active_set:
+            cnt = self.active_set["positive_count"]
+            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
+
+        for uid, s in rsvps:
+            if s not in status_map: status_map[s] = []
+            user = self.bot.get_user(uid)
+            display_str = user.mention if user else f"<@{uid}>"
+            status_map[s].append(display_str)
+            if s in positive_statuses: total_positive_count += 1
+            
+        extra_data = db_event.get("extra_data") if db_event else None
         role_limits = {}
         if extra_data:
             try:
@@ -109,96 +141,145 @@ class DynamicEventView(discord.ui.LayoutView):
                     role_limits = extra_data.get("role_limits", {})
             except: pass
 
+        import discord
+        container_items = []
+        
+        max_acc = event_conf.get("max_accepted", 0)
+        is_full = (max_acc > 0 and total_positive_count >= max_acc)
+        desc = event_conf.get("description", "")
+        if is_full: desc = f"### ⚠️ {t('EMBED_FULL', guild_id=guild_id) or 'ESEMÉNY BETELT'}\\n{desc}"
+
+        status_cfg = event_conf.get("status", "active")
+        title_prefix = ""
+        if status_cfg == "cancelled": title_prefix = f"**[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}]** "
+        elif status_cfg == "postponed": title_prefix = f"**[{t('TAG_POSTPONED', guild_id=guild_id) or 'ELHALASZTVA'}]** "
+
+        title_str = f"## {title_prefix}{event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}"
+        container_items.append(discord.ui.TextDisplay(title_str))
+        
+        if desc: container_items.append(discord.ui.TextDisplay(desc))
+        
+        start_ts = db_event['start_time'] if db_event else time.time()
+        time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+        recurrence = event_conf.get('recurrence_type', 'none')
+        if recurrence != 'none': time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {recurrence.capitalize()}"
+        container_items.append(discord.ui.TextDisplay(time_str))
+        
+        image_url = None
+        if db_event and db_event.get("image_urls"): image_url = str(db_event["image_urls"]).split(",")[0].strip()
+        elif event_conf.get("image_urls"):
+            val = event_conf["image_urls"]
+            if isinstance(val, list): image_url = random.choice(val)
+            elif isinstance(val, str) and "," in val: image_url = random.choice([u.strip() for u in val.split(",")])
+            else: image_url = str(val)
+        
+        if image_url:
+            container_items.append(discord.ui.Thumbnail(media=image_url))
+
+        roles_text = ""
+        waiting_list = []
+        for opt in self.active_set["options"]:
+            role_id = opt["id"]
+            users = status_map.get(role_id, [])
+            limit = role_limits.get(role_id, opt.get("max_slots"))
+            label_text = opt.get("list_label") or (t(opt["label_key"], guild_id=guild_id) if "label_key" in opt else opt.get("label", ""))
+            
+            count_text = str(len(users))
+            is_pos = (role_id in positive_statuses)
+            if is_pos and max_acc > 0: count_text = f"{len(users)}/{max_acc}"
+            if limit: count_text = f"{len(users)}/{limit}"
+            
+            if not opt.get("show_in_list", True): continue
+
+            name_parts = []
+            if opt.get("emoji"): name_parts.append(opt["emoji"])
+            if label_text: name_parts.append(label_text)
+            
+            users_list_str = "\n".join([f"- {u}" for u in users]) if users else f"- *{t('EMBED_NONE', guild_id=guild_id)}*"
+            roles_text += f"\n**{' '.join(name_parts)} ({count_text})**\n{users_list_str}\n"
+
+            wait_tag = f"wait_{role_id}"
+            if wait_tag in status_map:
+                emoji = opt.get("emoji", "⏳")
+                for u in status_map[wait_tag]: waiting_list.append(f"{emoji} {u}")
+
+        if roles_text:
+            container_items.append(discord.ui.Separator())
+            container_items.append(discord.ui.TextDisplay(roles_text.strip()))
+
+        if waiting_list:
+            container_items.append(discord.ui.Separator())
+            wait_str = f"**⏳ {t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'} ({len(waiting_list)})**\n" + "\n".join([f"- {u}" for u in waiting_list])
+            container_items.append(discord.ui.TextDisplay(wait_str))
+
+        container_items.append(discord.ui.Separator())
+        creator_text = "System"
+        cid = event_conf.get("creator_id")
+        if cid and str(cid).isdigit():
+            user = self.bot.get_user(int(cid)) or await self.bot.fetch_user(int(cid))
+            if user: creator_text = f"@{user.display_name}"
+        elif cid: creator_text = str(cid)
+        container_items.append(discord.ui.TextDisplay(f"*{t('EMBED_FOOTER', guild_id=guild_id, event_id=self.event_id, creator_id=creator_text)}*"))
+
         per_row = self.active_set.get("buttons_per_row", 5)
         options = self.active_set.get("options", [])
         
-        # We group the buttons into ActionRows
         rows = []
         current_row_items = []
         added_count = 0
-        
-        guild_id = self.event_conf.get("guild_id") if self.event_conf else None
 
         for opt in options:
-            if added_count >= 40: # V2 limit safety
-                break
-                
+            if added_count >= 40: break
             role_id = opt.get("id")
             if not role_id: continue
             
-            # Apply override if available
-            if role_id in role_limits:
-                opt["max_slots"] = role_limits[role_id]
-
+            if role_id in role_limits: opt["max_slots"] = role_limits[role_id]
             label = opt.get("label") if "label" in opt else ""
-            
-            # Try to localize standard button labels
             if role_id in ["accepted", "declined", "tentative"]:
                 label_key = f"BTN_{role_id.upper()}"
                 localized_label = t(label_key, guild_id=guild_id)
-                if localized_label != label_key:
-                    label = localized_label
+                if localized_label != label_key: label = localized_label
 
-            # Button Style & Color
             btn_style = opt.get("button_style", "both")
             btn_emoji = opt.get("emoji") if btn_style in ["both", "emoji"] else None
             btn_label = label if btn_style in ["both", "label"] else None
-
-            color_map = {
-                "success": discord.ButtonStyle.green,
-                "danger": discord.ButtonStyle.red,
-                "primary": discord.ButtonStyle.primary,
-                "secondary": discord.ButtonStyle.secondary
-            }
+            color_map = {"success": discord.ButtonStyle.green, "danger": discord.ButtonStyle.red, "primary": discord.ButtonStyle.primary, "secondary": discord.ButtonStyle.secondary}
             btn_color = color_map.get(opt.get("button_color"), discord.ButtonStyle.secondary)
 
-            btn = discord.ui.Button(
-                style=btn_color, 
-                emoji=btn_emoji or None,
-                label=btn_label or None,
-                custom_id=f"{role_id}_{self.event_id}"
-            )
+            btn = discord.ui.Button(style=btn_color, emoji=btn_emoji or None, label=btn_label or None, custom_id=f"{role_id}_{self.event_id}")
             
             def create_callback(status_id):
                 async def callback(interaction: discord.Interaction):
                     await self.handle_rsvp(interaction, status_id)
                 return callback
-            
             btn.callback = create_callback(role_id)
             current_row_items.append(btn)
             added_count += 1
-            
             if len(current_row_items) >= per_row:
                 rows.append(discord.ui.ActionRow(*current_row_items))
                 current_row_items = []
 
-        if current_row_items:
-            rows.append(discord.ui.ActionRow(*current_row_items))
+        if current_row_items: rows.append(discord.ui.ActionRow(*current_row_items))
 
-        # Management buttons in a separate row
         if self.active_set.get("show_mgmt", True) and added_count < 40:
             mgmt_items = []
-            
-            # Calendar icon
             calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{self.event_id}")
             calendar_btn.callback = self.calendar_callback
             mgmt_items.append(calendar_btn)
-
             edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{self.event_id}")
             edit_btn.callback = self.edit_callback
             mgmt_items.append(edit_btn)
-
             delete_btn = discord.ui.Button(label=t("BTN_DELETE", guild_id=guild_id), style=discord.ButtonStyle.danger, custom_id=f"delete_{self.event_id}")
             delete_btn.callback = self.delete_callback
             mgmt_items.append(delete_btn)
-            
             rows.append(discord.ui.ActionRow(*mgmt_items))
 
-        # Build the final layout using a Container for that 'pro' look
-        # Optional: Add a Separator or TextDisplay if you want more V2 flavor
-        accent_color = int(str(self.event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
-        container = discord.ui.Container(*rows, accent_color=accent_color)
+        for r in rows: container_items.append(r)
+
+        accent_color = int(str(event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
+        container = discord.ui.Container(*container_items, accent_color=accent_color)
         self.add_item(container)
+        self.update_button_states(rsvps, event_conf)
 
     def update_button_states(self, rsvps_list, event_conf):
         """Disables buttons if limits are reached OR if status is inactive."""
@@ -349,285 +430,3 @@ class DynamicEventView(discord.ui.LayoutView):
         await interaction.message.edit(embed=embed, view=self)
         log.info(f"Event {self.event_id} deleted by {interaction.user}")
 
-    async def generate_embed(self, db_event=None):
-        if not db_event: db_event = await database.get_active_event(self.event_id)
-        if db_event and not self.event_conf:
-            self.event_conf = get_event_conf(db_event["config_name"])
-            if not self.event_conf:
-                self.event_conf = dict(db_event)
-                ex_raw = db_event.get("extra_data")
-                if ex_raw:
-                    try:
-                        ex_dict = json.loads(ex_raw) if isinstance(ex_raw, str) else ex_raw
-                        if isinstance(ex_dict, dict): self.event_conf.update(ex_dict)
-                    except: pass
-        guild_id = db_event.get("guild_id") if db_event else None
-        if not self.event_conf: return discord.Embed(title=t("ERR_MISSING_CONFIG", guild_id=guild_id), color=discord.Color.red())
-
-        rsvps = await database.get_rsvps(self.event_id)
-        status_map = {opt["id"]: [] for opt in self.active_set["options"]}
-        total_positive_count = 0
-        positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
-        if not positive_statuses and "positive_count" in self.active_set:
-            cnt = self.active_set["positive_count"]
-            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
-
-        for user_id, status in rsvps:
-            if status in status_map:
-                status_map[status].append(f"<@{user_id}>")
-                if status in positive_statuses: total_positive_count += 1
-
-        max_acc = self.event_conf.get("max_accepted", 0)
-        is_full = (max_acc > 0 and total_positive_count >= max_acc)
-        desc = self.event_conf.get("description", "")
-        if is_full: desc = f"### ⚠️ {t('EMBED_FULL', guild_id=guild_id) or 'ESEMÉNY BETELT'}\n{desc}"
-
-        status = self.event_conf.get("status", "active")
-        title_prefix, color_override = "", None
-        if status == "cancelled": title_prefix = f"[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}] "; color_override = 0xed4245
-        elif status == "postponed": title_prefix = f"[{t('TAG_POSTPONED', guild_id=guild_id) or 'ELHALASZTVA'}] "; color_override = 0xfaa61a
-
-        embed = discord.Embed(title=f"{title_prefix}{self.event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}", description=desc, color=color_override or int(str(self.event_conf.get("color") or "0x3498db"), 16))
-        
-        guild_id = self.event_conf.get("guild_id")
-        start_ts = db_event['start_time'] if db_event else time.time()
-        embed.add_field(name=t("EMBED_START_TIME", guild_id=guild_id), value=f"<t:{int(start_ts)}:F>", inline=False)
-        
-        recurrence = self.event_conf.get('recurrence_type', 'none')
-        if recurrence != 'none': embed.add_field(name=t("EMBED_RECURRENCE", guild_id=guild_id), value=recurrence.capitalize(), inline=False)
-            
-        extra_data = db_event.get("extra_data") if db_event else None
-        role_limits = {}
-        if extra_data:
-            try:
-                d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
-                role_limits = d.get("role_limits", {})
-            except: pass
-
-        waiting_list = []
-        for opt in self.active_set["options"]:
-            role_id = opt["id"]
-            users = status_map.get(role_id, [])
-            limit = role_limits.get(role_id, opt.get("max_slots"))
-            label_text = opt.get("list_label") or (t(opt["label_key"], guild_id=guild_id) if "label_key" in opt else opt.get("label", ""))
-            
-            count_text = str(len(users))
-            is_pos = (role_id in positive_statuses)
-            if is_pos and max_acc > 0: count_text = f"{len(users)}/{max_acc}"
-            if limit: count_text = f"{len(users)}/{limit}"
-            
-            # Skip if hidden from list
-            if not opt.get("show_in_list", True):
-                continue
-
-            name_parts = []
-            if opt.get("emoji"): name_parts.append(opt["emoji"])
-            if label_text: name_parts.append(label_text)
-            embed.add_field(name=f"{' '.join(name_parts)} ({count_text})", value="\n".join(users) or t("EMBED_NONE"), inline=True)
-
-            wait_tag = f"wait_{role_id}"
-            if wait_tag in status_map:
-                emoji = opt.get("emoji", "⏳")
-                for u in status_map[wait_tag]: waiting_list.append(f"{emoji} {u}")
-
-        if waiting_list: embed.add_field(name=f"⏳ {t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'} ({len(waiting_list)})", value="\n".join(waiting_list), inline=False)
-
-        image_url = None
-        if db_event and db_event.get("image_urls"): image_url = str(db_event["image_urls"]).split(",")[0].strip()
-        elif self.event_conf.get("image_urls"):
-            val = self.event_conf["image_urls"]
-            if isinstance(val, list): image_url = random.choice(val)
-            elif isinstance(val, str) and "," in val: image_url = random.choice([u.strip() for u in val.split(",")])
-            else: image_url = str(val)
-        if image_url: embed.set_image(url=image_url)
-            
-        creator_text = "System"
-        cid = self.event_conf.get("creator_id")
-        if cid and str(cid).isdigit():
-            user = self.bot.get_user(int(cid)) or await self.bot.fetch_user(int(cid))
-            if user: creator_text = f"@{user.display_name}"
-        elif cid: creator_text = str(cid)
-        embed.set_footer(text=t("EMBED_FOOTER", guild_id=guild_id, event_id=self.event_id, creator_id=creator_text))
-        self.update_button_states(rsvps, self.event_conf)
-        return embed
-
-    async def handle_rsvp(self, interaction: discord.Interaction, status: str):
-        db_event = await database.get_active_event(self.event_id)
-        if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
-        if db_event["status"] != 'active': return await interaction.response.send_message(t("ERR_EV_INACTIVE"), ephemeral=True)
-            
-        if not self.event_conf:
-            self.event_conf = get_event_conf(db_event["config_name"])
-            if not self.event_conf:
-                self.event_conf = dict(db_event)
-                ex = db_event.get("extra_data")
-                if ex:
-                    try:
-                        d = json.loads(ex) if isinstance(ex, str) else ex
-                        if isinstance(d, dict): self.event_conf.update(d)
-                    except: pass
-        
-        rsvps_list = await database.get_rsvps(self.event_id)
-        old_status = next((s for uid, s in rsvps_list if uid == interaction.user.id), None)
-        target_status, opt = status, next((o for o in self.active_set["options"] if o["id"] == status), None)
-        
-        ex = db_event.get("extra_data")
-        role_limits = {}
-        if ex:
-            try: d = json.loads(ex) if isinstance(ex, str) else ex; role_limits = d.get("role_limits", {})
-            except: pass
-            
-        role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
-        if role_limit and sum(1 for _, s in rsvps_list if s == status) >= role_limit and old_status != status:
-            if self.event_conf.get("use_waiting_list", True): 
-                target_status = f"wait_{status}"
-                # Send waitlist hint
-                try:
-                    hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
-                    await interaction.user.send(hint)
-                except: pass
-            else: return await interaction.response.send_message(t("ERR_POS_FULL", guild_id=interaction.guild_id, name=(opt.get('label') or opt['id'])), ephemeral=True)
-
-        positive_statuses = self.active_set.get("positive", [])
-        if not positive_statuses and "positive_count" in self.active_set:
-            cnt = self.active_set["positive_count"]; positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
-
-        if target_status in positive_statuses:
-            max_acc = self.event_conf.get('max_accepted', 0)
-            if max_acc > 0 and sum(1 for _, s in rsvps_list if s in positive_statuses) >= max_acc and old_status not in positive_statuses:
-                if not target_status.startswith("wait_"): 
-                    target_status = f"wait_{status}"
-                    # Send waitlist hint (event-level limit)
-                    try:
-                        hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
-                        await interaction.user.send(hint)
-                    except: pass
-
-        await interaction.response.defer()
-        await database.update_rsvp(self.event_id, interaction.user.id, target_status)
-
-        # Temp Role Management
-        temp_role_id = db_event.get("temp_role_id")
-        if temp_role_id and isinstance(interaction.user, discord.Member):
-            if not interaction.guild.me.guild_permissions.manage_roles:
-                log.warning(f"[RSVP] Missing 'Manage Roles' permission to handle temp role {temp_role_id} in guild {interaction.guild_id}")
-            else:
-                role = interaction.guild.get_role(int(temp_role_id))
-                if role:
-                    try:
-                        if target_status in positive_statuses:
-                            if role not in interaction.user.roles:
-                                await interaction.user.add_roles(role, reason=f"RSVP positive: {self.event_id}")
-                                log.info(f"[RSVP] Added role {temp_role_id} to {interaction.user.id} for event {self.event_id}")
-                        else:
-                            if role in interaction.user.roles:
-                                await interaction.user.remove_roles(role, reason=f"RSVP negative/left: {self.event_id}")
-                                log.info(f"[RSVP] Removed role {temp_role_id} from {interaction.user.id} for event {self.event_id}")
-                    except Exception as e:
-                        log.error(f"[RSVP] Role management error: {e}")
-
-        if old_status and old_status != target_status:
-            old_role_limit = role_limits.get(old_status, next((o.get("max_slots") for o in self.active_set["options"] if o["id"] == old_status), None))
-            if old_role_limit:
-                max_acc, current_acc = self.event_conf.get('max_accepted', 0), sum(1 for _, s in rsvps_list if s in positive_statuses)
-                if max_acc == 0 or current_acc < max_acc:
-                    promoted_uid = await database.promote_next_waiting(self.event_id, f"wait_{old_status}", old_status)
-                    if promoted_uid: await self.notify_promotion(interaction, promoted_uid, next(o for o in self.active_set["options"] if o["id"] == old_status))
-
-        embed = await self.generate_embed(db_event)
-        await interaction.message.edit(embed=embed, view=self)
-        log.info(f"User {interaction.user} RSVP'd {status} for event {self.event_id}", guild_id=interaction.guild_id)
-
-    async def notify_promotion(self, interaction, user_id, opt):
-        notify_type = self.event_conf.get("notify_promotion", "none")
-        if notify_type == "none": return
-        role_name = opt.get("label") or opt.get("list_label") or opt["id"]
-        extra = self.event_conf.get("extra_data")
-        custom_msg = None
-        if extra:
-            try: d = json.loads(extra) if isinstance(extra, str) else extra; custom_msg = d.get("custom_promo_msg")
-            except: pass
-        if custom_msg: msg = custom_msg.format(user_id=user_id, role=role_name, emoji=opt.get("emoji", ""), title=self.event_conf.get("title", ""))
-        else: msg = t("MSG_PROMOTED_DEFAULT", guild_id=self.event_conf.get("guild_id"), user_id=user_id, role=role_name, emoji=opt.get("emoji", ""))
-        if notify_type in ["channel", "both"]: await interaction.channel.send(msg)
-        if notify_type in ["dm", "both"]:
-            try:
-                user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
-                if user: await user.send(msg)
-            except: pass
-        
-        # Add to temp role if promoted
-        db_event = await database.get_active_event(self.event_id, interaction.guild_id)
-        if db_event and db_event.get("temp_role_id"):
-            guild = interaction.guild
-            if not guild.me.guild_permissions.manage_roles:
-                log.warning(f"[Promotion] Missing 'Manage Roles' permission to handle temp role in guild {guild.id}")
-            else:
-                member = guild.get_member(user_id) or await guild.fetch_member(user_id)
-                if member:
-                    role = guild.get_role(int(db_event["temp_role_id"]))
-                    if role and role not in member.roles:
-                        try:
-                            await member.add_roles(role, reason=f"Promoted to active: {self.event_id}")
-                            log.info(f"[Promotion] Added role {db_event['temp_role_id']} to {user_id} for event {self.event_id}")
-                        except Exception as e:
-                            log.error(f"[Promotion] Role management error: {e}")
-
-class EditChoiceView(discord.ui.View):
-    def __init__(self, bot, event_id, db_event, series_events):
-        super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events = bot, event_id, db_event, series_events
-    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
-    async def edit_single(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event)
-    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
-    async def edit_series(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event, bulk_ids=[ev['event_id'] for ev in self.series_events])
-
-class StatusChoiceView(discord.ui.View):
-    def __init__(self, bot, event_id, db_event, series_events, new_status, notify_type="none"):
-        super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events, self.new_status, self.notify_type = bot, event_id, db_event, series_events, new_status, notify_type
-    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
-    async def status_single(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await database.update_event_status(self.event_id, self.new_status); await self.refresh_and_notify(interaction, [self.event_id]); await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
-    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
-    async def status_series(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); ids = [ev['event_id'] for ev in self.series_events]; await database.update_event_status_bulk(ids, self.new_status); await self.refresh_and_notify(interaction, ids); await interaction.followup.send(t("MSG_SERIES_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
-    async def refresh_and_notify(self, interaction, event_ids):
-        for eid in event_ids:
-            ev = await database.get_active_event(eid)
-            if ev and ev.get("message_id") and ev.get("channel_id"):
-                chan = self.bot.get_channel(ev["channel_id"])
-                if chan:
-                    try:
-                        msg = await chan.fetch_message(ev["message_id"]); view = DynamicEventView(self.bot, eid, ev); embed = await view.generate_embed(ev); await msg.edit(embed=embed, view=view)
-                    except: pass
-        if self.notify_type == "none": return
-        participants = set()
-        for eid in event_ids:
-            rsvps = await database.get_rsvps(eid)
-            for uid, s in rsvps:
-                if not s.startswith("wait_"): participants.add(uid)
-        if not participants: return
-        guild_id = interaction.guild_id
-        title = self.db_event.get('title') or 'Event'
-        
-        if self.new_status == "cancelled":
-            msg_body = t("MSG_EVENT_CANCELLED", guild_id=guild_id, title=title)
-        elif self.new_status == "postponed":
-            msg_body = t("MSG_EVENT_POSTPONED", guild_id=guild_id, title=title)
-        else:
-            status_text = self.new_status.upper()
-            msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=title)
-        notification_msg = f"📢 {msg_body}"
-        if self.notify_type in ["dm", "both"]:
-            for uid in participants:
-                try:
-                    user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
-                    if user: await user.send(notification_msg)
-                except: pass
-        if self.notify_type in ["chat", "both"]:
-            pings = ' '.join([f'<@{uid}>' for uid in participants])
-            await interaction.channel.send(f"{notification_msg}\n{pings}")
-
-async def setup(bot):
-    await load_custom_sets()
