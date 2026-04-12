@@ -42,7 +42,7 @@ async def load_guild_translations(guild_id):
     }
     return GUILD_CACHE[gid_str]
 
-def t(translation_key: str, guild_id=None, **kwargs):
+def t(translation_key: str, guild_id=None, use_template_lang=False, **kwargs):
     """
     Translates a key with multi-layer priority:
     1. Guild-specific override (DB)
@@ -58,7 +58,12 @@ def t(translation_key: str, guild_id=None, **kwargs):
     if gid_str and gid_str in GUILD_CACHE:
         cache = GUILD_CACHE[gid_str]
         text = cache["overrides"].get(translation_key)
+        
         pref_lang = cache.get("lang", DEFAULT_LANG)
+        if use_template_lang and "settings" in cache:
+            tpl_lang = cache["settings"].get("template_language", "default")
+            if tpl_lang != "default":
+                pref_lang = tpl_lang
 
     # 2. If no override, try the preferred language file
     if text is None:

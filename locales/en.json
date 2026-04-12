@@ -369,5 +369,7 @@
   "SYNC_FAILED": "❌ Sync failed: `{e}`",
   "LBL_LANG_HU": "🇭🇺 Hungarian",
   "LBL_LANG_EN": "🇺🇸 English",
-  "BTN_BACK": "◀️"
+  "BTN_BACK": "◀️",
+  "LBL_TEMPLATE_LANG": "Emoji Sets Language",
+  "SEL_LANG_DEFAULT": "Default (Follow Server)"
 }

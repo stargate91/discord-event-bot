@@ -368,5 +368,7 @@
   "SYNC_GLOBAL_OK": "✅ {count} parancs sikeresen szinkronizálva globálisan.",
   "SYNC_COPY_OK": "✅ A globális parancsok átmásolva és szinkronizálva erre a szerverre (Összesen: {count}).",
   "SYNC_GUILD_OK": "✅ {count} parancs sikeresen szinkronizálva erre a szerverre.",
-  "SYNC_FAILED": "❌ A szinkronizáció sikertelen: `{e}`"
+  "SYNC_FAILED": "❌ A szinkronizáció sikertelen: `{e}`",
+  "LBL_TEMPLATE_LANG": "Ikonok nyelve",
+  "SEL_LANG_DEFAULT": "Kövessen mindent (Alapértelmezett)"
 }

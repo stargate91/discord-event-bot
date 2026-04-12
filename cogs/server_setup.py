@@ -138,6 +138,21 @@ class GeneralSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         channels_btn.callback = channels_cb
 
+        # Template Lang Select
+        cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="default")
+        tpl_opts = [
+            discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id) or "Default (Follow Server)", value="default", default=(cur_tpl_lang=="default")),
+            discord.SelectOption(label="🇭🇺 Magyar", value="hu", default=(cur_tpl_lang=="hu")),
+            discord.SelectOption(label="🇺🇸 English", value="en", default=(cur_tpl_lang=="en"))
+        ]
+        tpl_sel = ui.Select(placeholder=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id) or "Emoji Sets Language", options=tpl_opts)
+        async def tpl_cb(it):
+            val = tpl_sel.values[0]
+            await database.save_guild_setting(self.guild_id, "template_language", val)
+            await load_guild_translations(self.guild_id)
+            await self.refresh_message(it)
+        tpl_sel.callback = tpl_cb
+
         back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
@@ -149,7 +164,9 @@ class GeneralSetupView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
-            ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn, back_btn),
+            ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn),
+            ui.ActionRow(tpl_sel),
+            ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )
         self.add_item(container)
