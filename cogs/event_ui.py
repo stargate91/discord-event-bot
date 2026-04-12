@@ -463,7 +463,7 @@ class DynamicEventView(discord.ui.LayoutView):
             await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             return
 
-        await interaction.response.defer(ephemeral=True)
+        await interaction.response.defer(ephemeral=True, thinking=True)
         db_event = await database.get_active_event(self.event_id)
         if not db_event:
             await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
