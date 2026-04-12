@@ -167,7 +167,12 @@ class DynamicEventView(discord.ui.LayoutView):
         title_str = ""
         if title_prefix:
             title_str += f"### **{title_prefix}**\n"
-        title_str += f"## {event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}"
+            
+        raw_title = event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))
+        if len(raw_title) > 40:
+            raw_title = raw_title[:37] + "..."
+            
+        title_str += f"## {raw_title}"
         container_items.append(discord.ui.TextDisplay(title_str))
 
         if desc:
