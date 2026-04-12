@@ -1,4 +1,6 @@
 import discord
+from utils.emojis import WARNING, PING
+from utils.emojis import SUCCESS, ERROR, INFO, DROPDOWN_OPEN, DROPDOWN_CLOSED, REC_DAILY, REC_WEEKLY, REC_MONTHLY, REC_BIWEEKLY, REC_WEEKDAYS, REC_WEEKENDS, REC_CUSTOM, REC_RELATIVE
 from discord import ui
 import uuid
 import database
@@ -56,7 +58,7 @@ class WizardStartView(ui.LayoutView):
             except Exception as e:
                 log.error(f"[Wizard] Error in single_cb: {e}", exc_info=True)
                 if not it.response.is_done():
-                    await it.response.send_message(f"❌ {e}", ephemeral=True)
+                    await it.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
         single_btn.callback = single_cb
         
@@ -72,7 +74,7 @@ class WizardStartView(ui.LayoutView):
             except Exception as e:
                 log.error(f"[Wizard] Error in recurring_cb: {e}", exc_info=True)
                 if not it.response.is_done():
-                    await it.response.send_message(f"❌ {e}", ephemeral=True)
+                    await it.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
         recurring_btn.callback = recurring_cb
         
@@ -148,7 +150,7 @@ class SingleEventModal(ui.Modal):
         except Exception as e:
             log.error(f"[Wizard] SingleEventModal on_submit error: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+                await interaction.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
 class SingleEventSupplementaryModal(ui.Modal):
     """Step 2 for Single Events."""
@@ -458,7 +460,7 @@ class EventWizardView(ui.LayoutView):
             except Exception as e:
                 log.error(f"[Wizard] s1_cb error: {e}", exc_info=True)
                 if not it.response.is_done():
-                    await it.response.send_message(f"❌ {e}", ephemeral=True)
+                    await it.response.send_message(f"{ERROR} {e}", ephemeral=True)
         step1 = ui.Button(label=t("BTN_STEP_1", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step1.callback = s1_cb
 
@@ -547,7 +549,7 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id) + (" 🔽" if view.show_advanced else " ◀️"), style=discord.ButtonStyle.secondary)
+        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_advanced else "◀️", style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
             view.show_advanced = not view.show_advanced
             if view.show_advanced:
@@ -556,7 +558,7 @@ class EventWizardView(ui.LayoutView):
         adv_btn.callback = adv_cb
 
         # Reminder Toggle
-        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id) + (" 🔽" if view.show_reminder else " ◀️"), style=discord.ButtonStyle.secondary)
+        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_reminder else "◀️", style=discord.ButtonStyle.secondary)
         async def rem_toggle_cb(it):
             view.show_reminder = not view.show_reminder
             if view.show_reminder:
@@ -839,21 +841,21 @@ class EventWizardView(ui.LayoutView):
             ))
             
         rec_types = [
-            ("daily", "📅"), ("weekly", "🗓️"), ("monthly", "📊"),
-            ("biweekly", "🔄"), ("weekdays", "🏢"), ("weekends", "🏖️"),
-            ("custom", "⚙️"), ("relative", "📆")
+            ("daily", REC_DAILY), ("weekly", REC_WEEKLY), ("monthly", REC_MONTHLY),
+            ("biweekly", REC_BIWEEKLY), ("weekdays", REC_WEEKDAYS), ("weekends", REC_WEEKENDS),
+            ("custom", REC_CUSTOM), ("relative", REC_RELATIVE)
         ]
         self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
-        s1 = "✅" if self.steps_completed["step1"] else "❌"
+        s1 = SUCCESS if self.steps_completed["step1"] else ERROR
         
         if self.wizard_type == "single":
-            s2 = "✅" if self.steps_completed.get("step2") else "💡 (Opcionális)"
+            s2 = SUCCESS if self.steps_completed.get("step2") else f"{INFO} (Opcionális)"
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id)}: {s2}"
         else:
-            s2 = "✅" if self.steps_completed.get("step2") else "❌"
-            s3 = "✅" if self.steps_completed.get("step3") else "💡 (Opcionális)"
+            s2 = SUCCESS if self.steps_completed.get("step2") else ERROR
+            s3 = SUCCESS if self.steps_completed.get("step3") else f"{INFO} (Opcionális)"
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
@@ -870,18 +872,18 @@ class EventWizardView(ui.LayoutView):
         if self.wizard_type == "series":
             rtype = self.data.get("recurrence_type")
             if rtype == "custom" and not self.data.get("custom_days"):
-                await interaction.response.send_message(t("ERR_FILL_CUSTOM_DAYS", guild_id=self.guild_id, default="⚠️ Kérlek válassz legalább 1 napot az Egyedi ismétlődéshez!"), ephemeral=True)
+                await interaction.response.send_message(t("ERR_FILL_CUSTOM_DAYS", guild_id=self.guild_id), ephemeral=True)
                 return
             if rtype == "relative":
                 rel_combo = self.data.get("relative_combo", [])
                 if len(rel_combo) != 2:
-                    await interaction.response.send_message(t("ERR_FILL_RELATIVE", guild_id=self.guild_id, default="⚠️ A relatív ismétlődéshez pontosan 1 hetet ÉS 1 napot kell választanod a legördülőből!"), ephemeral=True)
+                    await interaction.response.send_message(t("ERR_FILL_RELATIVE", guild_id=self.guild_id), ephemeral=True)
                     return
                 # Ensure they actually picked 1 week and 1 day, not 2 weeks or 2 days!
                 has_wk = any(c.startswith("wk_") for c in rel_combo)
                 has_day = any(c.startswith("day_") for c in rel_combo)
                 if not (has_wk and has_day):
-                    await interaction.response.send_message(t("ERR_FILL_RELATIVE_MIX", guild_id=self.guild_id, default="⚠️ 1 hetet (pl. Utolsó) és 1 napot (pl. Péntek) választhatsz csak ki!"), ephemeral=True)
+                    await interaction.response.send_message(t("ERR_FILL_RELATIVE_MIX", guild_id=self.guild_id), ephemeral=True)
                     return
 
         clean_data = {}
@@ -964,7 +966,7 @@ class EventWizardView(ui.LayoutView):
             
             warning = ""
             if global_max > 0 and role_sum > 0 and global_max != role_sum:
-                warning = f"\n\n⚠️ **Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**)."
+                warning = t("WARN_ROLE_LIMIT_MISMATCH", guild_id=self.guild_id, role_sum=role_sum, global_max=global_max, default=f"\n\n{WARNING} **Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**).")
                 if role_sum < global_max:
                     warning += f"\nAz esemény már **{role_sum}** főnél meg fog telni, mert a szerepkörök betelnek."
                 else:
@@ -1062,7 +1064,7 @@ class EventWizardView(ui.LayoutView):
                 ping_role_id = self.data.get("ping_role")
                 ping_prefix = ""
                 if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
-                    ping_prefix = f"📢 <@&{ping_role_id}> "
+                    ping_prefix = f"{PING} <@&{ping_role_id}> "
                 
                 promo_msg = t("MSG_DEFAULT_PROMO", guild_id=self.guild_id)
                 promo_content = f"{ping_prefix}{promo_msg}".strip()
@@ -1079,5 +1081,5 @@ class EventWizardView(ui.LayoutView):
             self.stop()
         except Exception as e:
             log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
-            await interaction.followup.send(f"❌ Failed to publish: {e}", ephemeral=True)
+            await interaction.followup.send(f"{ERROR} Failed to publish: {e}", ephemeral=True)
         await database.delete_draft(self.data.get("draft_id"), self.guild_id)

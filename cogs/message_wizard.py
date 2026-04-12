@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import SHIELD
 from discord import ui
 import database
 from utils.i18n import t, load_guild_translations, CATEGORIES
@@ -31,7 +32,7 @@ class MessageWizardView(ui.LayoutView):
             preview = current_val.replace("{user_id}", f"<@{interaction.user.id}>")\
                                  .replace("{title}", "Példa Esemény")\
                                  .replace("{role}", "Tank")\
-                                 .replace("{emoji}", "🛡️")\
+                                 .replace("{emoji}", SHIELD)\
                                  .replace("{status}", "AKTÍV")
             
             desc += f"\n\n**🔍 Preview ({new_view.selected_key}):**\n> {preview}"
@@ -78,7 +79,7 @@ class MessageWizardView(ui.LayoutView):
             await it.response.send_modal(MessageEditModal(new_view, new_view.selected_key, current_val, new_view.guild_id))
         edit_btn.callback = edit_cb
 
-        reset_btn = ui.Button(label="Reset Default", style=discord.ButtonStyle.secondary) # Note: can be localized too
+        reset_btn = ui.Button(label=t("BTN_RESET_DEFAULT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary) # Note: can be localized too
         async def reset_cb(it: discord.Interaction):
             if not await is_admin(it):
                 return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=new_view.guild_id), ephemeral=True)

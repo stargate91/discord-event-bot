@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import ERROR, GLOBE, GEAR, BELL
 from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
@@ -24,7 +25,7 @@ class ServerSetupView(ui.LayoutView):
         general_btn.callback = general_cb
 
         curr_tz = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
-        local_label = f"🌍 {curr_tz}"
+        local_label = f"{GLOBE} {curr_tz}"
         local_btn = ui.Button(label=local_label, style=discord.ButtonStyle.secondary)
         async def local_cb(it):
             modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
@@ -76,7 +77,7 @@ class ServerSetupView(ui.LayoutView):
         defaults_btn.callback = defaults_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
@@ -142,8 +143,8 @@ class GeneralSetupView(ui.LayoutView):
         cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="en")
         tpl_opts = [
             discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id) or "Default (Follow Server)", value="default", default=(cur_tpl_lang=="default")),
-            discord.SelectOption(label="🇭🇺 Magyar", value="hu", default=(cur_tpl_lang=="hu")),
-            discord.SelectOption(label="🇺🇸 English", value="en", default=(cur_tpl_lang=="en"))
+            discord.SelectOption(label="Magyar", value="hu", default=(cur_tpl_lang=="hu")),
+            discord.SelectOption(label="English", value="en", default=(cur_tpl_lang=="en"))
         ]
         tpl_sel = ui.Select(placeholder=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id) or "Emoji Sets Language", options=tpl_opts)
         async def tpl_cb(it):
@@ -160,7 +161,7 @@ class GeneralSetupView(ui.LayoutView):
         back_btn.callback = back_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### ⚙️ {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
             ui.Separator(),
@@ -244,7 +245,7 @@ class ReminderSetupView(ui.LayoutView):
         offset_btn.callback = offset_cb
 
         container = ui.Container(
-            ui.TextDisplay(f"### ⚙️ {t('BTN_REMINDERS', guild_id=self.guild_id).replace('🔔 ', '')}"),
+            ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
             ui.Separator(),
             ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn),
             ui.ActionRow(offset_btn),
@@ -398,7 +399,7 @@ class SimpleConfigModal(ui.Modal):
         except Exception as e:
             log.error(f"Error in modal submit for {self.key}: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+                await interaction.response.send_message(f"{ERROR} Error: {e}", ephemeral=True)
 
 async def setup(bot):
     # This cog primarily provides the view classes for other cogs to use.

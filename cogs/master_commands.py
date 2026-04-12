@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import ERROR
 from discord import app_commands, ui
 from discord.ext import commands
 import database
@@ -94,7 +95,7 @@ class MasterCommands(commands.GroupCog, name="master"):
             await interaction.followup.send(t('MSG_GLOBAL_RESETS_SUCCESS', guild_id=None, val=count) if count > 0 else f'Success: {count} sets')
         except Exception as e:
             log.error(f"[Master] Error resetting global sets: {e}")
-            await interaction.followup.send(f"❌ {e}")
+            await interaction.followup.send(f"{ERROR} {e}")
 
 import uuid
 

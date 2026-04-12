@@ -34,7 +34,7 @@
   "BTN_REMINDERS": "🔔 Emlékeztetők",
   "BTN_REMINDER_OFFSET": "⏰ Időzítés alapértelmezett",
   "BTN_RESET_CONFIRM": "IGEN, TÖRÖLJ MINDENT VÉGLEG",
-  "BTN_RESET_DEFAULT": "Visszaállítás alaphelyzetbe",
+  "BTN_RESET_DEFAULT": "Alapértelmezés",
   "BTN_ROLE_LIMITS": "Szerepkör limitek",
   "BTN_SAVE_PREVIEW": "Mentés és Előnézet",
   "BTN_SINGLE_EVENT": "🕒 Egyszeri esemény",
@@ -86,7 +86,7 @@
   "ERR_SELECT_KEY_RESET": "Válassz ki egy kulcsot a visszaállításhoz!",
   "ERR_SELECT_SET_DELETE": "Válassz ki egy szettet a törléshez!",
   "ERR_SERIES_COUNT": "❌ Nincs ennyi ({occurrence}) aktív esemény ebben a sorozatban.",
-  "ERR_WIZARD_GENERAL": "Hoppá! Valami hiba történt: {e}",
+  "ERR_WIZARD_GENERAL": "❌ Hoppá! Valami hiba történt: {e}",
   "LBL_ACTIVE_EVENTS_LIST": "**Aktív események:**\n",
   "LBL_BULK_EDIT": "(TÖMEGES SZERKESZTÉS)",
   "LBL_CHANNEL_ID": "Csatorna ID (Opcionális)",
@@ -260,7 +260,7 @@
   "SETTING_TIMEZONE": "Alapértelmezett Időzóna",
   "SETTING_REMINDER_OFFSET": "Emlékeztető időzítése (Alapértelmezett)",
   "SETUP_GENERAL_DESC": "Bot nyelvének, admin rangoknak és korlátozott csatornáknak a kezelése.",
-  "SETUP_GENERAL_TITLE": "Általános Beállítások",
+  "SETUP_GENERAL_TITLE": "⚙️ Általános Beállítások",
   "SET_TEAM": "Csapatok",
   "SET_TEAMS": "Csapatok",
   "SEL_COLOR": "Válassz színt...",
@@ -332,5 +332,10 @@
   "KEY_MSG_WAITLIST_HINT": "Várólistára kerülés (Figyelmeztetés)",
   "KEY_MSG_REM_DESC": "Emlékeztető alapértelmezett szöveg",
   "KEY_MSG_EVENT_CANCELLED": "Esemény törölve (Értesítő)",
-  "KEY_MSG_EVENT_POSTPONED": "Esemény elhalasztva (Értesítő)"
+  "KEY_MSG_EVENT_POSTPONED": "Esemény elhalasztva (Értesítő)",
+  "ERR_NO_SET_FOUND": "❌ Szett nem található.",
+  "ERR_ROW_LIMIT": "❌ A gombok száma soronként 1-5 lehet.",
+  "ERR_FILL_CUSTOM_DAYS": "❌ Kérlek válassz legalább 1 napot az Egyedi ismétlődéshez!",
+  "ERR_FILL_RELATIVE": "❌ A relatív ismétlődéshez pontosan 1 hetet (pl. Utolsó) és 1 napot kell választanod!",
+  "ERR_FILL_RELATIVE_MIX": "❌ Csak 1 hetet és 1 napot választhatsz ki!"
 }

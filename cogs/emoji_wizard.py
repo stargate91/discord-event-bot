@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import ERROR
 from discord import app_commands
 from discord.ext import commands
 from discord import ui
@@ -115,9 +116,9 @@ class EmojiWizardView(ui.LayoutView):
             except Exception as e:
                 log.error(f"[EmojiWizard] CRITICAL ERROR in add_cb: {e}", exc_info=True)
                 if not it.response.is_done():
-                    await it.response.send_message(f"❌ {t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e))}", ephemeral=True)
+                    await it.response.send_message(t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e)), ephemeral=True)
                 else:
-                    await it.followup.send(f"❌ {t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e))}", ephemeral=True)
+                    await it.followup.send(t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e)), ephemeral=True)
         add_btn.callback = add_cb
         
         clone_btn = ui.Button(label=t("BTN_CLONE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
@@ -126,7 +127,7 @@ class EmojiWizardView(ui.LayoutView):
                 return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=new_view.guild_id), ephemeral=True)
             cur_sets = await database.get_all_global_emoji_sets() if new_view.is_global else await database.get_emoji_sets(new_view.guild_id)
             curr = next((s for s in cur_sets if s["set_id"] == new_view.selected_set_id), None)
-            if not curr: return await it.response.send_message("❌ Set not found.", ephemeral=True)
+            if not curr: return await it.response.send_message(t("ERR_NO_SET_FOUND", guild_id=new_view.guild_id), ephemeral=True)
             modal = EditEmojiSetModal(new_view, curr)
             modal.title = t("BTN_CLONE", guild_id=new_view.guild_id); modal.is_clone = True
             await it.response.send_modal(modal)
@@ -138,7 +139,7 @@ class EmojiWizardView(ui.LayoutView):
                 return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=new_view.guild_id), ephemeral=True)
             cur_sets = await database.get_all_global_emoji_sets() if new_view.is_global else await database.get_emoji_sets(new_view.guild_id)
             curr = next((s for s in cur_sets if s["set_id"] == new_view.selected_set_id), None)
-            if not curr: return await it.response.send_message("❌ Set not found.", ephemeral=True)
+            if not curr: return await it.response.send_message(t("ERR_NO_SET_FOUND", guild_id=new_view.guild_id), ephemeral=True)
             await it.response.send_modal(EditEmojiSetModal(new_view, curr))
         edit_btn.callback = edit_cb
         
@@ -226,7 +227,7 @@ class TemplateChoiceView(ui.LayoutView):
                 log.info(f"[EmojiWizard] EditEmojiSetModal sent for template: {template}")
             except Exception as e:
                 log.error(f"[EmojiWizard] Error in TemplateChoiceView select_callback: {e}", exc_info=True)
-                await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+                await interaction.response.send_message(f"{ERROR} {e}", ephemeral=True)
         select_template.callback = select_callback
 
         container = ui.Container(
@@ -286,14 +287,14 @@ class EditEmojiSetModal(ui.Modal):
             row_l = int(self.row_limit.value)
             if not (1 <= row_l <= 5): raise ValueError()
         except:
-             return await interaction.response.send_message("❌ Row limit must be 1-5.", ephemeral=True)
+             return await interaction.response.send_message(t("ERR_ROW_LIMIT", guild_id=self.view.guild_id), ephemeral=True)
 
         show_m = (self.mgmt_input.value.strip().lower() in [t("LBL_YES", guild_id=self.wizard_view.guild_id).lower(), "yes", "igen", "y", "i"])
 
         try:
             new_opts, p_count = parse_emoji_config(self.opts_input.value)
         except Exception as e:
-            return await interaction.response.send_message(f"❌ {e}", ephemeral=True)
+            return await interaction.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
         new_data = {
             "options": new_opts,

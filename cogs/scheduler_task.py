@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import PING
 from discord.ext import commands, tasks
 import database
 import time
@@ -218,7 +219,7 @@ class SchedulerTask(commands.Cog):
             ping_role = event_conf.get("ping_role", "")
             ping_prefix = ""
             if ping_role and str(ping_role).isdigit() and int(ping_role) > 0:
-                ping_prefix = f"📢 <@&{ping_role}> "
+                ping_prefix = f"{PING} <@&{ping_role}> "
 
             content = f"{ping_prefix}{t('MSG_REC_ALERT', guild_id=guild_id)}".strip()
             if content:

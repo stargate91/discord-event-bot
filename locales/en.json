@@ -32,7 +32,7 @@
   "BTN_REMINDERS": "🔔 Reminders",
   "BTN_REMINDER_OFFSET": "⏰ Default Offset",
   "BTN_RESET_CONFIRM": "YES, PERMANENTLY DELETE EVERYTHING",
-  "BTN_RESET_DEFAULT": "Reset to Default",
+  "BTN_RESET_DEFAULT": "Reset Default",
   "BTN_ROLE_LIMITS": "Role Limits",
   "BTN_SAVE_PREVIEW": "Save & Preview",
   "BTN_SINGLE_EVENT": "🕒 Single Event",
@@ -84,7 +84,7 @@
   "ERR_SELECT_KEY_RESET": "Select a key to reset first!",
   "ERR_SELECT_SET_DELETE": "Select a set to delete!",
   "ERR_SERIES_COUNT": "❌ There aren't this many ({occurrence}) active events in this series.",
-  "ERR_WIZARD_GENERAL": "Oops! Something went wrong: {e}",
+  "ERR_WIZARD_GENERAL": "❌ Oops! Something went wrong: {e}",
   "LBL_ACTIVE_EVENTS_LIST": "**Active events:**\n",
   "LBL_BULK_EDIT": "(BULK EDIT)",
   "LBL_CHANNEL_ID": "Channel (Name or ID)",
@@ -258,7 +258,7 @@
   "SETTING_REMINDER_OFFSET": "Reminder Offset (Default)",
   "PH_REMINDER_OFFSET": "e.g. 15m, 1h, 1d (m=min, h=hour, d=day)",
   "SETUP_GENERAL_DESC": "Manage bot language, admin roles, and restricted channels.",
-  "SETUP_GENERAL_TITLE": "General Settings",
+  "SETUP_GENERAL_TITLE": "⚙️ General Settings",
   "SET_TEAM": "Teams",
   "SET_TEAMS": "Teams",
   "SEL_COLOR": "Select color...",
@@ -330,5 +330,10 @@
   "KEY_MSG_WAITLIST_HINT": "Waitlist Hint Message",
   "KEY_MSG_REM_DESC": "Default Reminder Message",
   "KEY_MSG_EVENT_CANCELLED": "Event Cancelled Notice",
-  "KEY_MSG_EVENT_POSTPONED": "Event Postponed Notice"
+  "KEY_MSG_EVENT_POSTPONED": "Event Postponed Notice",
+  "ERR_NO_SET_FOUND": "❌ Set not found.",
+  "ERR_ROW_LIMIT": "❌ Row limit must be 1-5.",
+  "ERR_FILL_CUSTOM_DAYS": "❌ Please select at least 1 day for Custom Recurrence!",
+  "ERR_FILL_RELATIVE": "❌ For relative recurrence, pick exactly 1 week and 1 day!",
+  "ERR_FILL_RELATIVE_MIX": "❌ You can only select 1 week and 1 day combination!"
 }

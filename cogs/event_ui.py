@@ -1,4 +1,5 @@
 import discord
+from utils.emojis import WARNING, PING, SYNC
 from discord.ext import commands
 import database
 from utils.i18n import t
@@ -151,7 +152,7 @@ class DynamicEventView(discord.ui.LayoutView):
         desc = event_conf.get("description", "")
         if is_full:
             full_label = t('EMBED_FULL', guild_id=guild_id) or 'ESEMÉNY BETELT'
-            desc = f"### ⚠️ {full_label}\n{desc}"
+            desc = f"### {WARNING} {full_label}\n{desc}"
 
         status_cfg = event_conf.get("status", "active")
         title_prefix = ""
@@ -409,7 +410,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 rows.append(discord.ui.ActionRow(*current_row_items))
             if self.active_set.get("show_mgmt", True) and added_count < 40:
                 mgmt_items = []
-                resched_btn = discord.ui.Button(label=t("BTN_RESCHEDULE", guild_id=guild_id, default="📅 Újraütemezés"), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
+                resched_btn = discord.ui.Button(label=t("BTN_RESCHEDULE", guild_id=guild_id), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
                 resched_btn.callback = self.reschedule_callback
                 mgmt_items.append(resched_btn)
                 
@@ -835,9 +836,9 @@ class PostponeModal(discord.ui.Modal):
         ping_role_id = db_event.get("ping_role")
         ping_prefix = ""
         if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
-            ping_prefix = f"📢 <@&{ping_role_id}> "
+            ping_prefix = f"{PING} <@&{ping_role_id}> "
             
-        new_msg = await channel.send(content=f"{ping_prefix}🔄 **Időpont módosítva! / Rescheduled!**", view=new_view)
+        new_msg = await channel.send(content=f"{ping_prefix}{SYNC} **{t('MSG_RESCHEDULED_BROADCAST', guild_id=interaction.guild_id, default='Időpont módosítva! / Rescheduled!')}**", view=new_view)
         await database.set_event_message(self.event_id, new_msg.id)
         
         await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="rescheduled", default="Időpont módosítva! Az új kártya kikerült."), ephemeral=True)
@@ -887,7 +888,7 @@ class StatusChoiceView(discord.ui.View):
         else:
             status_text = self.new_status.upper()
             msg_body = t("MSG_EVENT_NOTIF_PREFIX", guild_id=guild_id, status=status_text, title=title)
-        notification_msg = f"📢 {msg_body}"
+        notification_msg = f"{PING} {msg_body}"
         if self.notify_type in ["dm", "both"]:
             for uid in participants:
                 try:

@@ -56,7 +56,7 @@ class EventCommands(commands.Cog):
             await view.refresh_message(interaction)
         except Exception as e:
             log.error(f"Error starting wizard: {e}")
-            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+            await interaction.followup.send(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @event_group.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
@@ -334,7 +334,7 @@ class AdminCommands(commands.GroupCog, name="admin"):
         except Exception as e:
             from utils.logger import log
             log.error(f"Error in admin_messages: {e}")
-            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+            await interaction.followup.send(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @app_commands.command(name="emojis", description="Manage customized emoji sets for this server")
     async def manage_emojis(self, interaction: discord.Interaction):
