@@ -29,79 +29,15 @@ class EventCommands(commands.Cog):
     """Cog for general event management commands."""
     
     event_group = app_commands.Group(name="event", description="Event management commands")
-    admin_group = app_commands.Group(name="admin", description="Administrative commands for server managers", parent=event_group)
     
     # --- CLEANUP: Master Hub logic moved to MasterCommands Cog ---
 
     def __init__(self, bot):
         self.bot = bot
 
-    @admin_group.command(name="messages", description="Manage global bot messages and strings")
-    async def admin_messages(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        try:
-            from utils.i18n import load_guild_translations
-            await load_guild_translations(guild_id)
-            
-            if not await is_admin(interaction):
-                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
-            
-            from cogs.message_wizard import MessageWizardView
-            view = MessageWizardView(self.bot, interaction.guild.id)
-            await view.prepare()
-            
-            embed = discord.Embed(
-                title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
-                description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
-                color=discord.Color.blue()
-            )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        except Exception as e:
-            from utils.logger import log
-            log.error(f"Error in admin_messages: {e}")
-            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
-    @admin_group.command(name="setup", description="Configure server-wide default values and admin settings")
-    async def admin_setup(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        try:
-            from utils.i18n import load_guild_translations
-            await load_guild_translations(guild_id)
-            
-            if not await is_admin(interaction):
-                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
-                
-            from cogs.server_setup import ServerSetupView
-            view = ServerSetupView(self.bot, guild_id)
-            await view.refresh_message(interaction)
-        except Exception as e:
-            await interaction.response.send_message(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
-    @admin_group.command(name="emojis", description="Create or manage custom emoji/reaction sets")
-    async def admin_emojis(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        guild_id = interaction.guild_id
-        try:
-            from utils.i18n import load_guild_translations
-            await load_guild_translations(guild_id)
-            
-            if not await is_admin(interaction):
-                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
-            
-            from cogs.emoji_wizard import EmojiWizardView
-            view = EmojiWizardView(self.bot, interaction.guild_id)
-            await view.prepare()
-            
-            embed = discord.Embed(
-                title="✨ " + t("LBL_WIZ_ICON_SET", guild_id=guild_id),
-                description=t("EMOJI_WIZ_INIT_DESC", guild_id=guild_id),
-                color=discord.Color.purple()
-            )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        except Exception as e:
-            await interaction.response.send_message(f"{t('ERR_CRITICAL_EMOJI', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+
 
     @event_group.command(name="create", description="Start the interactive event creation wizard")
     async def create_event(self, interaction: discord.Interaction):
@@ -349,30 +285,6 @@ class EventCommands(commands.Cog):
         await database.delete_all_user_drafts(interaction.guild_id, interaction.user.id)
         await interaction.response.send_message(t("MSG_DRAFTS_CLEARED"), ephemeral=True)
 
-    @admin_group.command(name="reset", description="WIPE ALL DATA for this server")
-    async def reset(self, interaction: discord.Interaction):
-        if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
-
-        view = ui.View()
-        confirm_btn = ui.Button(label=t("BTN_RESET_CONFIRM", guild_id=interaction.guild_id), style=discord.ButtonStyle.danger)
-        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=interaction.guild_id), style=discord.ButtonStyle.secondary)
-
-        async def confirm_callback(it: discord.Interaction):
-            try:
-                await database.reset_guild_data(it.guild.id)
-                await it.response.send_message(t("MSG_RESET_SUCCESS", guild_id=it.guild_id), ephemeral=True)
-            except Exception as e:
-                await it.response.send_message(f"{t('ERR_RESET_FAILED', guild_id=it.guild_id)}: `{e}`", ephemeral=True)
-
-        async def cancel_callback(it: discord.Interaction):
-            await it.response.send_message(t("MSG_RESET_CANCELLED", guild_id=it.guild_id), ephemeral=True)
-
-        confirm_btn.callback = confirm_callback
-        cancel_btn.callback = cancel_callback
-        view.add_item(confirm_btn); view.add_item(cancel_btn)
-        await interaction.response.send_message(t("MSG_RESET_WARNING", guild_id=interaction.guild_id), view=view, ephemeral=True)
-
 
     # --- PREFIXED COMMANDS (Sync/Clear) ---
 
@@ -413,5 +325,98 @@ class EventCommands(commands.Cog):
         except Exception as e:
             await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
+class AdminCommands(commands.GroupCog, name="admin"):
+    """Cog for server administrators to manage server settings."""
+    def __init__(self, bot):
+        self.bot = bot
+
+    @app_commands.command(name="setup", description="Configure server-wide default values and admin settings")
+    async def admin_setup(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+                
+            from cogs.server_setup import ServerSetupView
+            view = ServerSetupView(self.bot, guild_id)
+            await view.refresh_message(interaction)
+        except Exception as e:
+            await interaction.response.send_message(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+
+    @app_commands.command(name="messages", description="Manage global bot messages and strings")
+    async def admin_messages(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+            from cogs.message_wizard import MessageWizardView
+            view = MessageWizardView(self.bot, interaction.guild.id)
+            await view.prepare()
+            
+            embed = discord.Embed(
+                title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
+                description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
+                color=discord.Color.blue()
+            )
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        except Exception as e:
+            from utils.logger import log
+            log.error(f"Error in admin_messages: {e}")
+            await interaction.followup.send(f"❌ {t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+
+    @app_commands.command(name="emojis", description="Manage customized emoji sets for this server")
+    async def manage_emojis(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        try:
+            from utils.i18n import load_guild_translations
+            await load_guild_translations(guild_id)
+            
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+            from cogs.emoji_wizard import EmojiWizardView
+            view = EmojiWizardView(self.bot, interaction.guild_id)
+            await view.refresh_message(interaction)
+        except Exception as e:
+            await interaction.followup.send(f"{t('ERR_CRITICAL_EMOJI', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+
+    @app_commands.command(name="reset", description="WIPE ALL DATA for this server")
+    async def reset(self, interaction: discord.Interaction):
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+
+        view = ui.View()
+        confirm_btn = ui.Button(label=t("BTN_RESET_CONFIRM", guild_id=guild_id), style=discord.ButtonStyle.danger)
+        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=guild_id), style=discord.ButtonStyle.secondary)
+
+        async def confirm_callback(it: discord.Interaction):
+            try:
+                await database.reset_guild_data(it.guild.id)
+                await it.response.send_message(t("MSG_RESET_SUCCESS", guild_id=it.guild_id), ephemeral=True)
+            except Exception as e:
+                await it.response.send_message(f"{t('ERR_RESET_FAILED', guild_id=it.guild_id)}: `{e}`", ephemeral=True)
+
+        async def cancel_callback(it: discord.Interaction):
+            await it.response.send_message(t("MSG_RESET_CANCELLED", guild_id=it.guild_id), ephemeral=True)
+
+        confirm_btn.callback = confirm_callback
+        cancel_btn.callback = cancel_callback
+        view.add_item(confirm_btn); view.add_item(cancel_btn)
+        await interaction.response.send_message(t("MSG_RESET_WARNING", guild_id=guild_id), view=view, ephemeral=True)
+
 async def setup(bot):
     await bot.add_cog(EventCommands(bot))
+    await bot.add_cog(AdminCommands(bot))

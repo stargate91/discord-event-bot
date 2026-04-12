@@ -330,18 +330,10 @@ class EditEmojiSetModal(ui.Modal):
         self.wizard_view.selected_set_id = tid
         await self.wizard_view.refresh_message(interaction, status_msg=msg)
 
-class EmojiWizard(commands.GroupCog, name="admin"):
-    """Cog for server administrators to manage local emoji sets."""
+class EmojiWizardCog(commands.Cog):
+    """Empty cog to satisfy discord.py requirements, views only."""
     def __init__(self, bot):
         self.bot = bot
 
-    @app_commands.command(name="emojis", description="Manage customized emoji sets for this server")
-    async def manage_emojis(self, interaction: discord.Interaction):
-        if not await is_admin(interaction):
-            return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id), ephemeral=True)
-        
-        view = EmojiWizardView(self.bot, interaction.guild_id)
-        await view.refresh_message(interaction)
-
 async def setup(bot):
-    await bot.add_cog(EmojiWizard(bot))
+    await bot.add_cog(EmojiWizardCog(bot))
