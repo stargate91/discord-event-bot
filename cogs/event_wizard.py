@@ -690,9 +690,11 @@ class EventWizardView(ui.LayoutView):
             pub_btn.callback = pub_cb
 
         if view.wizard_type == "single":
-            r1 = [step1, step2, adv_btn, rem_toggle_btn, save_btn]
-            if view.can_publish: r1.append(pub_btn)
-            container_items.append(ui.ActionRow(*r1))
+            container_items.append(ui.ActionRow(step1, step2, adv_btn, rem_toggle_btn))
+            
+            pub_row = [save_btn]
+            if view.can_publish: pub_row.append(pub_btn)
+            container_items.append(ui.ActionRow(*pub_row))
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
