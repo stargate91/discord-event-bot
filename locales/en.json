@@ -379,5 +379,7 @@
   "TAG_CANCELLED": "CANCELLED",
   "TAG_DELETED": "DELETED",
   "BTN_RESCHEDULE": "📅 Reschedule",
-  "BTN_CREATE_POLL": "📊 Create Poll"
+  "MODAL_POSTPONE_TITLE": "Reschedule Event",
+  "MODAL_POSTPONE_START": "New Start (YYYY-MM-DD HH:MM) (Empty=Postpone)",
+  "MODAL_POSTPONE_END": "New End Time (optional)"
 }

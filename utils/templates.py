@@ -9,7 +9,7 @@ ICON_SET_TEMPLATES = {
         "emoji": "",
         "text": "✅ | I'm coming | Coming | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
-        "show_mgmt": True
+        "show_mgmt": False
     },
     "mmo": {
         "id": "mmo",
@@ -25,7 +25,7 @@ ICON_SET_TEMPLATES = {
         "emoji": "",
         "text": "👍 | Like | Liked it | 0 | SPEY\n👎 | Dislike | Disliked it | 0 | SPEY",
         "buttons_per_row": 5,
-        "show_mgmt": True
+        "show_mgmt": False
     },
     "teams": {
         "id": "teams",

@@ -378,5 +378,7 @@
   "TAG_CANCELLED": "ELMARAD",
   "TAG_DELETED": "TÖRÖLVE",
   "BTN_RESCHEDULE": "📅 Újraütemezés",
-  "BTN_CREATE_POLL": "📊 Szavazás kiírása"
+  "MODAL_POSTPONE_TITLE": "Esemény újraütemezése",
+  "MODAL_POSTPONE_START": "Új kezdet (ÉÉÉÉ-HH-NN ÓÓ:PP) (Üresen=Halasztás)",
+  "MODAL_POSTPONE_END": "Új befejezés (opcionális)"
 }
