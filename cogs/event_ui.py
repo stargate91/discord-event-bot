@@ -174,9 +174,18 @@ class DynamicEventView(discord.ui.LayoutView):
         
         end_ts = event_conf.get('end_time') or (db_event.get('end_time') if db_event else None)
         if end_ts:
-            end_label = t('EMBED_END_TIME', guild_id=guild_id)
-            if end_label == 'EMBED_END_TIME': end_label = 'Befejezés ideje'
-            time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+            import datetime
+            s_date = datetime.datetime.fromtimestamp(start_ts).date()
+            e_date = datetime.datetime.fromtimestamp(end_ts).date()
+            
+            if s_date == e_date:
+                time_str += f" - <t:{int(end_ts)}:t>"
+            else:
+                end_label = t('EMBED_END_TIME', guild_id=guild_id)
+                if end_label == 'EMBED_END_TIME': 
+                    # Smart fallback based on t() output
+                    end_label = 'End' if 'Time' in t('EMBED_START_TIME', guild_id=guild_id) else 'Vége'
+                time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
 
         recurrence = event_conf.get('recurrence_type', 'none')
         if recurrence != 'none':
