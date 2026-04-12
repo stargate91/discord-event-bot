@@ -83,13 +83,16 @@ def get_active_set(key):
 async def send_lobby_fill_notifications(bot, db_event, active_set: dict, guild_id_int: int):
     from utils.lobby_utils import positive_status_ids
 
-    if not db_event.get("lobby_remind_on_fill", True):
+    et = (db_event.get("reminder_type") or "").strip().lower()
+    if et in ("none", ""):
+        if not db_event.get("lobby_remind_on_fill", True):
+            return
+        et = (
+            await database.get_guild_setting(guild_id_int, "reminder_type", default="none") or "none"
+        ).lower()
+    if et in ("none", ""):
         return
-    rem_type = (
-        await database.get_guild_setting(guild_id_int, "reminder_type", default="none") or "none"
-    ).lower()
-    if rem_type in ("none", ""):
-        return
+    rem_type = et
 
     pos_ids = positive_status_ids(active_set)
     rsvps = await database.get_rsvps(db_event["event_id"])

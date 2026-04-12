@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Premium - Dashboard Mockup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-base: #060913;
+            --bg-glass: rgba(13, 17, 28, 0.75);
+            --border-glass: rgba(255, 255, 255, 0.06);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-glow: #e2b714;
+            --gradient-primary: linear-gradient(135deg, #1d4ed8 0%, #7c3aed 100%);
+            --gradient-premium: linear-gradient(135deg, #f59e0b 0%, #dc2626 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            /* Overlaying the banner faintly in the background */
+            background-image: 
+                linear-gradient(to right, rgba(6, 9, 19, 1) 0%, rgba(6, 9, 19, 0.8) 50%, rgba(6, 9, 19, 1) 100%),
+                linear-gradient(to bottom, rgba(6, 9, 19, 0.1) 0%, rgba(6, 9, 19, 1) 80%),
+                url('file:///e:/projects/python/bot_imgs/nexus_banner.jpg');
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--bg-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-right: 1px solid var(--border-glass);
+            padding: 2rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: white;
+            text-shadow: 0 0 10px rgba(255,255,255,0.2);
+        }
+
+        .logo img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+            border: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-item {
+            padding: 1rem 1.2rem;
+            margin-bottom: 0.5rem;
+            border-radius: 12px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .nav-item:hover, .nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-main);
+            transform: translateX(5px);
+        }
+
+        .nav-item.active {
+            background: rgba(124, 58, 237, 0.15);
+            border: 1px solid rgba(124, 58, 237, 0.3);
+            color: #c4b5fd;
+            box-shadow: 0 0 15px rgba(124, 58, 237, 0.1);
+        }
+
+        /* Main Content */
+        .main-content {
+            flex: 1;
+            padding: 3rem 4rem;
+            z-index: 10;
+            background: linear-gradient(180deg, rgba(6, 9, 19, 0) 0%, rgba(6, 9, 19, 0.95) 400px);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border-glass);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        .premium-btn {
+            background: var(--gradient-premium);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 99px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .premium-btn:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: var(--bg-glass);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-glass);
+            border-radius: 20px;
+            padding: 1.5rem;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--gradient-primary);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .glass-card:hover::before {
+            opacity: 1;
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin: 1rem 0 0.2rem;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Large Action Area */
+        .action-area {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+
+        .event-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.03);
+            margin-top: 1rem;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+        }
+
+        .event-list-item:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.1);
+            transform: translateX(4px);
+        }
+
+        .badge {
+            background: rgba(52, 211, 153, 0.15);
+            color: #34d399;
+            padding: 0.2rem 0.8rem;
+            border-radius: 99px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(52, 211, 153, 0.3);
+        }
+        
+        .badge.locked {
+            background: rgba(248, 113, 113, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(248, 113, 113, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <nav class="sidebar">
+        <div class="logo">
+            <!-- Using the local logo file -->
+            <img src="file:///e:/projects/python/bot_imgs/nexus.jpg" alt="Nexus Logo">
+            Nexus
+        </div>
+        <a href="#" class="nav-item active">📊 Dashboard</a>
+        <a href="#" class="nav-item">🗓️ Events</a>
+        <a href="#" class="nav-item">🎭 Emoji Sets</a>
+        <a href="#" class="nav-item">⚙️ Settings</a>
+        <div style="flex:1"></div>
+        <a href="#" class="nav-item" style="color: #f59e0b; border: 1px dashed rgba(245,158,11,0.3);">✨ Billing (Free Tier)</a>
+    </nav>
+
+    <main class="main-content">
+        <header class="header">
+            <div>
+                <h1>Welcome back, Admin 👋</h1>
+                <p>Manage your entire Nexus Discord bot experience from here.</p>
+            </div>
+            <button class="premium-btn">
+                💎 Upgrade to Premium
+            </button>
+        </header>
+
+        <section class="dashboard-grid">
+            <div class="glass-card">
+                <div class="stat-label">Active Events</div>
+                <div class="stat-value">3 / 5</div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">2 slots remaining on Free tier.</p>
+            </div>
+            <div class="glass-card">
+                <div class="stat-label">Total RSVPs Tracked</div>
+                <div class="stat-value">1,204</div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Across all your servers.</p>
+            </div>
+            <div class="glass-card">
+                <div class="stat-label">System Status</div>
+                <div class="stat-value" style="color: #34d399;">Online</div>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Response Time: 42ms</p>
+            </div>
+        </section>
+
+        <section class="action-area">
+            <div class="glass-card" style="padding: 2rem;">
+                <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem; color: white;">Recent Events Overview</h3>
+                
+                <div class="event-list-item">
+                    <div>
+                        <strong style="display: block; font-size: 1.1rem; margin-bottom: 4px; color: white;">Friday Night Raid</strong>
+                        <span style="color: var(--text-muted); font-size: 0.9rem;">#announcements • Starts in 2 days</span>
+                    </div>
+                    <span class="badge">Active</span>
+                </div>
+                
+                <div class="event-list-item">
+                    <div>
+                        <strong style="display: block; font-size: 1.1rem; margin-bottom: 4px; color: white;">Weekly Meeting</strong>
+                        <span style="color: var(--text-muted); font-size: 0.9rem;">#general • Starts tomorrow</span>
+                    </div>
+                    <span class="badge">Active</span>
+                </div>
+            </div>
+
+            <!-- Embedded Banner inside a promotional card as a call-to-action -->
+            <div class="glass-card" style="padding: 2rem; background: linear-gradient(180deg, var(--bg-glass) 0%, rgba(139, 92, 246, 0.1) 100%);">
+                <h3 style="margin-bottom: 1.5rem; font-size: 1.2rem; color: white;">Premium Features</h3>
+                <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5; margin-bottom: 1.5rem;">
+                    Unlock the full potential of your community events by upgrading your server to Nexus Premium.
+                </p>
+                <ul style="list-style: none; display: flex; flex-direction: column; gap: 12px;">
+                    <li style="display: flex; gap: 10px; align-items: center;"><span class="badge locked">Locked</span> Custom Colors</li>
+                    <li style="display: flex; gap: 10px; align-items: center;"><span class="badge locked">Locked</span> Unlimited Events</li>
+                    <li style="display: flex; gap: 10px; align-items: center;"><span class="badge locked">Locked</span> White-Label Bot</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

@@ -99,40 +99,47 @@ class WizardStartView(ui.LayoutView):
             await interaction.response.send_message(view=view, ephemeral=True)
 
 class SingleEventModal(ui.Modal):
-    """Step 1 for Single Events."""
+    """Step 1 for Single Events (lobby: no start/end; max létszám itt)."""
     def __init__(self, wizard_view):
         super().__init__(title=t("TITLE_BASIC_INFO", guild_id=wizard_view.guild_id)[:45])
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
+        is_lobby = wizard_view.wizard_type == "lobby"
 
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=guild_id), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
-        
-        # Combined time
-        combined_time = ""
-        if data.get("start_str"):
-            combined_time = str(data["start_str"])
-            if data.get("end_str"):
-                combined_time += f", {data['end_str']}"
 
-        is_lobby = wizard_view.wizard_type == "lobby"
-        self.time_input = ui.TextInput(
-            label=(
-                t("LBL_WIZ_START_LOBBY_OPTIONAL", guild_id=guild_id)
-                if is_lobby
-                else t("LBL_WIZ_START", guild_id=guild_id)
-            ),
-            placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
-            default=combined_time,
-            required=not is_lobby,
-        )
+        if is_lobby:
+            self.max_acc_input = ui.TextInput(
+                label=t("LBL_WIZ_MAX", guild_id=guild_id),
+                default=str(data.get("max_accepted") or 0),
+                required=False,
+            )
+            self.time_input = None
+        else:
+            self.max_acc_input = None
+            combined_time = ""
+            if data.get("start_str"):
+                combined_time = str(data["start_str"])
+                if data.get("end_str"):
+                    combined_time += f", {data['end_str']}"
+            self.time_input = ui.TextInput(
+                label=t("LBL_WIZ_START", guild_id=guild_id),
+                placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
+                default=combined_time,
+                required=True,
+            )
+
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
         self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
 
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
-        self.add_item(self.time_input)
+        if is_lobby:
+            self.add_item(self.max_acc_input)
+        else:
+            self.add_item(self.time_input)
         self.add_item(self.images_input)
         self.add_item(self.ping_input)
 
@@ -144,12 +151,15 @@ class SingleEventModal(ui.Modal):
             self.wizard_view.data["description"] = str(self.desc_input.value)
             self.wizard_view.data["image_urls"] = str(self.images_input.value)
             self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
-            
-            time_val = str(self.time_input.value).strip()
-            if self.wizard_view.wizard_type == "lobby" and not time_val:
+
+            if self.wizard_view.wizard_type == "lobby":
                 self.wizard_view.data["start_str"] = ""
                 self.wizard_view.data["end_str"] = ""
+                self.wizard_view.data["max_accepted"] = (
+                    int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
+                )
             else:
+                time_val = str(self.time_input.value).strip()
                 if "," in time_val:
                     parts = time_val.split(",", 1)
                 elif " - " in time_val:
@@ -173,53 +183,55 @@ class SingleEventModal(ui.Modal):
                 await interaction.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
 class SingleEventSupplementaryModal(ui.Modal):
-    """Step 2 for Single Events."""
+    """Step 2: single = tz + max + channel; lobby = tz + channel + lejárati offset."""
     def __init__(self, wizard_view):
-        super().__init__(title=t("BTN_STEP_2_SINGLE", guild_id=wizard_view.guild_id, default="2. Kiegészítő")[:45])
+        gid = wizard_view.guild_id
+        is_lobby = wizard_view.wizard_type == "lobby"
+        title_key = "BTN_STEP_2_LOBBY" if is_lobby else "BTN_STEP_2_SINGLE"
+        super().__init__(title=t(title_key, guild_id=gid, default="2. Kiegészítő")[:45])
         self.wizard_view = wizard_view
+        self.is_lobby = is_lobby
         data = wizard_view.data
-        guild_id = self.wizard_view.guild_id
 
-        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
-        self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
-        self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
+        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=gid), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
+        self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=gid), placeholder=t("PH_CURRENT_CHANNEL", guild_id=gid), default=str(data.get("channel_id") or ""), required=False)
 
-        self.add_item(self.timezone_input)
-        self.add_item(self.max_acc_input)
-        self.add_item(self.channel_id_input)
+        if is_lobby:
+            self.max_acc_input = None
+            self.lobby_expire_input = ui.TextInput(
+                label=t("LBL_LOBBY_EXPIRE_OFFSET", guild_id=gid),
+                default=str(data.get("lobby_expire_offset") or "12h"),
+                placeholder=t("PH_DURATION", guild_id=gid),
+                required=True,
+                max_length=24,
+            )
+            self.add_item(self.timezone_input)
+            self.add_item(self.channel_id_input)
+            self.add_item(self.lobby_expire_input)
+        else:
+            self.lobby_expire_input = None
+            self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=gid), default=str(data.get("max_accepted") or 0), required=False)
+            self.add_item(self.timezone_input)
+            self.add_item(self.max_acc_input)
+            self.add_item(self.channel_id_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
-        self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
-        
-        self.wizard_view.steps_completed["step2"] = True
-        await self.wizard_view.save_to_draft()
-        await self.wizard_view.refresh_message(interaction)
-
-
-class LobbyExpiryModal(ui.Modal):
-    def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_LOBBY_EXPIRY", guild_id=wizard_view.guild_id)[:45])
-        self.wizard_view = wizard_view
-        gid = wizard_view.guild_id
-        self.off_input = ui.TextInput(
-            label=t("LBL_LOBBY_EXPIRE_OFFSET", guild_id=gid),
-            default=str(wizard_view.data.get("lobby_expire_offset") or "12h"),
-            placeholder=t("PH_DURATION", guild_id=gid),
-            required=True,
-            max_length=24,
-        )
-        self.add_item(self.off_input)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        raw = str(self.off_input.value).strip().lower() or "12h"
-        if not re.match(r"^(\d+)([mhd])$", raw):
-            return await interaction.response.send_message(
-                t("ERR_LOBBY_EXPIRE_OFFSET", guild_id=self.wizard_view.guild_id, e=raw),
-                ephemeral=True,
+        if self.is_lobby:
+            raw = str(self.lobby_expire_input.value).strip().lower() or "12h"
+            if not re.match(r"^(\d+)([mhd])$", raw):
+                return await interaction.response.send_message(
+                    t("ERR_LOBBY_EXPIRE_OFFSET", guild_id=self.wizard_view.guild_id, e=raw),
+                    ephemeral=True,
+                )
+            self.wizard_view.data["lobby_expire_offset"] = raw
+        else:
+            self.wizard_view.data["max_accepted"] = (
+                int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
             )
-        self.wizard_view.data["lobby_expire_offset"] = raw
+
+        self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
 
@@ -631,31 +643,6 @@ class EventWizardView(ui.LayoutView):
         )
         temp_role_btn.callback = temp_role_cb
 
-        async def lobby_exp_cb(it):
-            await it.response.send_modal(LobbyExpiryModal(view))
-
-        lobby_exp_btn = ui.Button(
-            label=t("BTN_LOBBY_EXPIRY", guild_id=self.guild_id),
-            style=discord.ButtonStyle.gray,
-        )
-        lobby_exp_btn.callback = lobby_exp_cb
-
-        async def lobby_fill_rem_cb(it):
-            view.data["lobby_remind_on_fill"] = not view.data.get("lobby_remind_on_fill", True)
-            await view.save_to_draft()
-            await view.refresh_message(it)
-
-        fr_on = view.data.get("lobby_remind_on_fill", True)
-        lobby_fill_rem_btn = ui.Button(
-            label=t(
-                "BTN_LOBBY_FILL_NOTIFY",
-                guild_id=self.guild_id,
-                on=t("LBL_YES", guild_id=self.guild_id) if fr_on else t("LBL_NO", guild_id=self.guild_id),
-            ),
-            style=discord.ButtonStyle.green if fr_on else discord.ButtonStyle.gray,
-        )
-        lobby_fill_rem_btn.callback = lobby_fill_rem_cb
-
         save_style = discord.ButtonStyle.green
         save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
         async def save_cb(it): await view.handle_save_preview(it)
@@ -696,6 +683,7 @@ class EventWizardView(ui.LayoutView):
         # Single Event specific Advanced Toggles
         adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_advanced else "◀️", style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
+            await it.response.defer()
             view.show_advanced = not view.show_advanced
             if view.show_advanced:
                 view.show_reminder = False
@@ -705,6 +693,7 @@ class EventWizardView(ui.LayoutView):
         # Reminder Toggle
         rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_reminder else "◀️", style=discord.ButtonStyle.secondary)
         async def rem_toggle_cb(it):
+            await it.response.defer()
             view.show_reminder = not view.show_reminder
             if view.show_reminder:
                 view.show_advanced = False
@@ -744,7 +733,7 @@ class EventWizardView(ui.LayoutView):
             await it.response.send_modal(ReminderOffsetModal(view))
         rem_offset_btn.callback = rem_offset_cb
 
-        # Reminder Type Dropdown
+        # Reminder Type Dropdown (lobby: megteléskori értesítés módja)
         cur_rem_type = view.data.get("reminder_type", "none")
         rem_type_opts = [
             discord.SelectOption(label=t("SEL_REM_NONE", guild_id=self.guild_id), value="none", default=(cur_rem_type=="none")),
@@ -752,7 +741,12 @@ class EventWizardView(ui.LayoutView):
             discord.SelectOption(label=t("SEL_REM_PING", guild_id=self.guild_id), value="ping", default=(cur_rem_type=="ping")),
             discord.SelectOption(label=t("SEL_REM_BOTH", guild_id=self.guild_id), value="both", default=(cur_rem_type=="both"))
         ]
-        rem_type_sel = ui.Select(placeholder=t("BTN_REMINDERS", guild_id=self.guild_id), options=rem_type_opts)
+        rem_ph = (
+            t("SEL_LOBBY_FILL_NOTIFY", guild_id=self.guild_id)
+            if view.wizard_type == "lobby"
+            else t("BTN_REMINDERS", guild_id=self.guild_id)
+        )
+        rem_type_sel = ui.Select(placeholder=rem_ph, options=rem_type_opts)
         async def rem_type_cb(it):
             await it.response.defer()
             view.data["reminder_type"] = rem_type_sel.values[0]
@@ -804,6 +798,7 @@ class EventWizardView(ui.LayoutView):
                         await self.v.refresh_message(i)
                 await it.response.send_modal(ColorModal(view))
             else:
+                await it.response.defer()
                 view.data["color"] = val
                 await view.save_to_draft()
                 await view.refresh_message(it)
@@ -882,7 +877,8 @@ class EventWizardView(ui.LayoutView):
             if view.show_advanced:
                 container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn, color_sel))
+                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
@@ -903,7 +899,7 @@ class EventWizardView(ui.LayoutView):
 
             container_items.append(ui.ActionRow(sel_icon))
         elif view.wizard_type == "lobby":
-            container_items.append(ui.ActionRow(step1, step2, lobby_exp_btn, adv_btn, rem_toggle_btn))
+            container_items.append(ui.ActionRow(step1, step2, adv_btn, rem_toggle_btn))
 
             pub_row = [save_btn]
             if view.can_publish:
@@ -913,12 +909,13 @@ class EventWizardView(ui.LayoutView):
             if view.show_advanced:
                 container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(temp_role_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn, color_sel))
+                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(t("MSG_LOBBY_REMINDER_HINT", guild_id=self.guild_id)))
-                container_items.append(ui.ActionRow(lobby_fill_rem_btn))
+                container_items.append(ui.ActionRow(rem_type_sel))
                 container_items.append(ui.Separator())
 
             container_items.append(ui.ActionRow(sel_icon))
@@ -932,7 +929,8 @@ class EventWizardView(ui.LayoutView):
             if view.show_advanced:
                 container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn, color_sel))
+                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
@@ -1026,10 +1024,18 @@ class EventWizardView(ui.LayoutView):
         if self.wizard_type == "lobby":
             self.data["lobby_mode"] = True
             self.data["use_waiting_list"] = False
+            self.data["reminder_offsets"] = []
             if "lobby_expire_offset" not in self.data:
                 self.data["lobby_expire_offset"] = "12h"
-            if "lobby_remind_on_fill" not in self.data:
-                self.data["lobby_remind_on_fill"] = True
+            if self.is_edit:
+                rt = (self.data.get("reminder_type") or "none").strip().lower()
+                if rt in ("none", "") and self.data.get("lobby_remind_on_fill", True):
+                    g_rt = (
+                        await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
+                        or "none"
+                    ).strip().lower()
+                    if g_rt not in ("none", ""):
+                        self.data["reminder_type"] = g_rt
         
         if "max_accepted" not in self.data:
             m = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
@@ -1158,7 +1164,6 @@ class EventWizardView(ui.LayoutView):
             self.data["end_time"] = None
             self.data["use_waiting_list"] = False
             self.data["reminder_offsets"] = []
-            self.data["reminder_type"] = "none"
             from cogs.event_ui import get_active_set
             from utils.lobby_utils import effective_lobby_capacity, role_limits_from_extra
 
@@ -1292,7 +1297,9 @@ class EventWizardView(ui.LayoutView):
                 self.data["end_time"] = None
                 self.data["use_waiting_list"] = False
                 self.data["reminder_offsets"] = []
-                self.data["reminder_type"] = "none"
+                self.data["lobby_remind_on_fill"] = (
+                    (self.data.get("reminder_type") or "none").lower() not in ("none", "")
+                )
 
             # Temp Role Logic
             if self.data.get("use_temp_role") and not self.data.get("temp_role_id"):
