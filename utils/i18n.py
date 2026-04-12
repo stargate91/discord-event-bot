@@ -3,11 +3,11 @@ import os
 import database
 
 # Default fallback language from config
-DEFAULT_LANG = "hu"
+DEFAULT_LANG = "en"
 try:
     from utils.jsonc import load_jsonc
     config_data = load_jsonc('config.json')
-    DEFAULT_LANG = config_data.get("language", "hu")
+    DEFAULT_LANG = config_data.get("language", "en")
 except Exception:
     pass
 

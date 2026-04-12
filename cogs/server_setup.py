@@ -24,7 +24,7 @@ class ServerSetupView(ui.LayoutView):
         general_btn.callback = general_cb
 
         curr_tz = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
-        local_label = f"{t('BTN_LOCAL', guild_id=self.guild_id)} ({curr_tz})"
+        local_label = f"🌍 {curr_tz}"
         local_btn = ui.Button(label=local_label, style=discord.ButtonStyle.secondary)
         async def local_cb(it):
             modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
@@ -139,7 +139,7 @@ class GeneralSetupView(ui.LayoutView):
         channels_btn.callback = channels_cb
 
         # Template Lang Select
-        cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="default")
+        cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="en")
         tpl_opts = [
             discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id) or "Default (Follow Server)", value="default", default=(cur_tpl_lang=="default")),
             discord.SelectOption(label="🇭🇺 Magyar", value="hu", default=(cur_tpl_lang=="hu")),
@@ -197,7 +197,7 @@ class ReminderSetupView(ui.LayoutView):
         self.clear_items()
         
         # Get current reminder type from DB
-        cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
+        cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="ping")
 
         async def set_rem(it, rtype):
             await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
@@ -310,7 +310,7 @@ class EventDefaultsView(ui.LayoutView):
 
         repost_btn = ui.Button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def repost_cb(it):
-            curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1h")
+            curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="1d")
             modal = SimpleConfigModal(self.guild_id, "default_repost_offset", t("SETTING_REPOST_OFFSET", guild_id=self.guild_id), 
                                      placeholder=t("PH_DURATION", guild_id=self.guild_id), default_val=curr, parent_view=self)
             await it.response.send_modal(modal)

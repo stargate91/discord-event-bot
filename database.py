@@ -6,7 +6,7 @@ import re
 from utils.logger import log
 
 _pool = None
-DEFAULT_TIMEZONE = 'Europe/Budapest'
+DEFAULT_TIMEZONE = 'UTC'
 
 async def set_pool(pool):
     global _pool
