@@ -372,5 +372,11 @@
   "SYNC_GUILD_OK": "✅ {count} parancs sikeresen szinkronizálva erre a szerverre.",
   "SYNC_FAILED": "❌ A szinkronizáció sikertelen: `{e}`",
   "LBL_TEMPLATE_LANG": "Ikonok nyelve",
-  "SEL_LANG_DEFAULT": "Kövessen mindent (Alapértelmezett)"
+  "SEL_LANG_DEFAULT": "Kövessen mindent (Alapértelmezett)",
+  "TAG_RESCHEDULED": "ÁTRAKVA",
+  "TAG_POSTPONED": "ELHALASZTVA",
+  "TAG_CANCELLED": "ELMARAD",
+  "TAG_DELETED": "TÖRÖLVE",
+  "BTN_RESCHEDULE": "📅 Újraütemezés",
+  "BTN_CREATE_POLL": "📊 Szavazás kiírása"
 }

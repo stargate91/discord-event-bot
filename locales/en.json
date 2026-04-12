@@ -373,5 +373,11 @@
   "LBL_LANG_EN": "🇺🇸 English",
   "BTN_BACK": "◀️",
   "LBL_TEMPLATE_LANG": "Emoji Sets Language",
-  "SEL_LANG_DEFAULT": "Default (Follow Server)"
+  "SEL_LANG_DEFAULT": "Default (Follow Server)",
+  "TAG_RESCHEDULED": "RESCHEDULED",
+  "TAG_POSTPONED": "POSTPONED",
+  "TAG_CANCELLED": "CANCELLED",
+  "TAG_DELETED": "DELETED",
+  "BTN_RESCHEDULE": "📅 Reschedule",
+  "BTN_CREATE_POLL": "📊 Create Poll"
 }

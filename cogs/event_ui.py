@@ -357,28 +357,43 @@ class DynamicEventView(discord.ui.LayoutView):
                 rows.append(discord.ui.ActionRow(*current_row_items))
                 current_row_items = []
 
-        if self.active_set.get("show_mgmt", True) and added_count < 40:
-            mgmt_items = []
+        status = event_conf.get("status", "active") if event_conf else db_event.get("status", "active") if db_event else "active"
+        if status == "postponed":
+            if current_row_items:
+                rows.append(discord.ui.ActionRow(*current_row_items))
+            if self.active_set.get("show_mgmt", True) and added_count < 40:
+                mgmt_items = []
+                resched_btn = discord.ui.Button(label=t("BTN_RESCHEDULE", guild_id=guild_id, default="📅 Újraütemezés"), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
+                resched_btn.callback = self.reschedule_callback
+                mgmt_items.append(resched_btn)
 
-            postpone_btn = discord.ui.Button(label=t("BTN_POSTPONE_EVENT", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
-            postpone_btn.callback = self.postpone_callback
-            mgmt_items.append(postpone_btn)
+                poll_btn = discord.ui.Button(label=t("BTN_CREATE_POLL", guild_id=guild_id, default="📊 Szavazás kiírása"), style=discord.ButtonStyle.secondary, custom_id=f"poll_{self.event_id}")
+                poll_btn.callback = self.poll_callback
+                mgmt_items.append(poll_btn)
+                rows.append(discord.ui.ActionRow(*mgmt_items))
+        else:
+            if self.active_set.get("show_mgmt", True) and added_count < 40:
+                mgmt_items = []
 
-            cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
-            cancel_btn.callback = self.cancel_callback
-            mgmt_items.append(cancel_btn)
+                postpone_btn = discord.ui.Button(label=t("BTN_POSTPONE_EVENT", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
+                postpone_btn.callback = self.postpone_callback
+                mgmt_items.append(postpone_btn)
 
-            if len(current_row_items) + len(mgmt_items) <= 5:
-                current_row_items.extend(mgmt_items)
-                if current_row_items:
-                    rows.append(discord.ui.ActionRow(*current_row_items))
+                cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+                cancel_btn.callback = self.cancel_callback
+                mgmt_items.append(cancel_btn)
+
+                if len(current_row_items) + len(mgmt_items) <= 5:
+                    current_row_items.extend(mgmt_items)
+                    if current_row_items:
+                        rows.append(discord.ui.ActionRow(*current_row_items))
+                else:
+                    if current_row_items:
+                        rows.append(discord.ui.ActionRow(*current_row_items))
+                    rows.append(discord.ui.ActionRow(*mgmt_items))
             else:
                 if current_row_items:
                     rows.append(discord.ui.ActionRow(*current_row_items))
-                rows.append(discord.ui.ActionRow(*mgmt_items))
-        else:
-            if current_row_items:
-                rows.append(discord.ui.ActionRow(*current_row_items))
 
         for r in rows:
             self.add_item(r)
@@ -405,7 +420,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
         if status in ["cancelled", "postponed", "deleted"]:
             for btn in all_buttons:
-                if not btn.custom_id.startswith(("edit_", "delete_", "calendar_")):
+                if not btn.custom_id.startswith(("edit_", "delete_", "calendar_", "resched_", "poll_")):
                     btn.disabled = True
             return
 
@@ -501,8 +516,23 @@ class DynamicEventView(discord.ui.LayoutView):
     async def postpone_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
-        # Using the modal defined at the bottom of the file
+        await interaction.response.defer()
+        await database.update_event_status(self.event_id, "postponed")
+        if not self.event_conf: self.event_conf = {}
+        self.event_conf["status"] = "postponed"
+        await self.prepare()
+        await interaction.message.edit(view=self)
+        log.info(f"Event {self.event_id} postponed by {interaction.user}")
+
+    async def reschedule_callback(self, interaction: discord.Interaction):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
         await interaction.response.send_modal(PostponeModal(self.bot, self.event_id, self, interaction.guild_id))
+
+    async def poll_callback(self, interaction: discord.Interaction):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
+        await interaction.response.send_modal(PollModal(self.bot, self.event_id, self, interaction.guild_id))
 
     async def cancel_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
@@ -713,11 +743,11 @@ class PostponeModal(discord.ui.Modal):
         db_event["start_time"] = start_ts
         if end_ts:
             db_event["end_time"] = end_ts
-        db_event["status"] = "postponed"
+        db_event["status"] = "active"
         await database.update_active_event(self.event_id, db_event)
         
         if not self.parent_view.event_conf: self.parent_view.event_conf = {}
-        self.parent_view.event_conf["status"] = "postponed"
+        self.parent_view.event_conf["status"] = "rescheduled"
         self.parent_view.event_conf["start_time"] = start_ts
         if end_ts:
             self.parent_view.event_conf["end_time"] = end_ts
@@ -730,8 +760,89 @@ class PostponeModal(discord.ui.Modal):
                         for item in row.children:
                             if isinstance(item, discord.ui.Button): item.disabled = True
                             
-        await interaction.message.edit(view=self.parent_view)
-        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="postponed"), ephemeral=True)
+        # If the origin of interaction was the card itself or thread
+        if interaction.message:
+            await interaction.message.edit(view=self.parent_view)
+
+        # Spawn newly active card
+        channel = await self.bot.fetch_channel(int(db_event["channel_id"]))
+        from cogs.event_ui import DynamicEventView
+        new_view = DynamicEventView(self.bot, self.event_id, db_event)
+        await new_view.prepare()
+        
+        # Determine if we need to ping
+        ping_role_id = db_event.get("ping_role")
+        ping_prefix = ""
+        if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
+            ping_prefix = f"📢 <@&{ping_role_id}> "
+            
+        new_msg = await channel.send(content=f"{ping_prefix}🔄 **Időpont módosítva! / Rescheduled!**", view=new_view)
+        await database.set_event_message(self.event_id, new_msg.id)
+        
+        if isinstance(interaction.channel, discord.Thread):
+            try: await interaction.channel.edit(archived=True, reason="Event Rescheduled")
+            except: pass
+            
+        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="rescheduled", default="Időpont módosítva! Az új kártya kikerült."), ephemeral=True)
+
+class PollModal(discord.ui.Modal):
+    def __init__(self, bot, event_id, parent_view, guild_id):
+        super().__init__(title=t("BTN_CREATE_POLL", guild_id=guild_id, default="Szavazás kiírása"), timeout=300)
+        self.bot = bot
+        self.event_id = event_id
+        self.parent_view = parent_view
+        
+        self.question = discord.ui.TextInput(
+            label="Kérdés a résztvevőkhöz",
+            default="Mikor pótoljuk az eseményt?",
+            required=True
+        )
+        self.add_item(self.question)
+        self.opt1 = discord.ui.TextInput(label="Opció 1", default="Ezen a hétvégén", required=True)
+        self.opt2 = discord.ui.TextInput(label="Opció 2", default="Jövő héten", required=True)
+        self.opt3 = discord.ui.TextInput(label="Opció 3", placeholder="Két hét múlva...", required=False)
+        self.opt4 = discord.ui.TextInput(label="Opció 4", placeholder="Egyéb (Chatben megbeszéljük)", required=False)
+        self.add_item(self.opt1); self.add_item(self.opt2); self.add_item(self.opt3); self.add_item(self.opt4)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        
+        answers = [self.opt1.value, self.opt2.value]
+        if self.opt3.value: answers.append(self.opt3.value)
+        if self.opt4.value: answers.append(self.opt4.value)
+        
+        from datetime import timedelta
+        poll = discord.Poll(question=self.question.value, duration=timedelta(days=7), allow_multiselect=True)
+        for ans in answers:
+            poll.add_answer(text=ans)
+            
+        msg = interaction.message
+        if not isinstance(msg.channel, discord.Thread):
+            thread = await msg.create_thread(name="📅 Új időpont egyeztetése", auto_archive_duration=10080)
+            await thread.send(poll=poll)
+            
+            # Create pinned message with reschedule button
+            view = RescheduleButtonView(self.bot, self.event_id, self.parent_view)
+            pinned_msg = await thread.send("Nyomd meg ezt a gombot, amint kiválasztottátok a végleges dátumot!", view=view)
+            await pinned_msg.pin()
+            
+            await interaction.followup.send("Létrehoztam a szavazást és a beszélgetést (Thread) az esemény kártya alatt!", ephemeral=True)
+        else:
+            await interaction.followup.send("Már van egy megnyitott szál a szavazáshoz ezen az eseményen!", ephemeral=True)
+
+class RescheduleButtonView(discord.ui.View):
+    def __init__(self, bot, event_id, parent_view):
+        super().__init__(timeout=None)
+        self.bot = bot
+        self.event_id = event_id
+        self.parent_view = parent_view
+        
+    @discord.ui.button(label="📅 Újraütemezés", style=discord.ButtonStyle.primary, custom_id="thread_reschedule")
+    async def invoke_reschedule(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
+        from cogs.event_ui import PostponeModal
+        await interaction.response.send_modal(PostponeModal(self.bot, self.event_id, self.parent_view, interaction.guild_id))
 
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):
