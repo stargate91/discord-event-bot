@@ -212,17 +212,18 @@ class DynamicEventView(discord.ui.LayoutView):
             if limit:
                 count_text = f"{len(users)}/{limit}"
 
-            if not opt.get("show_in_list", True):
-                continue
-
             name_parts = []
             if opt.get("emoji"):
                 name_parts.append(opt["emoji"])
             if label_text:
                 name_parts.append(label_text)
 
-            users_str = ", ".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
-            role_sections.append(f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
+            if not opt.get("show_in_list", True):
+                # Anonymous mode: only show the count
+                role_sections.append(f"**{' '.join(name_parts)} ({count_text})**")
+            else:
+                users_str = ", ".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
+                role_sections.append(f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
