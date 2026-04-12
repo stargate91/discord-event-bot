@@ -58,6 +58,33 @@ class EventCommands(commands.Cog):
             log.error(f"Error starting wizard: {e}")
             await interaction.followup.send(f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
+    @event_group.command(name="lobby", description="Create a fill-to-start lobby event (no fixed time until full)")
+    async def create_lobby_event(self, interaction: discord.Interaction):
+        from cogs.event_wizard import EventWizardView
+        from utils.i18n import load_guild_translations
+
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        await load_guild_translations(guild_id)
+
+        if not await is_admin(interaction):
+            await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            return
+
+        try:
+            view = EventWizardView(
+                self.bot,
+                interaction.user.id,
+                guild_id=guild_id,
+                wizard_type="lobby",
+            )
+            await view.refresh_message(interaction)
+        except Exception as e:
+            log.error(f"Error starting lobby wizard: {e}")
+            await interaction.followup.send(
+                f"{t('ERR_CRITICAL_WIZARD', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True
+            )
+
     @event_group.command(name="edit", description="Edit an existing event")
     @app_commands.describe(
         event_id="The short ID or series name of the event to edit",
@@ -104,7 +131,10 @@ class EventCommands(commands.Cog):
 
         try:
             config_name = db_event.get("config_name")
-            wtype = "single" if not config_name or config_name == "manual" else "series"
+            if db_event.get("lobby_mode"):
+                wtype = "lobby"
+            else:
+                wtype = "single" if not config_name or config_name == "manual" else "series"
             from cogs.event_wizard import EventWizardView
             view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids, wizard_type=wtype)
             await view.refresh_message(interaction)
@@ -148,7 +178,11 @@ class EventCommands(commands.Cog):
         text = t("LBL_ACTIVE_EVENTS_LIST", guild_id=interaction.guild_id) + "\n"
         for ev in events:
             title = ev.get('title') or ev.get('config_name') or "Unnamed"
-            text += f"- `{ev['event_id']}`: {title} (<t:{int(ev['start_time'])}:R>)\n"
+            st = ev.get("start_time")
+            if st is not None:
+                text += f"- `{ev['event_id']}`: {title} (<t:{int(st)}:R>)\n"
+            else:
+                text += f"- `{ev['event_id']}`: {title} ({t('LBL_LOBBY_LIST_NO_START', guild_id=interaction.guild_id)})\n"
         await interaction.response.send_message(text, ephemeral=True)
 
     @event_group.command(name="cancel", description="Mark an event as CANCELLED")

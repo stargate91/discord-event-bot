@@ -6,27 +6,13 @@ import time
 import uuid
 import datetime
 import json
-import re
 from cogs.event_ui import DynamicEventView, get_event_conf
 from utils.i18n import t
 from dateutil import parser as dtparser
 from dateutil import tz as dttz
 from dateutil.relativedelta import relativedelta
 from utils.logger import log
-
-def parse_offset(offset_str):
-    # This turns strings like "5m" or "3h" into actual time durations
-    match = re.match(r'^(\d+)([mhd])$', str(offset_str).strip())
-    if not match:
-        return datetime.timedelta(hours=1)
-    val, unit = int(match.group(1)), match.group(2)
-    if unit == 'm':
-        return datetime.timedelta(minutes=val)
-    elif unit == 'h':
-        return datetime.timedelta(hours=val)
-    elif unit == 'd':
-        return datetime.timedelta(days=val)
-    return datetime.timedelta(hours=1)
+from utils.offset_parse import parse_offset
 
 def calc_next_start(current_start_ts, event_conf):
     # This calculates when the same event should happen next (Daily, Weekly, etc)
@@ -70,6 +56,14 @@ class SchedulerTask(commands.Cog):
         active_events = await database.get_all_active_events()
 
         for db_event in active_events:
+            try:
+                await self.handle_lobby_expiry(db_event, now)
+            except Exception as e:
+                log.error(
+                    f"[Scheduler] Lobby expiry error for {db_event['event_id']}: {e}",
+                    guild_id=db_event.get("guild_id"),
+                )
+
             # 1. Reminders
             try:
                 await self.handle_reminders(db_event, now)
@@ -96,16 +90,29 @@ class SchedulerTask(commands.Cog):
 
         should_delete = False
         end_ts = db_event.get("end_time")
-        start_ts = db_event["start_time"]
-        
-        if end_ts and now > end_ts:
-            should_delete = True
-        elif not end_ts and now > (start_ts + 14400): # 4 hours fallback
-            should_delete = True
-        
-        # Also cleanup if the event was marked as closed/finished
-        if db_event.get("status") == "closed":
-            should_delete = True
+        start_ts = db_event.get("start_time")
+        status = db_event.get("status") or "active"
+        lobby_mode = bool(db_event.get("lobby_mode"))
+
+        if lobby_mode:
+            if status in ("lobby_expired", "closed", "cancelled", "deleted"):
+                should_delete = True
+            elif start_ts is None:
+                should_delete = False
+            elif end_ts and now > end_ts:
+                should_delete = True
+            elif not end_ts and start_ts is not None and now > (float(start_ts) + 14400):
+                should_delete = True
+            elif status == "closed":
+                should_delete = True
+        else:
+            if start_ts is not None:
+                if end_ts and now > end_ts:
+                    should_delete = True
+                elif not end_ts and now > (float(start_ts) + 14400):
+                    should_delete = True
+            if db_event.get("status") == "closed":
+                should_delete = True
 
         if should_delete:
             guild = self.bot.get_guild(int(db_event["guild_id"]))
@@ -125,8 +132,48 @@ class SchedulerTask(commands.Cog):
             pool = await database.get_pool()
             await pool.execute("UPDATE active_events SET temp_role_id = 0 WHERE event_id = $1", db_event["event_id"])
 
+    async def handle_lobby_expiry(self, db_event, now):
+        if not db_event.get("lobby_mode"):
+            return
+        if (db_event.get("status") or "active") != "active":
+            return
+        if db_event.get("start_time"):
+            return
+        exp = db_event.get("lobby_expires_at")
+        if exp is None or now <= float(exp):
+            return
+        await database.update_event_status(db_event["event_id"], "lobby_expired")
+        await self._refresh_event_card(db_event)
+
+    async def _refresh_event_card(self, db_event):
+        eid = db_event["event_id"]
+        mid = db_event.get("message_id")
+        cid = db_event.get("channel_id")
+        if not mid or not cid:
+            return
+        channel = self.bot.get_channel(int(cid))
+        if not channel:
+            try:
+                channel = await self.bot.fetch_channel(int(cid))
+            except Exception as e:
+                log.debug("[Scheduler] fetch_channel %s: %s", cid, e)
+                return
+        try:
+            msg = await channel.fetch_message(int(mid))
+            view = DynamicEventView(self.bot, eid, None)
+            await view.prepare()
+            await msg.edit(view=view)
+        except Exception as e:
+            log.error(
+                f"[Scheduler] Could not refresh event card {eid}: {e}",
+                guild_id=db_event.get("guild_id"),
+            )
+
     async def handle_reposting(self, db_event, now):
         """Checks if a recurring event needs to be reposted."""
+        if db_event.get("lobby_mode"):
+            return
+
         config_name = db_event["config_name"]
         event_conf = get_event_conf(config_name)
         if not event_conf:
@@ -241,13 +288,18 @@ class SchedulerTask(commands.Cog):
             self.bot.add_view(view)
 
     async def handle_reminders(self, db_event, now):
+        if db_event.get("lobby_mode"):
+            return
+
         rem_type = (db_event.get("reminder_type") or "none").lower()
         if rem_type == "none":
             return
 
         event_id = db_event["event_id"]
         guild_id = db_event.get("guild_id")
-        start_ts = db_event["start_time"]
+        start_ts = db_event.get("start_time")
+        if start_ts is None:
+            return
 
         rows = list(await database.get_event_reminders(event_id))
         legacy_only = False

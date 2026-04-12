@@ -79,6 +79,109 @@ def get_active_set(key):
     
     return {"options": []}
 
+
+async def send_lobby_fill_notifications(bot, db_event, active_set: dict, guild_id_int: int):
+    from utils.lobby_utils import positive_status_ids
+
+    if not db_event.get("lobby_remind_on_fill", True):
+        return
+    rem_type = (
+        await database.get_guild_setting(guild_id_int, "reminder_type", default="none") or "none"
+    ).lower()
+    if rem_type in ("none", ""):
+        return
+
+    pos_ids = positive_status_ids(active_set)
+    rsvps = await database.get_rsvps(db_event["event_id"])
+    participants = []
+    for r in rsvps:
+        st = r["status"]
+        if st in pos_ids and not str(st).startswith("wait_"):
+            participants.append(int(r["user_id"]))
+    if not participants:
+        return
+
+    title = db_event.get("title") or "Event"
+    rem_text = t("MSG_LOBBY_FILL_DESC", guild_id=guild_id_int, title=title)
+    start_ts = int(db_event.get("start_time") or time.time())
+    send_ping = rem_type in ("ping", "both")
+    send_dm = rem_type in ("dm", "both")
+
+    temp_role_id = db_event.get("temp_role_id")
+    if temp_role_id:
+        mention_str = f"<@&{temp_role_id}>"
+    else:
+        mention_str = ", ".join(f"<@{uid}>" for uid in participants)
+
+    if send_ping:
+        channel = bot.get_channel(int(db_event["channel_id"]))
+        if channel:
+            embed = discord.Embed(
+                title=t("LBL_LOBBY_FILL_TITLE", guild_id=guild_id_int),
+                description=rem_text,
+                color=discord.Color.green(),
+            )
+            embed.add_field(
+                name=t("LBL_STARTS", guild_id=guild_id_int),
+                value=f"<t:{start_ts}:F>",
+            )
+            try:
+                await channel.send(content=mention_str, embed=embed)
+            except Exception as e:
+                log.error("[Lobby fill] channel notify %s: %s", db_event["event_id"], e)
+
+    if send_dm:
+        for uid in participants:
+            try:
+                user = bot.get_user(uid) or await bot.fetch_user(uid)
+                if not user:
+                    continue
+                embed = discord.Embed(
+                    title=t("LBL_LOBBY_FILL_TITLE", guild_id=guild_id_int),
+                    description=rem_text,
+                    color=discord.Color.green(),
+                )
+                embed.add_field(
+                    name=t("LBL_STARTS", guild_id=guild_id_int),
+                    value=f"<t:{start_ts}:F>",
+                )
+                await user.send(embed=embed)
+            except Exception as e:
+                log.debug("[Lobby fill] DM %s: %s", uid, e)
+
+
+async def process_lobby_transition(bot, event_id: str, active_set: dict, guild_id_int: int):
+    from utils.lobby_utils import (
+        count_positive_rsvps,
+        effective_lobby_capacity,
+        lobby_is_full,
+        positive_status_ids,
+        role_limits_from_extra,
+    )
+
+    db_event = await database.get_active_event(event_id)
+    if not db_event or not db_event.get("lobby_mode"):
+        return
+
+    pos = positive_status_ids(active_set)
+    rl = role_limits_from_extra(db_event.get("extra_data"))
+    cap = effective_lobby_capacity(int(db_event.get("max_accepted") or 0), active_set, rl)
+    if cap is None or cap <= 0:
+        return
+
+    rsvps = await database.get_rsvps(event_id)
+    cnt = count_positive_rsvps(rsvps, pos)
+    had_start = db_event.get("start_time") is not None
+    full = lobby_is_full(cnt, cap)
+
+    if full and not had_start:
+        await database.set_lobby_start_time(event_id, time.time())
+        db_event = await database.get_active_event(event_id)
+        await send_lobby_fill_notifications(bot, db_event, active_set, guild_id_int)
+    elif not full and had_start:
+        await database.set_lobby_start_time(event_id, None)
+
+
 class DynamicEventView(discord.ui.LayoutView):
     # This class creates the buttons people see under the event message
     def __init__(self, bot, event_id: str, event_conf: dict = None):
@@ -111,6 +214,21 @@ class DynamicEventView(discord.ui.LayoutView):
                         if isinstance(ex_dict, dict): self.event_conf.update(ex_dict)
                     except Exception as e:
                         log.debug("prepare extra_data: %s", e)
+
+        if db_event:
+            merged = dict(self.event_conf or {})
+            if db_event.get("guild_id"):
+                merged["guild_id"] = db_event["guild_id"]
+            merged["lobby_mode"] = bool(db_event.get("lobby_mode"))
+            v = db_event.get("lobby_remind_on_fill")
+            merged["lobby_remind_on_fill"] = True if v is None else bool(v)
+            merged["lobby_expires_at"] = db_event.get("lobby_expires_at")
+            merged["start_time"] = db_event.get("start_time")
+            merged["end_time"] = db_event.get("end_time")
+            merged["status"] = db_event.get("status") or merged.get("status") or "active"
+            if db_event.get("max_accepted") is not None:
+                merged["max_accepted"] = db_event["max_accepted"]
+            self.event_conf = merged
 
         event_conf = self.event_conf or {}
         guild_id = event_conf.get("guild_id")
@@ -149,14 +267,32 @@ class DynamicEventView(discord.ui.LayoutView):
         container_items = []
 
         # --- TITLE ---
+        from utils.lobby_utils import effective_lobby_capacity, lobby_is_full
+
         max_acc = event_conf.get("max_accepted", 0)
-        is_full = (max_acc > 0 and total_positive_count >= max_acc)
+        lobby_mode = bool(event_conf.get("lobby_mode"))
+        lobby_cap = None
+        if lobby_mode:
+            lobby_cap = effective_lobby_capacity(int(max_acc or 0), self.active_set, role_limits)
+        is_full = False
+        if lobby_mode and lobby_cap:
+            is_full = lobby_is_full(total_positive_count, lobby_cap)
+        elif not lobby_mode:
+            is_full = max_acc > 0 and total_positive_count >= max_acc
         desc = event_conf.get("description", "")
-        if is_full:
-            full_label = t('EMBED_FULL', guild_id=guild_id) or 'ESEMÉNY BETELT'
+        if is_full and not (lobby_mode and event_conf.get("start_time")):
+            full_label = t("EMBED_FULL", guild_id=guild_id) or "ESEMÉNY BETELT"
             desc = f"### {WARNING} {full_label}\n{desc}"
 
         status_cfg = event_conf.get("status", "active")
+        if (
+            lobby_mode
+            and status_cfg == "active"
+            and event_conf.get("start_time") is None
+            and event_conf.get("lobby_expires_at") is not None
+            and time.time() > float(event_conf["lobby_expires_at"])
+        ):
+            status_cfg = "lobby_expired"
         title_prefix = ""
         if status_cfg == "cancelled":
             title_prefix = f"[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}]"
@@ -166,6 +302,8 @@ class DynamicEventView(discord.ui.LayoutView):
             title_prefix = f"[{t('TAG_DELETED', guild_id=guild_id) or 'TÖRÖLVE'}]"
         elif status_cfg == "rescheduled":
             title_prefix = f"[{t('TAG_RESCHEDULED', guild_id=guild_id) or 'ÁTRAKVA'}]"
+        elif status_cfg == "lobby_expired":
+            title_prefix = f"[{t('TAG_LOBBY_EXPIRED', guild_id=guild_id)}]"
 
         title_str = ""
         if title_prefix:
@@ -182,28 +320,58 @@ class DynamicEventView(discord.ui.LayoutView):
             container_items.append(discord.ui.TextDisplay(desc))
 
         # --- TIME ---
-        start_ts = event_conf.get('start_time') or (db_event['start_time'] if db_event else time.time())
-        time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
-        
-        end_ts = event_conf.get('end_time') or (db_event.get('end_time') if db_event else None)
-        if end_ts:
-            import datetime
-            s_date = datetime.datetime.fromtimestamp(start_ts).date()
-            e_date = datetime.datetime.fromtimestamp(end_ts).date()
-            
-            if s_date == e_date:
-                time_str += f" - <t:{int(end_ts)}:t>"
-            else:
-                end_label = t('EMBED_END_TIME', guild_id=guild_id)
-                if end_label == 'EMBED_END_TIME': 
-                    # Smart fallback based on t() output
-                    end_label = 'End' if 'Time' in t('EMBED_START_TIME', guild_id=guild_id) else 'Vége'
-                time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+        start_ts_db = event_conf.get("start_time")
+        if lobby_mode:
+            if start_ts_db is None and status_cfg == "active":
+                cap_disp = int(lobby_cap) if lobby_cap else "?"
+                time_str = t("EMBED_LOBBY_FILL", guild_id=guild_id, cap=cap_disp)
+                exp = event_conf.get("lobby_expires_at")
+                if exp:
+                    time_str += "\n" + t(
+                        "EMBED_LOBBY_EXPIRES_FROM_PUBLISH",
+                        guild_id=guild_id,
+                        ts=int(float(exp)),
+                    )
+            elif start_ts_db is not None:
+                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F>\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
+                end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
+                if end_ts:
+                    import datetime
 
-        recurrence = event_conf.get('recurrence_type', 'none')
-        if recurrence != 'none':
-            rec_text = t(f"SEL_REC_{recurrence.upper()}", guild_id=guild_id) or recurrence.capitalize()
-            time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {rec_text}"
+                    s_date = datetime.datetime.fromtimestamp(float(start_ts_db)).date()
+                    e_date = datetime.datetime.fromtimestamp(float(end_ts)).date()
+                    if s_date == e_date:
+                        time_str += f" - <t:{int(end_ts)}:t>"
+                    else:
+                        end_label = t("EMBED_END_TIME", guild_id=guild_id)
+                        if end_label == "EMBED_END_TIME":
+                            end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
+                        time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+            else:
+                time_str = t("EMBED_LOBBY_EXPIRED_BODY", guild_id=guild_id)
+        else:
+            start_ts = event_conf.get("start_time") or (
+                db_event["start_time"] if db_event and db_event.get("start_time") else time.time()
+            )
+            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+            end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
+            if end_ts:
+                import datetime
+                s_date = datetime.datetime.fromtimestamp(float(start_ts)).date()
+                e_date = datetime.datetime.fromtimestamp(float(end_ts)).date()
+
+                if s_date == e_date:
+                    time_str += f" - <t:{int(end_ts)}:t>"
+                else:
+                    end_label = t("EMBED_END_TIME", guild_id=guild_id)
+                    if end_label == "EMBED_END_TIME":
+                        end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
+                    time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+
+            recurrence = event_conf.get("recurrence_type", "none")
+            if recurrence != "none":
+                rec_text = t(f"SEL_REC_{recurrence.upper()}", guild_id=guild_id) or recurrence.capitalize()
+                time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {rec_text}"
         container_items.append(discord.ui.TextDisplay(time_str))
 
         # --- ROLE LISTS ---
@@ -320,20 +488,24 @@ class DynamicEventView(discord.ui.LayoutView):
         # Calendar Links
         cal_title = event_conf.get("title") or (db_event.get("title") if db_event else "Event")
         cal_desc = event_conf.get("description") or (db_event.get("description") if db_event else "")
-        cal_start_ts = event_conf.get('start_time') or (db_event['start_time'] if db_event else time.time())
-        cal_end_ts = event_conf.get('end_time') or (db_event.get('end_time') if db_event else None)
+        cal_start_raw = event_conf.get("start_time") or (db_event.get("start_time") if db_event else None)
+        cal_end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
 
-        from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
-        google_url = get_google_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
-        outlook_url = get_outlook_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
-        yahoo_url = get_yahoo_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+        if lobby_mode and cal_start_raw is None:
+            cal_suffix = t("EMBED_LOBBY_NO_CAL_LINKS", guild_id=guild_id)
+        else:
+            cal_start_ts = float(cal_start_raw) if cal_start_raw is not None else time.time()
+            from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
 
-        cal_links = f"[Gmail]({google_url}) │ [Yahoo]({yahoo_url}) │ [Outlook]({outlook_url})"
+            google_url = get_google_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+            outlook_url = get_outlook_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+            yahoo_url = get_yahoo_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+            cal_suffix = f"[Gmail]({google_url}) │ [Yahoo]({yahoo_url}) │ [Outlook]({outlook_url})"
 
-        container_items.append(discord.ui.TextDisplay(f"-# {footer_text} • {cal_links}"))
+        container_items.append(discord.ui.TextDisplay(f"-# {footer_text} • {cal_suffix}"))
 
         # Build container
-        status_for_color = event_conf.get("status", "active")
+        status_for_color = status_cfg
         if status_for_color == "cancelled":
             accent_hex = "0xe74c3c" # Red
         elif status_for_color == "postponed":
@@ -342,6 +514,8 @@ class DynamicEventView(discord.ui.LayoutView):
             accent_hex = "0x95a5a6" # Gray
         elif status_for_color == "rescheduled":
             accent_hex = "0x2ecc71" # Green
+        elif status_for_color == "lobby_expired":
+            accent_hex = "0x95a5a6"
         else:
             accent_hex = str(event_conf.get("color") or "0x3498db")
             
@@ -449,13 +623,12 @@ class DynamicEventView(discord.ui.LayoutView):
         for r in rows:
             self.add_item(r)
 
-        self.update_button_states(rsvps, event_conf)
+        self.update_button_states(rsvps, event_conf, ui_status=status_cfg)
 
-    def update_button_states(self, rsvps_list, event_conf):
+    def update_button_states(self, rsvps_list, event_conf, ui_status=None):
         """Disables buttons if limits are reached OR if status is inactive."""
-        status = event_conf.get("status", "active")
-        
-        # Helper to find all buttons in V2 layout (within Container -> ActionRows)
+        status = ui_status or event_conf.get("status", "active")
+
         all_buttons = []
         for child in self.children:
             if isinstance(child, discord.ui.Container):
@@ -466,10 +639,14 @@ class DynamicEventView(discord.ui.LayoutView):
                                 all_buttons.append(item)
                     elif isinstance(row, discord.ui.Button):
                         all_buttons.append(row)
+            elif isinstance(child, discord.ui.ActionRow):
+                for item in child.children:
+                    if isinstance(item, discord.ui.Button):
+                        all_buttons.append(item)
             elif isinstance(child, discord.ui.Button):
                 all_buttons.append(child)
 
-        if status in ["cancelled", "postponed", "deleted", "rescheduled"]:
+        if status in ["cancelled", "postponed", "deleted", "rescheduled", "lobby_expired"]:
             for btn in all_buttons:
                 allowed_prefix = ("edit_", "delete_", "calendar_", "resched_")
                 if status == "postponed":
@@ -500,6 +677,16 @@ class DynamicEventView(discord.ui.LayoutView):
             except Exception as e:
                 log.debug("_apply_rsvp_limits role_limits: %s", e)
 
+        from utils.lobby_utils import effective_lobby_capacity
+
+        lobby_mode = bool(event_conf.get("lobby_mode"))
+        lobby_cap = None
+        if lobby_mode:
+            lobby_cap = effective_lobby_capacity(int(max_acc or 0), self.active_set, role_limits)
+        eff_event_cap = int(max_acc or 0)
+        if lobby_mode and lobby_cap is not None:
+            eff_event_cap = lobby_cap
+
         total_pos = sum(1 for _, s in rsvps_list if s in positive_statuses)
         status_counts = {}
         for _, s in rsvps_list:
@@ -515,8 +702,9 @@ class DynamicEventView(discord.ui.LayoutView):
 
             btn.disabled = False
 
-            if role_id in positive_statuses and max_acc > 0:
-                if total_pos >= max_acc: btn.disabled = True
+            if role_id in positive_statuses and eff_event_cap > 0:
+                if total_pos >= eff_event_cap:
+                    btn.disabled = True
 
             role_limit = role_limits.get(role_id)
             if role_limit is None:
@@ -565,7 +753,10 @@ class DynamicEventView(discord.ui.LayoutView):
         else: db_event["end_str"] = ""
 
         config_name = db_event.get("config_name")
-        wtype = "single" if not config_name or config_name == "manual" else "series"
+        if db_event.get("lobby_mode"):
+            wtype = "lobby"
+        else:
+            wtype = "single" if not config_name or config_name == "manual" else "series"
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=db_event, is_edit=True, guild_id=interaction.guild_id, bulk_ids=bulk_ids, wizard_type=wtype)
         await view.refresh_message(interaction, send_followup=True)
@@ -622,8 +813,42 @@ class DynamicEventView(discord.ui.LayoutView):
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):
         db_event = await database.get_active_event(self.event_id)
         if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
-        if db_event["status"] != 'active': return await interaction.response.send_message(t("ERR_EV_INACTIVE"), ephemeral=True)
-            
+        gid_chk = interaction.guild_id or db_event.get("guild_id")
+        if db_event.get("status") == "lobby_expired":
+            return await interaction.response.send_message(
+                t("ERR_LOBBY_EXPIRED", guild_id=gid_chk), ephemeral=True
+            )
+        if (
+            db_event.get("lobby_mode")
+            and db_event.get("status") == "active"
+            and db_event.get("start_time") is None
+        ):
+            exp = db_event.get("lobby_expires_at")
+            if exp is not None and time.time() > float(exp):
+                return await interaction.response.send_message(
+                    t("ERR_LOBBY_EXPIRED", guild_id=gid_chk), ephemeral=True
+                )
+        if db_event["status"] != "active":
+            return await interaction.response.send_message(t("ERR_EV_INACTIVE"), ephemeral=True)
+
+        raw_allowed = db_event.get("rsvp_allowed_role_ids")
+        if raw_allowed:
+            allowed_ids = [x.strip() for x in str(raw_allowed).split(",") if x.strip().isdigit()]
+        else:
+            allowed_ids = []
+        if allowed_ids:
+            if not isinstance(interaction.user, discord.Member):
+                return await interaction.response.send_message(
+                    t("ERR_RSVP_NEED_SERVER", guild_id=interaction.guild_id),
+                    ephemeral=True,
+                )
+            user_role_ids = {str(r.id) for r in interaction.user.roles}
+            if not any(rid in user_role_ids for rid in allowed_ids):
+                return await interaction.response.send_message(
+                    t("ERR_RSVP_ROLE_REQUIRED", guild_id=interaction.guild_id),
+                    ephemeral=True,
+                )
+
         if not self.event_conf:
             self.event_conf = get_event_conf(db_event["config_name"])
             if not self.event_conf:
@@ -707,6 +932,10 @@ class DynamicEventView(discord.ui.LayoutView):
                 if max_acc == 0 or current_acc < max_acc:
                     promoted_uid = await database.promote_next_waiting(self.event_id, f"wait_{old_status}", old_status)
                     if promoted_uid: await self.notify_promotion(interaction, promoted_uid, next(o for o in self.active_set["options"] if o["id"] == old_status))
+
+        gid_raw = interaction.guild_id or db_event.get("guild_id")
+        if db_event.get("lobby_mode") and gid_raw:
+            await process_lobby_transition(self.bot, self.event_id, self.active_set, int(str(gid_raw)))
 
         await self.prepare()
         await interaction.message.edit(view=self)

@@ -22,6 +22,8 @@ async def get_pool():
 
 def normalize_reminder_offsets_for_store(data):
     """Up to MAX_EVENT_REMINDERS offset strings; empty if reminder_type is none."""
+    if data.get("lobby_mode"):
+        return []
     rt = (data.get("reminder_type") or "none").strip().lower()
     if rt == "none":
         return []
@@ -41,6 +43,26 @@ def normalize_reminder_message_for_store(data):
         return None
     s = str(m).strip()
     return s if s else None
+
+
+def normalize_rsvp_allowed_role_ids_value(raw):
+    """
+    Comma-separated Discord role IDs (digits only per segment).
+    Empty string = any member who can see the message may RSVP (OR: user has any listed role).
+    """
+    if raw is None:
+        return ""
+    s = str(raw).strip()
+    if not s:
+        return ""
+    seen = set()
+    out = []
+    for part in s.split(","):
+        digits = re.sub(r"\D", "", part.strip())
+        if digits and digits not in seen:
+            seen.add(digits)
+            out.append(digits)
+    return ",".join(out)
 
 
 async def _migrate_legacy_reminders(conn):
@@ -205,6 +227,23 @@ async def init_db():
         except Exception as e:
             log.debug("init_db reminder_message column: %s", e)
 
+        try:
+            await conn.execute(
+                "ALTER TABLE active_events ADD COLUMN IF NOT EXISTS rsvp_allowed_role_ids TEXT DEFAULT ''"
+            )
+        except Exception as e:
+            log.debug("init_db rsvp_allowed_role_ids column: %s", e)
+
+        for lobby_sql in (
+            "ALTER TABLE active_events ADD COLUMN IF NOT EXISTS lobby_mode BOOLEAN DEFAULT FALSE",
+            "ALTER TABLE active_events ADD COLUMN IF NOT EXISTS lobby_expires_at DOUBLE PRECISION",
+            "ALTER TABLE active_events ADD COLUMN IF NOT EXISTS lobby_remind_on_fill BOOLEAN DEFAULT TRUE",
+        ):
+            try:
+                await conn.execute(lobby_sql)
+            except Exception as e:
+                log.debug("init_db lobby column: %s", e)
+
         await _migrate_legacy_reminders(conn)
 
         # Table for global emoji sets (available to all guilds)
@@ -338,6 +377,10 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
 
     temp_role_id = int(data.get("temp_role_id") or 0)
     use_temp_role = bool(data.get("use_temp_role", False))
+    rsvp_allowed_role_ids = normalize_rsvp_allowed_role_ids_value(data.get("rsvp_allowed_role_ids"))
+    lobby_mode = bool(data.get("lobby_mode", False))
+    lobby_expires_at = data.get("lobby_expires_at")
+    lobby_remind_on_fill = bool(data.get("lobby_remind_on_fill", True))
 
     pool = await get_pool()
     await pool.execute("""
@@ -348,10 +391,11 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
             repost_offset, timezone, creator_id,
             reminder_type, reminder_offset, reminder_sent, reminder_message,
             recurrence_limit, recurrence_count, icon_set, extra_data,
-            guild_id, temp_role_id, use_temp_role
+            guild_id, temp_role_id, use_temp_role, rsvp_allowed_role_ids,
+            lobby_mode, lobby_expires_at, lobby_remind_on_fill
         )
         VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31
         )
     """,
         event_id, config_name, channel_id, start_time,
@@ -360,7 +404,8 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
         repost_offset, timezone, creator_id,
         reminder_type, reminder_offset, reminder_sent, reminder_message,
         recurrence_limit, recurrence_count, icon_set, extra_data,
-        str(guild_id), temp_role_id, use_temp_role,
+        str(guild_id), temp_role_id, use_temp_role, rsvp_allowed_role_ids,
+        lobby_mode, lobby_expires_at, lobby_remind_on_fill,
     )
     await replace_event_reminders(event_id, roffs)
     return event_id
@@ -426,13 +471,50 @@ async def update_active_event(event_id, data):
     use_temp_role = bool(data.get("use_temp_role", False))
 
     pool = await get_pool()
+    need_row = (
+        "reminder_message" not in data
+        or "rsvp_allowed_role_ids" not in data
+        or "lobby_mode" not in data
+        or "lobby_expires_at" not in data
+        or "lobby_remind_on_fill" not in data
+    )
+    row_m = None
+    if need_row:
+        row_m = await pool.fetchrow(
+            """
+            SELECT reminder_message, rsvp_allowed_role_ids,
+                   lobby_mode, lobby_expires_at, lobby_remind_on_fill
+            FROM active_events WHERE event_id = $1
+            """,
+            event_id,
+        )
+
     if "reminder_message" in data:
         reminder_message = normalize_reminder_message_for_store(data)
     else:
-        row = await pool.fetchrow(
-            "SELECT reminder_message FROM active_events WHERE event_id = $1", event_id
-        )
-        reminder_message = row["reminder_message"] if row else None
+        reminder_message = row_m["reminder_message"] if row_m else None
+
+    if "rsvp_allowed_role_ids" in data:
+        rsvp_allowed_role_ids = normalize_rsvp_allowed_role_ids_value(data.get("rsvp_allowed_role_ids"))
+    else:
+        raw_r = row_m["rsvp_allowed_role_ids"] if row_m else ""
+        rsvp_allowed_role_ids = normalize_rsvp_allowed_role_ids_value(raw_r)
+
+    if "lobby_mode" in data:
+        lobby_mode = bool(data.get("lobby_mode"))
+    else:
+        lobby_mode = bool(row_m["lobby_mode"]) if row_m and row_m["lobby_mode"] is not None else False
+
+    if "lobby_expires_at" in data:
+        lobby_expires_at = data.get("lobby_expires_at")
+    else:
+        lobby_expires_at = row_m["lobby_expires_at"] if row_m else None
+
+    if "lobby_remind_on_fill" in data:
+        lobby_remind_on_fill = bool(data.get("lobby_remind_on_fill", True))
+    else:
+        v = row_m["lobby_remind_on_fill"] if row_m else None
+        lobby_remind_on_fill = bool(v) if v is not None else True
 
     await pool.execute(
         """
@@ -444,8 +526,9 @@ async def update_active_event(event_id, data):
             creator_id = $14, reminder_type = $15, reminder_offset = $16,
             reminder_sent = $17, reminder_message = $18, recurrence_limit = $19, recurrence_count = $20,
             icon_set = $21, extra_data = $22,
-            temp_role_id = $23, use_temp_role = $24
-        WHERE event_id = $25
+            temp_role_id = $23, use_temp_role = $24, rsvp_allowed_role_ids = $25,
+            lobby_mode = $26, lobby_expires_at = $27, lobby_remind_on_fill = $28
+        WHERE event_id = $29
         """,
         title,
         description,
@@ -471,6 +554,10 @@ async def update_active_event(event_id, data):
         extra_data,
         temp_role_id,
         use_temp_role,
+        rsvp_allowed_role_ids,
+        lobby_mode,
+        lobby_expires_at,
+        lobby_remind_on_fill,
         event_id,
     )
 
@@ -503,6 +590,21 @@ async def update_event_time(event_id, start_time):
         event_id,
     )
 
+
+async def set_lobby_start_time(event_id, start_ts):
+    """Lobby: set start_time when full, or NULL to reopen. Clears reminder slots for a clean slate."""
+    pool = await get_pool()
+    await pool.execute(
+        "UPDATE active_events SET start_time = $1 WHERE event_id = $2",
+        start_ts,
+        event_id,
+    )
+    await pool.execute(
+        "UPDATE event_reminders SET sent = 0 WHERE event_id = $1",
+        event_id,
+    )
+
+
 async def set_event_status(event_id, status):
     """Another alias for update_event_status used by scheduler."""
     await update_event_status(event_id, status)
@@ -511,17 +613,19 @@ async def update_active_events_metadata_bulk(event_ids, data):
     """Updates metadata (like extra_data) for multiple events, typically during bulk edit."""
     pool = await get_pool()
     extra_json = json.dumps(data.get("extra_data") or {}) if isinstance(data.get("extra_data"), dict) else data.get("extra_data")
-    
+    rsvp_allowed_role_ids = normalize_rsvp_allowed_role_ids_value(data.get("rsvp_allowed_role_ids"))
+
     await pool.execute("""
         UPDATE active_events SET 
             title = $1, description = $2, image_urls = $3, 
             color = $4, max_accepted = $5, icon_set = $6, extra_data = $7,
-            temp_role_id = $8, use_temp_role = $9
-        WHERE event_id = ANY($10)
+            temp_role_id = $8, use_temp_role = $9, rsvp_allowed_role_ids = $10
+        WHERE event_id = ANY($11)
     """, 
         data.get("title"), data.get("description"), data.get("image_urls"),
         data.get("color"), data.get("max_accepted"), data.get("icon_set"), 
         extra_json, data.get("temp_role_id"), data.get("use_temp_role", False),
+        rsvp_allowed_role_ids,
         event_ids
     )
 
