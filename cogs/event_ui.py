@@ -156,13 +156,18 @@ class DynamicEventView(discord.ui.LayoutView):
         status_cfg = event_conf.get("status", "active")
         title_prefix = ""
         if status_cfg == "cancelled":
-            title_prefix = f"**[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}]** "
+            title_prefix = f"[{t('TAG_CANCELLED', guild_id=guild_id) or 'TÖRÖLVE'}]"
         elif status_cfg == "postponed":
-            title_prefix = f"**[{t('TAG_POSTPONED', guild_id=guild_id) or 'ELHALASZTVA'}]** "
+            title_prefix = f"[{t('TAG_POSTPONED', guild_id=guild_id) or 'ELHALASZTVA'}]"
         elif status_cfg == "deleted":
-            title_prefix = f"**[{t('TAG_DELETED', guild_id=guild_id) or 'TÖRÖLVE'}]** "
+            title_prefix = f"[{t('TAG_DELETED', guild_id=guild_id) or 'TÖRÖLVE'}]"
+        elif status_cfg == "rescheduled":
+            title_prefix = f"[{t('TAG_RESCHEDULED', guild_id=guild_id) or 'ÁTRAKVA'}]"
 
-        title_str = f"## {title_prefix}{event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}"
+        title_str = ""
+        if title_prefix:
+            title_str += f"### **{title_prefix}**\n"
+        title_str += f"## {event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))}"
         container_items.append(discord.ui.TextDisplay(title_str))
 
         if desc:
@@ -366,6 +371,11 @@ class DynamicEventView(discord.ui.LayoutView):
                 resched_btn = discord.ui.Button(label=t("BTN_RESCHEDULE", guild_id=guild_id, default="📅 Újraütemezés"), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
                 resched_btn.callback = self.reschedule_callback
                 mgmt_items.append(resched_btn)
+                
+                cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+                cancel_btn.callback = self.cancel_callback
+                mgmt_items.append(cancel_btn)
+                
                 rows.append(discord.ui.ActionRow(*mgmt_items))
         else:
             if self.active_set.get("show_mgmt", True) and added_count < 40:
@@ -416,7 +426,10 @@ class DynamicEventView(discord.ui.LayoutView):
 
         if status in ["cancelled", "postponed", "deleted", "rescheduled"]:
             for btn in all_buttons:
-                if not btn.custom_id.startswith(("edit_", "delete_", "calendar_", "resched_")):
+                allowed_prefix = ("edit_", "delete_", "calendar_", "resched_")
+                if status == "postponed":
+                    allowed_prefix += ("cancel_",)
+                if not btn.custom_id.startswith(allowed_prefix):
                     btn.disabled = True
             return
 
