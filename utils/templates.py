@@ -17,7 +17,7 @@ ICON_SET_TEMPLATES = {
         "emoji": "",
         "text": "🛡️ | Tank | Tanks | 0 | SPEY\n🏥 | Heal | Healers | 0 | SPEY\n🗡️ | DPS | DPSes | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
-        "show_mgmt": True
+        "show_mgmt": False
     },
     "survey": {
         "id": "survey",
@@ -25,7 +25,7 @@ ICON_SET_TEMPLATES = {
         "emoji": "",
         "text": "👍 | Like | Liked it | 0 | SPEY\n👎 | Dislike | Disliked it | 0 | SPEY",
         "buttons_per_row": 5,
-        "show_mgmt": False
+        "show_mgmt": True
     },
     "teams": {
         "id": "teams",
@@ -33,7 +33,7 @@ ICON_SET_TEMPLATES = {
         "emoji": "",
         "text": "🅰️ | Team A | Team A | 0 | SPBB\n🅱️ | Team B | Team B | 0 | SPBB\n👀 | I'll spectate | Spectators | 0 | SPBB\n❓ | Maybe | Unsure | 0 | SBB\n❌ | Not coming | Not coming | 0 | SBB",
         "buttons_per_row": 3,
-        "show_mgmt": True
+        "show_mgmt": False
     }
 }
 
