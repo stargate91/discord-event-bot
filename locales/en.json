@@ -381,5 +381,11 @@
   "BTN_RESCHEDULE": "📅 Reschedule",
   "MODAL_POSTPONE_TITLE": "Reschedule Event",
   "MODAL_POSTPONE_START": "New Start (YYYY-MM-DD HH:MM) (Empty=Postpone)",
-  "MODAL_POSTPONE_END": "New End Time (optional)"
+  "MODAL_POSTPONE_END": "New End Time (optional)",
+  "KEY_MSG_DEFAULT_PROMO": "Default Promo Message",
+  "KEY_MSG_PROMOTED_DEFAULT": "Waitlist Promotion Message",
+  "KEY_MSG_WAITLIST_HINT": "Waitlist Hint Message",
+  "KEY_MSG_REM_DESC": "Default Reminder Message",
+  "KEY_MSG_EVENT_CANCELLED": "Event Cancelled Notice",
+  "KEY_MSG_EVENT_POSTPONED": "Event Postponed Notice"
 }

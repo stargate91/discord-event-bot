@@ -41,9 +41,12 @@ class MessageWizardView(ui.LayoutView):
         keys = CATEGORIES.get(new_view.selected_category, [])
         options = []
         for k in keys:
+            friendly_name = t(f"KEY_{k}", guild_id=self.guild_id)
+            if friendly_name == f"KEY_{k}": friendly_name = k
+            
             current_val = t(k, guild_id=self.guild_id)
             is_overridden = (current_val != t(k))
-            label = f"{'🔹 ' if is_overridden else ''}{k}"
+            label = f"{'🔹 ' if is_overridden else ''}{friendly_name}"
             options.append(discord.SelectOption(
                 label=label[:100], 
                 value=k, 

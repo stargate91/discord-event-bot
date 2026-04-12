@@ -380,5 +380,11 @@
   "BTN_RESCHEDULE": "📅 Újraütemezés",
   "MODAL_POSTPONE_TITLE": "Esemény újraütemezése",
   "MODAL_POSTPONE_START": "Új kezdet (ÉÉÉÉ-HH-NN ÓÓ:PP) (Üresen=Halasztás)",
-  "MODAL_POSTPONE_END": "Új befejezés (opcionális)"
+  "MODAL_POSTPONE_END": "Új befejezés (opcionális)",
+  "KEY_MSG_DEFAULT_PROMO": "Kezdőértesítő (Promóció)",
+  "KEY_MSG_PROMOTED_DEFAULT": "Várólistáról bejutás (Értesítő)",
+  "KEY_MSG_WAITLIST_HINT": "Várólistára kerülés (Figyelmeztetés)",
+  "KEY_MSG_REM_DESC": "Emlékeztető alapértelmezett szöveg",
+  "KEY_MSG_EVENT_CANCELLED": "Esemény törölve (Értesítő)",
+  "KEY_MSG_EVENT_POSTPONED": "Esemény elhalasztva (Értesítő)"
 }
