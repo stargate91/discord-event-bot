@@ -1054,7 +1054,7 @@ class EventWizardView(ui.LayoutView):
                 self.bot.add_view(view)
                 await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
 
-            await interaction.edit_original_response(content=None, view=None)
+            await interaction.delete_original_response()
             self.stop()
         except Exception as e:
             log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
