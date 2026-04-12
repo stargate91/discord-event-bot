@@ -754,9 +754,9 @@ class EventWizardView(ui.LayoutView):
 
         view.add_item(ui.Container(*container_items, accent_color=0x00bfff))
         
-        if send_followup: await interaction.followup.send(content=None, embeds=[], view=view, ephemeral=True)
-        elif interaction.response.is_done(): await interaction.edit_original_response(content=None, embeds=[], view=view)
-        else: await interaction.response.edit_message(content=None, embeds=[], view=view)
+        if send_followup: await interaction.followup.send(view=view, ephemeral=True)
+        elif interaction.response.is_done(): await interaction.edit_original_response(view=view)
+        else: await interaction.response.edit_message(view=view)
 
     async def refresh_ui_data(self):
         current_set = self.data.get("icon_set", "standard")
