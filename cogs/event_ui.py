@@ -753,21 +753,21 @@ class DynamicEventView(discord.ui.LayoutView):
 
 class PostponeModal(discord.ui.Modal):
     def __init__(self, bot, event_id, parent_view, guild_id):
-        super().__init__(title=t("MODAL_POSTPONE_TITLE", guild_id=guild_id, default="Esemény elhalasztása"), timeout=300)
+        super().__init__(title=t("MODAL_POSTPONE_TITLE", guild_id=guild_id), timeout=300)
         self.bot = bot
         self.event_id = event_id
         self.parent_view = parent_view
         
         self.start_input = discord.ui.TextInput(
-            label=t("MODAL_POSTPONE_START", guild_id=guild_id, default="Új kezdet (ÉÉÉÉ-HH-NN ÓÓ:PP)"),
-            placeholder="2026-05-15 18:00",
+            label=t("MODAL_POSTPONE_START", guild_id=guild_id),
+            placeholder=t("PH_POSTPONE_START_EXAMPLE", guild_id=guild_id),
             required=True
         )
         self.add_item(self.start_input)
         
         self.end_input = discord.ui.TextInput(
-            label=t("MODAL_POSTPONE_END", guild_id=guild_id, default="Új befejezés (opcionális)"),
-            placeholder="2026-05-15 20:00",
+            label=t("MODAL_POSTPONE_END", guild_id=guild_id),
+            placeholder=t("PH_POSTPONE_END_EXAMPLE", guild_id=guild_id),
             required=False
         )
         self.add_item(self.end_input)
@@ -806,13 +806,19 @@ class PostponeModal(discord.ui.Modal):
                                     
             if interaction.message:
                 await interaction.message.edit(view=self.parent_view)
-            return await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="postponed", default="Esemény elhalasztva! Újraütemezés gomb megjelent."), ephemeral=True)
+            return await interaction.followup.send(
+                t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="postponed"),
+                ephemeral=True,
+            )
 
         try:
             start_dt = parser.parse(self.start_input.value).replace(tzinfo=local_tz)
             start_ts = int(start_dt.timestamp())
         except Exception:
-            return await interaction.followup.send(t("ERR_INVALID_START", guild_id=interaction.guild_id, default="Érvénytelen kezdeti dátum!"), ephemeral=True)
+            return await interaction.followup.send(
+                t("ERR_INVALID_START", guild_id=interaction.guild_id),
+                ephemeral=True,
+            )
             
         end_ts = None
         if self.end_input.value:
@@ -820,7 +826,10 @@ class PostponeModal(discord.ui.Modal):
                 end_dt = parser.parse(self.end_input.value).replace(tzinfo=local_tz)
                 end_ts = int(end_dt.timestamp())
             except Exception:
-                return await interaction.followup.send(t("ERR_INVALID_END", guild_id=interaction.guild_id, default="Érvénytelen befejezési dátum!"), ephemeral=True)
+                return await interaction.followup.send(
+                    t("ERR_INVALID_END", guild_id=interaction.guild_id),
+                    ephemeral=True,
+                )
         
         # db_event már betöltve a submit elején
         db_event["start_time"] = start_ts
@@ -859,10 +868,16 @@ class PostponeModal(discord.ui.Modal):
         if ping_role_id and str(ping_role_id).isdigit() and int(ping_role_id) > 0:
             ping_prefix = f"{PING} <@&{ping_role_id}> "
             
-        new_msg = await channel.send(content=f"{ping_prefix}{SYNC} **{t('MSG_RESCHEDULED_BROADCAST', guild_id=interaction.guild_id, default='Időpont módosítva! / Rescheduled!')}**", view=new_view)
+        new_msg = await channel.send(
+            content=f"{ping_prefix}{SYNC} **{t('MSG_RESCHEDULED_BROADCAST', guild_id=interaction.guild_id)}**",
+            view=new_view,
+        )
         await database.set_event_message(self.event_id, new_msg.id)
         
-        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="rescheduled", default="Időpont módosítva! Az új kártya kikerült."), ephemeral=True)
+        await interaction.followup.send(
+            t("MSG_RESCHEDULE_DONE", guild_id=interaction.guild_id),
+            ephemeral=True,
+        )
 
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):

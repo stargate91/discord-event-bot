@@ -115,7 +115,12 @@ class SingleEventModal(ui.Modal):
             if data.get("end_str"):
                 combined_time += f", {data['end_str']}"
 
-        self.time_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder="YYYY-MM-DD HH:MM, HH:MM", default=combined_time, required=True)
+        self.time_input = ui.TextInput(
+            label=t("LBL_WIZ_START", guild_id=guild_id),
+            placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
+            default=combined_time,
+            required=True,
+        )
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
         self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
 
@@ -259,7 +264,12 @@ class Step3Modal(ui.Modal):
         guild_id = self.wizard_view.guild_id
 
         self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
-        self.cleanup_offset = ui.TextInput(label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id), placeholder="4h", default=data.get("cleanup_offset", "4h"), required=True)
+        self.cleanup_offset = ui.TextInput(
+            label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id),
+            placeholder=t("PH_EXAMPLE_4H", guild_id=guild_id),
+            default=data.get("cleanup_offset", "4h"),
+            required=True,
+        )
         ro = data.get("reminder_offsets")
         if isinstance(ro, list) and ro:
             def_offset = "\n".join(ro[:database.MAX_EVENT_REMINDERS])
@@ -392,10 +402,10 @@ class RoleLimitsModal(ui.Modal):
             lines.append(f"{emoji} {rid}: {lim}".strip())
             
         self.limits_input = ui.TextInput(
-            label="Format: EMOJI ID: Limit",
+            label=t("LBL_ROLE_LIMITS_FORMAT", guild_id=wizard_view.guild_id),
             style=discord.TextStyle.paragraph,
             default="\n".join(lines),
-            required=False
+            required=False,
         )
         self.add_item(self.limits_input)
 
@@ -495,7 +505,7 @@ class EventWizardView(ui.LayoutView):
         step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
-        # Step 3: Series only - Supplementary (timezone, max, channel)
+        # Step 3: Series only — timezone, max participants, channel (multi-reminder: use Reminder toggle)
         async def s3_cb(it): await it.response.send_modal(SingleEventSupplementaryModal(view))
         step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
@@ -550,11 +560,11 @@ class EventWizardView(ui.LayoutView):
         if view.wizard_type == "series":
             cur_trig = view.data.get("repost_trigger", "after_end")
             trig_opts = [
-                discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id) or "Before Start", value="before_start", default=(cur_trig=="before_start")),
-                discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id) or "After Start", value="after_start", default=(cur_trig=="after_start")),
-                discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id) or "After End", value="after_end", default=(cur_trig=="after_end"))
+                discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
+                discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
+                discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
             ]
-            sel_trig = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id) or "Repost Timing", options=trig_opts)
+            sel_trig = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id), options=trig_opts)
             async def trig_cb(it):
                 await it.response.defer()
                 view.data["repost_trigger"] = sel_trig.values[0]
@@ -947,11 +957,11 @@ class EventWizardView(ui.LayoutView):
         s1 = SUCCESS if self.steps_completed["step1"] else ERROR
         
         if self.wizard_type == "single":
-            s2 = SUCCESS if self.steps_completed.get("step2") else f"{INFO} (Opcionális)"
+            s2 = SUCCESS if self.steps_completed.get("step2") else f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id)}: {s2}"
         else:
             s2 = SUCCESS if self.steps_completed.get("step2") else ERROR
-            s3 = SUCCESS if self.steps_completed.get("step3") else f"{INFO} (Opcionális)"
+            s3 = SUCCESS if self.steps_completed.get("step3") else f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
@@ -1184,7 +1194,10 @@ class EventWizardView(ui.LayoutView):
                 msg = await target_chan.send(view=view)
                 await database.set_event_message(event_id, msg.id)
                 self.bot.add_view(view)
-                await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
+                await interaction.followup.send(
+                    t("MSG_PUBLISHED_IN_CHANNEL", guild_id=self.guild_id, channel_id=target_chan.id),
+                    ephemeral=True,
+                )
 
             if self.data.get("draft_id"):
                 await database.delete_draft(self.data.get("draft_id"), self.guild_id)
@@ -1193,4 +1206,7 @@ class EventWizardView(ui.LayoutView):
             self.stop()
         except Exception as e:
             log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
-            await interaction.followup.send(f"{ERROR} Failed to publish: {e}", ephemeral=True)
+            await interaction.followup.send(
+                f"{ERROR} {t('ERR_PUBLISH_FAILED', guild_id=self.guild_id, e=str(e))}",
+                ephemeral=True,
+            )

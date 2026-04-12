@@ -142,11 +142,11 @@ class GeneralSetupView(ui.LayoutView):
         # Template Lang Select
         cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="en")
         tpl_opts = [
-            discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id) or "Default (Follow Server)", value="default", default=(cur_tpl_lang=="default")),
-            discord.SelectOption(label="Magyar", value="hu", default=(cur_tpl_lang=="hu")),
-            discord.SelectOption(label="English", value="en", default=(cur_tpl_lang=="en"))
+            discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id), value="default", default=(cur_tpl_lang=="default")),
+            discord.SelectOption(label=t("LBL_LANG_HU", guild_id=self.guild_id), value="hu", default=(cur_tpl_lang=="hu")),
+            discord.SelectOption(label=t("LBL_LANG_EN", guild_id=self.guild_id), value="en", default=(cur_tpl_lang=="en")),
         ]
-        tpl_sel = ui.Select(placeholder=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id) or "Emoji Sets Language", options=tpl_opts)
+        tpl_sel = ui.Select(placeholder=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id), options=tpl_opts)
         async def tpl_cb(it):
             val = tpl_sel.values[0]
             await database.save_guild_setting(self.guild_id, "template_language", val)
@@ -275,16 +275,28 @@ class EventDefaultsView(ui.LayoutView):
         channel_btn = ui.Button(label=t("BTN_DEFAULT_CHANNEL", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channel_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_event_channel", default="")
-            modal = SimpleConfigModal(self.guild_id, "default_event_channel", t("LBL_SET_CHANNEL", guild_id=self.guild_id), 
-                                     placeholder="#channel-name", default_val=curr, parent_view=self)
+            modal = SimpleConfigModal(
+                self.guild_id,
+                "default_event_channel",
+                t("LBL_SET_CHANNEL", guild_id=self.guild_id),
+                placeholder=t("PH_CHANNEL_REF", guild_id=self.guild_id),
+                default_val=curr,
+                parent_view=self,
+            )
             await it.response.send_modal(modal)
         channel_btn.callback = channel_cb
 
         max_acc_btn = ui.Button(label=t("BTN_DEFAULT_MAX_ACC", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def max_acc_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
-            modal = SimpleConfigModal(self.guild_id, "default_max_participants", t("LBL_SET_MAX_ACC", guild_id=self.guild_id), 
-                                     placeholder="0", default_val=curr, parent_view=self)
+            modal = SimpleConfigModal(
+                self.guild_id,
+                "default_max_participants",
+                t("LBL_SET_MAX_ACC", guild_id=self.guild_id),
+                placeholder=t("PH_NUMBER_ZERO", guild_id=self.guild_id),
+                default_val=curr,
+                parent_view=self,
+            )
             await it.response.send_modal(modal)
         max_acc_btn.callback = max_acc_cb
 
@@ -319,11 +331,11 @@ class EventDefaultsView(ui.LayoutView):
 
         cur_trig = await database.get_guild_setting(self.guild_id, "default_repost_trigger", default="after_end")
         trig_opts = [
-            discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id) or "Before Start", value="before_start", default=(cur_trig=="before_start")),
-            discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id) or "After Start", value="after_start", default=(cur_trig=="after_start")),
-            discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id) or "After End", value="after_end", default=(cur_trig=="after_end"))
+            discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
+            discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
+            discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
         ]
-        trig_sel = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id) or "Repost Timing", options=trig_opts)
+        trig_sel = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id), options=trig_opts)
         async def trig_cb(it):
             await database.save_guild_setting(self.guild_id, "default_repost_trigger", trig_sel.values[0])
             await self.refresh_message(it)
@@ -399,7 +411,10 @@ class SimpleConfigModal(ui.Modal):
         except Exception as e:
             log.error(f"Error in modal submit for {self.key}: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"{ERROR} Error: {e}", ephemeral=True)
+                await interaction.response.send_message(
+                    f"{ERROR} {t('ERR_SETTING_SAVE_FAILED', guild_id=self.guild_id, e=str(e))}",
+                    ephemeral=True,
+                )
 
 async def setup(bot):
     # This cog primarily provides the view classes for other cogs to use.

@@ -97,10 +97,15 @@ class MasterCommands(commands.GroupCog, name="master"):
             # Refresh cache
             await load_custom_sets()
             
-            await interaction.followup.send(t('MSG_GLOBAL_RESETS_SUCCESS', guild_id=None, val=count) if count > 0 else f'Success: {count} sets')
+            msg = (
+                t("MSG_GLOBAL_RESETS_SUCCESS", guild_id=None, val=count)
+                if count > 0
+                else t("MSG_GLOBAL_RESETS_NONE", guild_id=None)
+            )
+            await interaction.followup.send(msg)
         except Exception as e:
             log.error(f"[Master] Error resetting global sets: {e}")
-            await interaction.followup.send(f"{ERROR} {e}")
+            await interaction.followup.send(f"{ERROR} {t('ERR_MASTER_FOLLOWUP', guild_id=None, e=str(e))}")
 
 import uuid
 
@@ -111,7 +116,9 @@ class PresenceConfigModal(ui.Modal):
     def __init__(self, current_config, refresh_callback):
         super().__init__(title=t("MASTER_PRESENCE_CFG_TITLE", guild_id=None))
         self.rotate_time.label = t("MASTER_PRESENCE_CFG_TIME", guild_id=None)
+        self.rotate_time.placeholder = t("MASTER_PRESENCE_CFG_TIME_PH", guild_id=None)
         self.rotate_mode.label = t("MASTER_PRESENCE_CFG_MODE", guild_id=None)
+        self.rotate_mode.placeholder = t("MASTER_PRESENCE_CFG_MODE_PH", guild_id=None)
         
         self.refresh_callback = refresh_callback
         self.rotate_time.default = str(current_config.get("time", 30))
@@ -150,6 +157,7 @@ class StatusModal(ui.Modal):
         self.text_input.label = t("MASTER_PRESENCE_TXT_LBL", guild_id=None)
         self.text_input.placeholder = t("MASTER_PRESENCE_TXT_PH", guild_id=None)
         self.type_input.label = t("MASTER_PRESENCE_TYPE_LBL", guild_id=None)
+        self.type_input.placeholder = t("MASTER_PRESENCE_TYPE_PH", guild_id=None)
         
         self.refresh_callback = refresh_callback
         self.status_id = status_id
