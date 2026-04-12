@@ -341,7 +341,7 @@ class DynamicEventView(discord.ui.LayoutView):
         else:
             accent_hex = str(event_conf.get("color") or "0x3498db")
             
-        accent_color = int(accent_hex.replace("0x", ""), 16)
+        accent_color = int(accent_hex.replace("0x", "").replace("#", ""), 16)
         container = discord.ui.Container(*container_items, accent_color=accent_color)
         self.add_item(container)
 
