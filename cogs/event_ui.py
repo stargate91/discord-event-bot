@@ -191,7 +191,10 @@ class DynamicEventView(discord.ui.LayoutView):
             role_id = opt["id"]
             users = status_map.get(role_id, [])
             limit = role_limits.get(role_id, opt.get("max_slots"))
-            label_text = opt.get("list_label") or (t(opt["label_key"], guild_id=guild_id) if "label_key" in opt else opt.get("label", ""))
+            if "list_label_key" in opt:
+                label_text = t(opt["list_label_key"], guild_id=guild_id)
+            else:
+                label_text = opt.get("list_label") or (t(opt["label_key"], guild_id=guild_id) if "label_key" in opt else opt.get("label", ""))
 
             count_text = str(len(users))
             is_pos = (role_id in positive_statuses)
@@ -303,7 +306,9 @@ class DynamicEventView(discord.ui.LayoutView):
                 opt["max_slots"] = role_limits[role_id]
 
             label = opt.get("label") if "label" in opt else ""
-            if role_id in ["accepted", "declined", "tentative"]:
+            if "label_key" in opt:
+                label = t(opt["label_key"], guild_id=guild_id)
+            elif role_id in ["accepted", "declined", "tentative"]:
                 label_key = f"BTN_{role_id.upper()}"
                 localized_label = t(label_key, guild_id=guild_id)
                 if localized_label != label_key:

@@ -36,6 +36,24 @@ def get_template_data(template_id: str):
         return None
     
     opts, pos_count = parse_emoji_config(tmpl["text"])
+    
+    KEY_MAP = {
+        "im_coming": {"label_key": "BTN_ACCEPT", "list_label_key": "RSVP_ACCEPTED"},
+        "maybe": {"label_key": "BTN_TENTATIVE", "list_label_key": "RSVP_TENTATIVE"},
+        "not_coming": {"label_key": "BTN_DECLINE", "list_label_key": "RSVP_DECLINED"},
+        "tank": {"list_label_key": "RSVP_TANK"},
+        "heal": {"list_label_key": "RSVP_HEAL"},
+        "dps": {"list_label_key": "RSVP_DPS"},
+        "team_a": {"list_label_key": "RSVP_TEAM_A"},
+        "team_b": {"list_label_key": "RSVP_TEAM_B"},
+        "ill_spectate": {"list_label_key": "RSVP_SPECTATOR"},
+    }
+    for o in opts:
+        km = KEY_MAP.get(o["id"])
+        if km:
+            if "label_key" in km: o["label_key"] = km["label_key"]
+            if "list_label_key" in km: o["list_label_key"] = km["list_label_key"]
+
     return {
         "options": opts,
         "positive_count": pos_count,
