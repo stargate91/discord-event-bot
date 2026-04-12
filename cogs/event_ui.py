@@ -189,7 +189,8 @@ class DynamicEventView(discord.ui.LayoutView):
 
         recurrence = event_conf.get('recurrence_type', 'none')
         if recurrence != 'none':
-            time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {recurrence.capitalize()}"
+            rec_text = t(f"SEL_REC_{recurrence.upper()}", guild_id=guild_id) or recurrence.capitalize()
+            time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {rec_text}"
         container_items.append(discord.ui.TextDisplay(time_str))
 
         # --- ROLE LISTS ---
