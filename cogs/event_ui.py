@@ -176,26 +176,6 @@ class DynamicEventView(discord.ui.LayoutView):
             time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {recurrence.capitalize()}"
         container_items.append(discord.ui.TextDisplay(time_str))
 
-        # --- IMAGE ---
-        image_url = None
-        if db_event and db_event.get("image_urls"):
-            image_url = str(db_event["image_urls"]).split(",")[0].strip()
-        elif event_conf.get("image_urls"):
-            val = event_conf["image_urls"]
-            if isinstance(val, list):
-                image_url = random.choice(val)
-            elif isinstance(val, str) and "," in val:
-                image_url = random.choice([u.strip() for u in val.split(",")])
-            else:
-                image_url = str(val)
-
-        if image_url:
-            try:
-                from discord.ui.media_gallery import MediaGalleryItem
-                container_items.append(discord.ui.MediaGallery(MediaGalleryItem(media=image_url)))
-            except Exception:
-                container_items.append(discord.ui.Thumbnail(media=image_url))
-
         # --- ROLE LISTS ---
         container_items.append(discord.ui.Separator())
         waiting_list = []
@@ -239,6 +219,26 @@ class DynamicEventView(discord.ui.LayoutView):
             wait_header = t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'
             wait_str = f"**⏳ {wait_header} ({len(waiting_list)})**\n" + "\n".join(waiting_list)
             container_items.append(discord.ui.TextDisplay(wait_str))
+
+        # --- IMAGE ---
+        image_url = None
+        if db_event and db_event.get("image_urls"):
+            image_url = str(db_event["image_urls"]).split(",")[0].strip()
+        elif event_conf.get("image_urls"):
+            val = event_conf["image_urls"]
+            if isinstance(val, list):
+                image_url = random.choice(val)
+            elif isinstance(val, str) and "," in val:
+                image_url = random.choice([u.strip() for u in val.split(",")])
+            else:
+                image_url = str(val)
+
+        if image_url:
+            try:
+                from discord.ui.media_gallery import MediaGalleryItem
+                container_items.append(discord.ui.MediaGallery(MediaGalleryItem(media=image_url)))
+            except Exception:
+                container_items.append(discord.ui.Thumbnail(media=image_url))
 
         # --- FOOTER ---
         container_items.append(discord.ui.Separator())
