@@ -360,11 +360,11 @@ class DynamicEventView(discord.ui.LayoutView):
         if self.active_set.get("show_mgmt", True) and added_count < 40:
             mgmt_items = []
 
-            postpone_btn = discord.ui.Button(label=t("TAG_POSTPONED", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
+            postpone_btn = discord.ui.Button(label=t("BTN_POSTPONE_EVENT", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
             postpone_btn.callback = self.postpone_callback
             mgmt_items.append(postpone_btn)
 
-            cancel_btn = discord.ui.Button(label=t("TAG_CANCELLED", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+            cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
             cancel_btn.callback = self.cancel_callback
             mgmt_items.append(cancel_btn)
 

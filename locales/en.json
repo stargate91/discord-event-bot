@@ -55,6 +55,8 @@
   "SETTING_REPOST_OFFSET": "Repost Offset (e.g. 1h, 1d)",
   "BTN_REMINDER_TOGGLE": "🔔 Reminder",
   "EMBED_ACC": "✅ Accepted ({count})",
+  "BTN_POSTPONE_EVENT": "Postpone",
+  "BTN_CANCEL_EVENT": "Cancel Event",
   "EMBED_DEC": "❌ Declined ({count})",
   "EMBED_FOOTER": "Event ID: {event_id} | Created by {creator_id}",
   "EMBED_FULL": "EVENT FULL",
