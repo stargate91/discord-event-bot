@@ -174,7 +174,8 @@ class DynamicEventView(discord.ui.LayoutView):
             else: image_url = str(val)
         
         if image_url:
-            container_items.append(discord.ui.Thumbnail(media=image_url))
+            from discord.ui.media_gallery import MediaGalleryItem
+            container_items.append(discord.ui.MediaGallery(MediaGalleryItem(media=image_url)))
 
         roles_text = ""
         waiting_list = []
