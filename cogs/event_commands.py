@@ -330,14 +330,7 @@ class AdminCommands(commands.GroupCog, name="admin"):
             
             from cogs.message_wizard import MessageWizardView
             view = MessageWizardView(self.bot, interaction.guild.id)
-            await view.prepare()
-            
-            embed = discord.Embed(
-                title=t("MSG_WIZ_TITLE", guild_id=interaction.guild_id),
-                description=t("MSG_WIZ_DESC", guild_id=interaction.guild_id),
-                color=discord.Color.blue()
-            )
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            await view.refresh_message(interaction)
         except Exception as e:
             from utils.logger import log
             log.error(f"Error in admin_messages: {e}")
