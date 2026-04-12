@@ -300,7 +300,19 @@ class DynamicEventView(discord.ui.LayoutView):
         container_items.append(discord.ui.TextDisplay(f"-# {footer_text} • {cal_links}"))
 
         # Build container
-        accent_color = int(str(event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
+        status_for_color = event_conf.get("status", "active")
+        if status_for_color == "cancelled":
+            accent_hex = "0xe74c3c" # Red
+        elif status_for_color == "postponed":
+            accent_hex = "0xf1c40f" # Yellow
+        elif status_for_color == "deleted":
+            accent_hex = "0x95a5a6" # Gray
+        elif status_for_color == "rescheduled":
+            accent_hex = "0x2ecc71" # Green
+        else:
+            accent_hex = str(event_conf.get("color") or "0x3498db")
+            
+        accent_color = int(accent_hex.replace("0x", ""), 16)
         container = discord.ui.Container(*container_items, accent_color=accent_color)
         self.add_item(container)
 
