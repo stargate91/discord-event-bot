@@ -1,9 +1,0 @@
-2026-04-06 15:58:41,678 - EventBot - INFO - Logged in as Nexus#0718 (ID: 1490237426424348752)
-2026-04-06 15:58:41,679 - EventBot - INFO - ------
-2026-04-09 08:19:43,308 - EventBot - INFO - Logging level set to INFO
-2026-04-09 08:19:43,349 - EventBot - INFO - [Admin] Dynamic aliases prepared for suffix: _nexus
-2026-04-09 08:19:46,231 - EventBot - ERROR - [Presence] Error updating status: module 'database' has no attribute 'get_active_event_count'
-2026-04-09 08:19:46,231 - EventBot - INFO - Logged in as Nexus#0718 (ID: 1490237426424348752)
-2026-04-09 08:19:46,231 - EventBot - INFO - Nexus Event Bot is ready and monitoring events.
-2026-04-09 08:19:46,232 - EventBot - INFO - ------
-2026-04-11 19:42:31 - ERROR    - [Global] DATABASE_URL is not set in .env! Cannot start bot.

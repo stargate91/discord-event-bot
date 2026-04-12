@@ -81,12 +81,14 @@ class EventCommands(commands.Cog):
             config_name = event_id.replace("series:", "")
             series_events = await database.get_active_events_by_config(config_name, interaction.guild_id)
             if not series_events:
-                await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+                await interaction.followup.send(
+                    t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True
+                )
                 return
             
             if occurrence is not None:
                 if occurrence > len(series_events): 
-                    return await interaction.response.send_message(t("ERR_SERIES_COUNT", guild_id=interaction.guild_id, occurrence=occurrence), ephemeral=True)
+                    return await interaction.followup.send(t("ERR_SERIES_COUNT", guild_id=interaction.guild_id, occurrence=occurrence), ephemeral=True)
                 db_event = series_events[occurrence - 1]
             else:
                 db_event = series_events[0]
@@ -95,7 +97,9 @@ class EventCommands(commands.Cog):
             db_event = await database.get_active_event(event_id)
 
         if not db_event:
-            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+            await interaction.followup.send(
+                t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True
+            )
             return
 
         try:
@@ -177,7 +181,10 @@ class EventCommands(commands.Cog):
             if not db_event:
                 db_event = await database.get_active_event(event_id)
 
-        if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+        if not db_event:
+            return await interaction.followup.send(
+                t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True
+            )
 
         if status == "postponed" and new_time:
             try:
@@ -185,7 +192,7 @@ class EventCommands(commands.Cog):
                 dt = parser.parse(new_time).replace(tzinfo=local_tz)
                 await database.update_event_time(event_id, dt.timestamp())
             except Exception as e:
-                return await interaction.response.send_message(t("ERR_INVALID_TIME", guild_id=interaction.guild_id, e=e), ephemeral=True)
+                return await interaction.followup.send(t("ERR_INVALID_TIME", guild_id=interaction.guild_id, e=e), ephemeral=True)
 
         series_events = await database.get_active_events_by_config(db_event["config_name"], interaction.guild_id) if db_event.get("config_name") and db_event["config_name"] != "manual" else []
         if len(series_events) > 1 and not occurrence:
@@ -343,7 +350,7 @@ class AdminCommands(commands.GroupCog, name="admin"):
             view = ServerSetupView(self.bot, guild_id)
             await view.refresh_message(interaction)
         except Exception as e:
-            await interaction.response.send_message(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
+            await interaction.followup.send(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 
     @app_commands.command(name="messages", description="Manage global bot messages and strings")
     async def admin_messages(self, interaction: discord.Interaction):

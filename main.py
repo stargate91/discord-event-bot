@@ -42,52 +42,25 @@ class EventBot(commands.Bot):
             await database.set_pool(pool)
             await database.init_db()
             log.info("Successfully connected to PostgreSQL.")
-            
-            # --- Auto-Migration ---
+
             guild_id = self.config.get("guild_id")
             if guild_id:
-                # Preload translations for the main guild
                 from utils.i18n import load_guild_translations
                 await load_guild_translations(guild_id)
 
-                if await database.check_emoji_sets_empty(guild_id):
-                    log.info(f"Emoji sets table is empty for guild {guild_id}. Migrating from config.json...", guild_id=guild_id)
-                    sets = self.config.get("emoji_sets", [])
-                    for s in sets:
-                        await database.save_emoji_set(guild_id, s["set_id"], s["name"], s["data"])
-                    log.info(f"Migration complete: {len(sets)} sets imported.", guild_id=guild_id)
-                
-                # --- Presence Migration (Global) ---
-                if await database.get_global_setting("bot_presence_list") is None:
-                    globals_cfg = self.config.get("globals", {})
-                    presence_list = globals_cfg.get("bot_presence", [])
-                    if presence_list:
-                        log.info("Migrating bot presence list to global_settings...")
-                        await database.save_global_setting("bot_presence_list", json.dumps(presence_list))
-                
-                # --- Emoji Sets Migration (Global) ---
-                # Check if global sets table is empty
-                global_sets = await database.get_all_global_emoji_sets()
-                if not global_sets:
-                    config_sets = self.config.get("emoji_sets", [])
-                    if not config_sets:
-                        # Add hardcoded 'factory default' sets
-                        log.info("No global sets found. Injecting factory defaults from templates...")
-                        from utils.templates import ICON_SET_TEMPLATES, get_template_data
-                        
-                        count = 0
-                        for tid, tmpl in ICON_SET_TEMPLATES.items():
-                            name = t(tmpl.get("label_key"), guild_id=None) if "label_key" in tmpl else tid
-                            data = get_template_data(tid)
-                            if data:
-                                await database.save_global_emoji_set(tid, name, data)
-                                count += 1
-                        log.info(f"Migration complete: {count} factory templates imported.")
-                    else:
-                        log.info("Migrating global emoji sets from config.json to database...")
-                        for s in config_sets:
-                            await database.save_global_emoji_set(s["set_id"], s["name"], s["data"])
-                        log.info(f"Migration complete: {len(config_sets)} global sets imported.")
+            global_sets = await database.get_all_global_emoji_sets()
+            if not global_sets:
+                log.info("No global emoji sets in database. Seeding factory defaults from templates...")
+                from utils.templates import ICON_SET_TEMPLATES, get_template_data
+
+                count = 0
+                for tid, tmpl in ICON_SET_TEMPLATES.items():
+                    name = t(tmpl.get("label_key"), guild_id=None) if "label_key" in tmpl else tid
+                    data = get_template_data(tid)
+                    if data:
+                        await database.save_global_emoji_set(tid, name, data)
+                        count += 1
+                log.info(f"Seeded {count} global emoji set(s) from templates.")
         except Exception as e:
             log.error(f"Failed to connect to PostgreSQL: {e}")
             exit(1)
@@ -182,24 +155,29 @@ class EventBot(commands.Bot):
                     "statuses": [{"id": "default", "type": "watching", "text": t("PRESENCE_DEFAULT", guild_id=None)}]
                 }
                 
-                # Load from database
                 db_presence = await database.get_global_setting("bot_presence_list")
+                parsed = None
                 if db_presence:
-                    parsed = json.loads(db_presence)
-                    if isinstance(parsed, list):
-                        # Migration from old format
-                        migrated_statuses = []
-                        for text in parsed:
-                            migrated_statuses.append({"id": str(uuid.uuid4()), "type": "watching", "text": text})
-                        config["statuses"] = migrated_statuses
-                        await database.save_global_setting("bot_presence_list", json.dumps(config))
-                    elif isinstance(parsed, dict):
-                        config.update(parsed)
-                else:
-                    # Fallback to config.json
+                    try:
+                        parsed = json.loads(db_presence)
+                    except json.JSONDecodeError:
+                        log.warning("[Presence] bot_presence_list is not valid JSON; using config/defaults.")
+
+                if isinstance(parsed, dict):
+                    config.update(parsed)
+                elif isinstance(parsed, list):
+                    log.warning(
+                        "[Presence] bot_presence_list uses deprecated list JSON; "
+                        "store a dict {time, mode, statuses} via Master. Using config/defaults for this cycle."
+                    )
+
+                if not isinstance(parsed, dict):
                     cfg_list = self.config.get("dynamic_status", [])
                     if cfg_list:
-                        config["statuses"] = [{"id": str(uuid.uuid4()), "type": "watching", "text": text} for text in cfg_list]
+                        config["statuses"] = [
+                            {"id": str(uuid.uuid4()), "type": "watching", "text": text}
+                            for text in cfg_list
+                        ]
 
                 statuses = config.get("statuses", [])
                 if not statuses:

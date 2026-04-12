@@ -1,4 +1,5 @@
 import discord
+import platform
 from utils.emojis import ERROR
 from discord import app_commands, ui
 from discord.ext import commands
@@ -32,7 +33,7 @@ class MasterCommands(commands.GroupCog, name="master"):
                 f"{t('MASTER_STATS_EVENTS', guild_id=None, val=stats['events'])}\n"
                 f"{t('MASTER_STATS_RSVPS', guild_id=None, val=stats['rsvps'])}\n\n"
                 f"{t('MASTER_STATS_VERSION', guild_id=None, val=bot_version)}\n"
-                f"{t('MASTER_STATS_PYTHON', guild_id=None, val='3.14')}\n"
+                f"{t('MASTER_STATS_PYTHON', guild_id=None, val=platform.python_version())}\n"
                 f"{t('MASTER_STATS_LATENCY', guild_id=None, val=f'{round(self.bot.latency * 1000)}ms')}"
             )
 
@@ -67,7 +68,11 @@ class MasterCommands(commands.GroupCog, name="master"):
             await view.refresh_message(interaction)
         except Exception as e:
             log.error(f"[Master] Error in global-sets: {e}")
-            await interaction.response.send_message(t("MASTER_EMOJI_ERR", guild_id=None).replace("{e}", str(e)), ephemeral=True)
+            err_msg = t("MASTER_EMOJI_ERR", guild_id=None).replace("{e}", str(e))
+            if interaction.response.is_done():
+                await interaction.followup.send(err_msg, ephemeral=True)
+            else:
+                await interaction.response.send_message(err_msg, ephemeral=True)
 
     @app_commands.command(name="reset-global-sets")
     async def reset_global_sets_cmd(self, interaction: discord.Interaction):
@@ -290,8 +295,25 @@ class PresenceEditView(ui.LayoutView):
         del_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             db_presence = await database.get_global_setting("bot_presence_list")
-            config = json.loads(db_presence)
-            config["statuses"] = [s for s in config["statuses"] if s["id"] != self.status_id]
+            if not db_presence:
+                config = {"time": 30, "mode": "random", "statuses": []}
+            else:
+                config = json.loads(db_presence)
+                if isinstance(config, list):
+                    config = {
+                        "time": 30,
+                        "mode": "random",
+                        "statuses": [
+                            {"id": str(uuid.uuid4()), "type": "watching", "text": t}
+                            for t in config
+                        ],
+                    }
+                if not isinstance(config, dict):
+                    config = {"time": 30, "mode": "random", "statuses": []}
+                statuses = config.get("statuses")
+                if not isinstance(statuses, list):
+                    statuses = []
+                config["statuses"] = [s for s in statuses if s.get("id") != self.status_id]
             await database.save_global_setting("bot_presence_list", json.dumps(config))
             await it.response.defer()
             await self.parent_view.refresh_message(it)

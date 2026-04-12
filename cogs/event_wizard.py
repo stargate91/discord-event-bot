@@ -260,8 +260,19 @@ class Step3Modal(ui.Modal):
 
         self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
         self.cleanup_offset = ui.TextInput(label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id), placeholder="4h", default=data.get("cleanup_offset", "4h"), required=True)
-        def_offset = data.get("reminder_offset", "15m")
-        self.rem_offset = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=guild_id), placeholder=t("PH_REMINDER_OFFSET", guild_id=guild_id), default=def_offset, required=True)
+        ro = data.get("reminder_offsets")
+        if isinstance(ro, list) and ro:
+            def_offset = "\n".join(ro[:database.MAX_EVENT_REMINDERS])
+        else:
+            def_offset = str(data.get("reminder_offset", "15m"))
+        self.rem_offset = ui.TextInput(
+            label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id),
+            placeholder=t("PH_REMINDER_OFFSETS", guild_id=guild_id),
+            default=def_offset,
+            style=discord.TextStyle.paragraph,
+            max_length=400,
+            required=False,
+        )
         self.rec_limit = ui.TextInput(label=t("LBL_RECURRENCE_LIMIT", guild_id=guild_id), default=str(data.get("recurrence_limit", 0)), required=True)
         self.rem_type = ui.TextInput(label=t("LBL_REMINDER_TYPE", guild_id=guild_id), default=data.get("reminder_type", "none"), required=True)
 
@@ -274,7 +285,13 @@ class Step3Modal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["repost_offset"] = str(self.cleanup_offset.value)
-        self.wizard_view.data["reminder_offset"] = str(self.rem_offset.value)
+        lines = [
+            x.strip()
+            for x in str(self.rem_offset.value).splitlines()
+            if x.strip()
+        ][: database.MAX_EVENT_REMINDERS]
+        self.wizard_view.data["reminder_offsets"] = lines
+        self.wizard_view.data["reminder_offset"] = lines[0] if lines else "15m"
         
         limit_val = str(self.rec_limit.value).strip()
         if limit_val.isdigit():
@@ -287,9 +304,10 @@ class Step3Modal(ui.Modal):
                 extra["recurrence_limit_date"] = dt.timestamp()
                 self.wizard_view.data["extra_data"] = json.dumps(extra)
                 self.wizard_view.data["recurrence_limit"] = 0
-            except:
+            except Exception as e:
+                log.debug("RecurrenceLimitModal limit_date parse: %s", e)
                 self.wizard_view.data["recurrence_limit"] = 0
-                
+
         self.wizard_view.data["reminder_type"] = str(self.rem_type.value).lower()
         self.wizard_view.steps_completed["step3"] = True
         await self.wizard_view.save_to_draft()
@@ -323,9 +341,10 @@ class RecurrenceSettingsModal(ui.Modal):
                 extra["recurrence_limit_date"] = dt.timestamp()
                 self.wizard_view.data["extra_data"] = json.dumps(extra)
                 self.wizard_view.data["recurrence_limit"] = 0
-            except:
+            except Exception as e:
+                log.debug("RecurrenceSettingsModal limit_date parse: %s", e)
                 self.wizard_view.data["recurrence_limit"] = 0
-        
+
         self.wizard_view.steps_completed["step4"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -360,8 +379,10 @@ class RoleLimitsModal(ui.Modal):
         extra_data = wizard_view.data.get("extra_data")
         existing_limits = {}
         if extra_data:
-            try: existing_limits = json.loads(extra_data).get("role_limits", {})
-            except: pass
+            try:
+                existing_limits = json.loads(extra_data).get("role_limits", {})
+            except Exception as e:
+                log.debug("RoleLimitsModal extra_data: %s", e)
             
         lines = []
         for opt in self.options:
@@ -416,6 +437,7 @@ class NotificationSettingsModal(ui.Modal):
         if isinstance(extra, str): extra = json.loads(extra)
         extra["custom_promo_msg"] = self.promo_input.value
         extra["custom_reminder_msg"] = self.rem_input.value
+        self.wizard_view.data["reminder_message"] = (self.rem_input.value or "").strip() or None
         self.wizard_view.data["extra_data"] = json.dumps(extra)
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -573,10 +595,27 @@ class EventWizardView(ui.LayoutView):
                 def __init__(self, v):
                     super().__init__(title=t("BTN_REMINDER_OFFSET", guild_id=v.guild_id)[:45])
                     self.v = v
-                    self.inp = ui.TextInput(label=t("LBL_REMINDER_OFFSET", guild_id=v.guild_id), default=str(v.data.get("reminder_offset", "15m")), required=True)
+                    ro = self.v.data.get("reminder_offsets")
+                    if isinstance(ro, list) and ro:
+                        dflt = "\n".join(ro[: database.MAX_EVENT_REMINDERS])
+                    else:
+                        dflt = str(self.v.data.get("reminder_offset", "15m"))
+                    self.inp = ui.TextInput(
+                        label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=v.guild_id),
+                        default=dflt,
+                        style=discord.TextStyle.paragraph,
+                        max_length=400,
+                        required=False,
+                    )
                     self.add_item(self.inp)
                 async def on_submit(self, i):
-                    self.v.data["reminder_offset"] = str(self.inp.value)
+                    lines = [
+                        x.strip()
+                        for x in str(self.inp.value).splitlines()
+                        if x.strip()
+                    ][: database.MAX_EVENT_REMINDERS]
+                    self.v.data["reminder_offsets"] = lines
+                    self.v.data["reminder_offset"] = lines[0] if lines else "15m"
                     await self.v.save_to_draft()
                     await self.v.refresh_message(i)
             await it.response.send_modal(ReminderOffsetModal(view))
@@ -720,11 +759,22 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
+                ro_list = view.data.get("reminder_offsets") or []
+                if not isinstance(ro_list, list):
+                    ro_list = []
+                off_preview = ", ".join(ro_list) if ro_list else str(view.data.get("reminder_offset") or "—")
+                if len(off_preview) > 500:
+                    off_preview = off_preview[:497] + "..."
                 container_items.append(ui.Separator())
+                container_items.append(
+                    ui.TextDisplay(
+                        t("LBL_REMINDER_LIST_PREVIEW", guild_id=self.guild_id, offsets=off_preview)
+                    )
+                )
                 container_items.append(ui.ActionRow(rem_offset_btn))
                 container_items.append(ui.ActionRow(rem_type_sel))
                 container_items.append(ui.Separator())
-                
+            
             container_items.append(ui.ActionRow(sel_icon))
         else:
             container_items.append(ui.ActionRow(step1, step2, step3))
@@ -739,7 +789,18 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
+                ro_list = view.data.get("reminder_offsets") or []
+                if not isinstance(ro_list, list):
+                    ro_list = []
+                off_preview = ", ".join(ro_list) if ro_list else str(view.data.get("reminder_offset") or "—")
+                if len(off_preview) > 500:
+                    off_preview = off_preview[:497] + "..."
                 container_items.append(ui.Separator())
+                container_items.append(
+                    ui.TextDisplay(
+                        t("LBL_REMINDER_LIST_PREVIEW", guild_id=self.guild_id, offsets=off_preview)
+                    )
+                )
                 container_items.append(ui.ActionRow(rem_offset_btn))
                 container_items.append(ui.ActionRow(rem_type_sel))
                 container_items.append(ui.Separator())
@@ -773,6 +834,41 @@ class EventWizardView(ui.LayoutView):
             self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
         if "reminder_type" not in self.data:
             self.data["reminder_type"] = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
+        if "reminder_offsets" not in self.data:
+            ev_id = self.data.get("event_id")
+            if ev_id:
+                rem_rows = await database.get_event_reminders(ev_id)
+                if rem_rows:
+                    self.data["reminder_offsets"] = [r["offset_str"] for r in rem_rows]
+                else:
+                    ro = self.data.get("reminder_offset") or await database.get_guild_setting(
+                        self.guild_id, "default_reminder_offset", default="15m"
+                    )
+                    self.data["reminder_offsets"] = (
+                        [ro]
+                        if (self.data.get("reminder_type") or "none") != "none" and ro
+                        else []
+                    )
+            else:
+                ro = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+                rt = self.data.get("reminder_type") or await database.get_guild_setting(
+                    self.guild_id, "reminder_type", default="none"
+                )
+                self.data["reminder_type"] = rt
+                self.data["reminder_offsets"] = [ro] if rt != "none" and ro else []
+        if not (self.data.get("reminder_message") or "").strip() and self.data.get("extra_data"):
+            try:
+                ed = (
+                    json.loads(self.data["extra_data"])
+                    if isinstance(self.data["extra_data"], str)
+                    else self.data["extra_data"]
+                )
+                if isinstance(ed, dict):
+                    self.data["reminder_message"] = (
+                        (ed.get("custom_reminder_msg") or "").strip() or None
+                    )
+            except Exception:
+                pass
         if "color" not in self.data:
             self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x3498db")
         if "timezone" not in self.data:
@@ -949,7 +1045,8 @@ class EventWizardView(ui.LayoutView):
                 try:
                     d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
                     role_limits_overrides = d.get("role_limits", {})
-                except: pass
+                except Exception as e:
+                    log.debug("handle_save_preview role_limits: %s", e)
             
             pos_statuses = []
             if "positive" in active_set:
@@ -978,7 +1075,14 @@ class EventWizardView(ui.LayoutView):
             await interaction.followup.send(view=view, ephemeral=True)
             await self.refresh_message(interaction)
         except Exception as e:
-            log.error(f"Error in handle_save_preview: {e}")
+            log.error(f"Error in handle_save_preview: {e}", exc_info=True)
+            try:
+                await interaction.followup.send(
+                    f"{ERROR} {t('ERR_CRITICAL_WIZARD', guild_id=self.guild_id)}: `{e}`",
+                    ephemeral=True,
+                )
+            except Exception as send_err:
+                log.error(f"handle_save_preview followup failed: {send_err}")
     async def publish_btn(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
@@ -997,7 +1101,8 @@ class EventWizardView(ui.LayoutView):
                         if ts:
                             dt = datetime.datetime.fromtimestamp(ts)
                             date_str = dt.strftime("%m%d")
-                    except: pass
+                    except Exception as e:
+                        log.debug("publish_btn temp role date_str: %s", e)
                     
                     role_name = f"{title} - {date_str}" if date_str else title
                     try:
@@ -1015,8 +1120,12 @@ class EventWizardView(ui.LayoutView):
                 else:
                     try:
                         target_chan = await self.bot.fetch_channel(int(self.data["channel_id"]))
-                    except:
-                        pass
+                    except Exception as e:
+                        log.warning(
+                            "[Wizard] fetch_channel %s: %s",
+                            self.data.get("channel_id"),
+                            e,
+                        )
                         
             # Save to Database RIGHT NOW
             if self.is_edit:
@@ -1077,9 +1186,11 @@ class EventWizardView(ui.LayoutView):
                 self.bot.add_view(view)
                 await interaction.followup.send(f"Published in <#{target_chan.id}>!", ephemeral=True)
 
+            if self.data.get("draft_id"):
+                await database.delete_draft(self.data.get("draft_id"), self.guild_id)
+
             await interaction.delete_original_response()
             self.stop()
         except Exception as e:
             log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
             await interaction.followup.send(f"{ERROR} Failed to publish: {e}", ephemeral=True)
-        await database.delete_draft(self.data.get("draft_id"), self.guild_id)

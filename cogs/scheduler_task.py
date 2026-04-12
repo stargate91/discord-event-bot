@@ -166,32 +166,44 @@ class SchedulerTask(commands.Cog):
 
         # --- Okay, it's time to repost! ---
         old_event_id = db_event["event_id"]
-        await database.set_event_status(old_event_id, "closed")
-
-        # Find the new start time
         next_start = calc_next_start(start_ts, event_conf)
         if next_start is None:
+            log.warning(
+                f"[Scheduler] calc_next_start returned None for recurring event {old_event_id}; disabling.",
+                guild_id=db_event.get("guild_id"),
+            )
+            await database.set_event_status(old_event_id, "disabled")
             return
 
-        # Check if we already reached the repetition limit
         rec_limit = int(db_event.get("recurrence_limit") or 0)
         rec_count = int(db_event.get("recurrence_count") or 0)
-        
         if rec_limit > 0 and (rec_count + 1) >= rec_limit:
-            log.info(f"[Scheduler] Limit ({rec_limit}) reached. No more events for today.", guild_id=db_event.get("guild_id"))
+            await database.set_event_status(old_event_id, "closed")
+            log.info(
+                f"[Scheduler] Limit ({rec_limit}) reached. No more occurrences for {old_event_id}.",
+                guild_id=db_event.get("guild_id"),
+            )
             return
-            
-        # Check for specific cut-off date limit
+
         extra_data = db_event.get("extra_data")
         if extra_data:
             try:
-                if isinstance(extra_data, str): extra_data = json.loads(extra_data)
-                limit_ts = extra_data.get("recurrence_limit_date")
+                ed = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
+                limit_ts = ed.get("recurrence_limit_date") if isinstance(ed, dict) else None
                 if limit_ts and next_start > limit_ts:
-                    log.info(f"[Scheduler] Cut-off date limit reached. No more events.", guild_id=db_event.get("guild_id"))
+                    await database.set_event_status(old_event_id, "closed")
+                    log.info(
+                        f"[Scheduler] Cut-off date reached for {old_event_id}; series ended.",
+                        guild_id=db_event.get("guild_id"),
+                    )
                     return
-            except:
-                pass
+            except Exception as e:
+                log.warning(
+                    f"[Scheduler] Could not parse extra_data for {old_event_id}: {e}",
+                    guild_id=db_event.get("guild_id"),
+                )
+
+        await database.set_event_status(old_event_id, "closed")
 
         # Create the brand new event in the database
         new_event_id = str(uuid.uuid4())[:8]
@@ -229,85 +241,114 @@ class SchedulerTask(commands.Cog):
             self.bot.add_view(view)
 
     async def handle_reminders(self, db_event, now):
-        # This function checks if we need to send a "Hey, it starts soon!" message
-        rem_type = db_event.get("reminder_type", "none")
-        if rem_type == "none" or db_event.get("reminder_sent", 0) == 1:
+        rem_type = (db_event.get("reminder_type") or "none").lower()
+        if rem_type == "none":
             return
 
-        start_ts = db_event["start_time"]
-        offset = parse_offset(db_event.get("reminder_offset", "15m"))
-        rem_ts = start_ts - offset.total_seconds()
-
-        if now < rem_ts:
-            return
-
-        # Time to remind people!
         event_id = db_event["event_id"]
         guild_id = db_event.get("guild_id")
-        
-        # Optimized RSVP fetch: get once, use for both ping and DM logic
+        start_ts = db_event["start_time"]
+
+        rows = list(await database.get_event_reminders(event_id))
+        legacy_only = False
+        if not rows and db_event.get("reminder_offset"):
+            if int(db_event.get("reminder_sent") or 0) == 1:
+                return
+            rows = [
+                {"slot_idx": 0, "offset_str": db_event.get("reminder_offset", "15m"), "sent": 0}
+            ]
+            legacy_only = True
+
+        due = []
+        for r in rows:
+            if int(r["sent"] or 0) == 1:
+                continue
+            rem_ts = start_ts - parse_offset(r["offset_str"]).total_seconds()
+            if now >= rem_ts:
+                due.append(r)
+        if not due:
+            return
+
+        due.sort(key=lambda x: int(x["slot_idx"]))
+
         rsvps = await database.get_event_rsvps(event_id)
         participants = [r for r in rsvps if r["status"] == "accepted"]
         if not participants:
-            await database.mark_reminder_sent(event_id)
+            if legacy_only:
+                await database.mark_reminder_sent(event_id)
+            else:
+                await database.mark_all_reminder_slots_sent(event_id)
             return
 
-        # Temp Role Logic for Pings
         temp_role_id = db_event.get("temp_role_id")
         if temp_role_id:
             mention_str = f"<@&{temp_role_id}>"
         else:
             mention_str = ", ".join([f"<@{p['user_id']}>" for p in participants])
-        
+
         send_ping = rem_type in ["ping", "both"]
         send_dm = rem_type in ["dm", "both"]
 
-        # Check for custom reminder message
-        extra_data = db_event.get("extra_data")
-        custom_reminder = None
-        if extra_data:
-            try:
-                if isinstance(extra_data, str):
-                    custom_reminder = json.loads(extra_data).get("custom_reminder_msg")
-                else:
-                    custom_reminder = extra_data.get("custom_reminder_msg")
-            except: pass
-        
-        if custom_reminder:
-            rem_text = custom_reminder.format(title=db_event['title'])
-        else:
-            rem_text = t("MSG_REM_DESC", guild_id=guild_id, title=db_event['title'])
-
-        # Send a message in the channel
-        if send_ping:
-            channel = self.bot.get_channel(db_event["channel_id"])
-            if channel:
-                embed = discord.Embed(
-                    title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
-                    description=rem_text,
-                    color=discord.Color.orange()
-                )
-                embed.add_field(name=t("LBL_STARTS", guild_id=guild_id), value=f"<t:{int(start_ts)}:R>")
-                await channel.send(content=mention_str, embed=embed)
-
-        # Send a private message (DM) to everyone
-        if send_dm:
-            for p in participants:
+        custom_reminder = (db_event.get("reminder_message") or "").strip() or None
+        if not custom_reminder:
+            extra_data = db_event.get("extra_data")
+            if extra_data:
                 try:
-                    user = self.bot.get_user(p['user_id']) or await self.bot.fetch_user(p['user_id'])
-                    if user:
-                        guild_id = db_event.get("guild_id")
-                        embed = discord.Embed(
-                            title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
-                            description=rem_text,
-                            color=discord.Color.orange()
-                        )
-                        embed.add_field(name=t("LBL_STARTS", guild_id=guild_id), value=f"<t:{int(start_ts)}:R>")
-                        await user.send(embed=embed)
+                    if isinstance(extra_data, str):
+                        custom_reminder = (json.loads(extra_data).get("custom_reminder_msg") or "").strip() or None
+                    else:
+                        custom_reminder = (extra_data.get("custom_reminder_msg") or "").strip() or None
                 except Exception as e:
-                    log.error(f"Could not send DM to {p['user_id']}: {e}", guild_id=db_event.get("guild_id"))
+                    log.warning(
+                        f"[Scheduler] extra_data parse for reminder {event_id}: {e}",
+                        guild_id=guild_id,
+                    )
 
-        await database.mark_reminder_sent(event_id)
+        if custom_reminder:
+            rem_text = custom_reminder.format(title=db_event["title"])
+        else:
+            rem_text = t("MSG_REM_DESC", guild_id=guild_id, title=db_event["title"])
+
+        for r in due:
+            if send_ping:
+                channel = self.bot.get_channel(db_event["channel_id"])
+                if channel:
+                    embed = discord.Embed(
+                        title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
+                        description=rem_text,
+                        color=discord.Color.orange(),
+                    )
+                    embed.add_field(
+                        name=t("LBL_STARTS", guild_id=guild_id),
+                        value=f"<t:{int(start_ts)}:R>",
+                    )
+                    await channel.send(content=mention_str, embed=embed)
+
+            if send_dm:
+                for p in participants:
+                    try:
+                        user = self.bot.get_user(p["user_id"]) or await self.bot.fetch_user(p["user_id"])
+                        if user:
+                            embed = discord.Embed(
+                                title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
+                                description=rem_text,
+                                color=discord.Color.orange(),
+                            )
+                            embed.add_field(
+                                name=t("LBL_STARTS", guild_id=guild_id),
+                                value=f"<t:{int(start_ts)}:R>",
+                            )
+                            await user.send(embed=embed)
+                    except Exception as e:
+                        log.error(
+                            f"Could not send DM to {p['user_id']}: {e}",
+                            guild_id=db_event.get("guild_id"),
+                        )
+
+            if legacy_only:
+                await database.mark_reminder_sent(event_id)
+            else:
+                await database.mark_reminder_slot_sent(event_id, int(r["slot_idx"]))
 
     @check_events.before_loop
     async def before_check_events(self):

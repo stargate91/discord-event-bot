@@ -86,7 +86,7 @@ class MessageWizardView(ui.LayoutView):
             if not new_view.selected_key:
                 return await it.response.send_message(t("ERR_SELECT_KEY_RESET", guild_id=new_view.guild_id), ephemeral=True)
             
-            await database.delete_translation(new_view.guild_id, new_view.selected_key)
+            await database.delete_guild_translation(new_view.guild_id, new_view.selected_key)
             await load_guild_translations(new_view.guild_id)
             await new_view.refresh_message(it)
         reset_btn.callback = reset_cb
@@ -130,7 +130,7 @@ class MessageEditModal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
-        await database.save_translation(self.guild_id, self.key, self.text_input.value)
+        await database.save_guild_translation(self.guild_id, self.key, self.text_input.value)
         await load_guild_translations(self.wizard_view.guild_id)
         await interaction.followup.send(t("MSG_KEY_SAVED", guild_id=self.wizard_view.guild_id, key=self.key), ephemeral=True)
         await self.wizard_view.refresh_message(interaction)

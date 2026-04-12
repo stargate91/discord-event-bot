@@ -37,8 +37,10 @@ def parse_emoji_config(text_value: str):
         
         limit = 0
         if len(parts) > 3:
-            try: limit = int(parts[3])
-            except: pass
+            try:
+                limit = int(parts[3])
+            except (ValueError, TypeError):
+                limit = 0
             
         flags = parts[4].upper() if len(parts) > 4 else "SPB"
         show_in_list = "S" in flags

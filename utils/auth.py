@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import database
+from utils.logger import log
 
 async def is_admin(ctx_or_int):
     """
@@ -26,7 +27,8 @@ async def is_admin(ctx_or_int):
             guild_id = ctx_or_int.guild.id if ctx_or_int.guild else None
             channel_id = ctx_or_int.channel.id
             bot = ctx_or_int.bot
-        except:
+        except Exception as e:
+            log.debug("is_admin fallback context: %s", e)
             return False
 
     # 0. Bot Owner always has access and bypasses all restrictions
@@ -68,7 +70,7 @@ async def is_admin(ctx_or_int):
             config_role = str(config.get("admin_role_id"))
             if config_role and any(str(r.id) == config_role for r in user.roles):
                  return True
-        except:
-            pass
+        except Exception as e:
+            log.debug("is_admin config.json fallback: %s", e)
 
     return False

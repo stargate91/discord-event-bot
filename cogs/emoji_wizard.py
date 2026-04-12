@@ -285,9 +285,10 @@ class EditEmojiSetModal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         try:
             row_l = int(self.row_limit.value)
-            if not (1 <= row_l <= 5): raise ValueError()
-        except:
-             return await interaction.response.send_message(t("ERR_ROW_LIMIT", guild_id=self.view.guild_id), ephemeral=True)
+            if not (1 <= row_l <= 5):
+                raise ValueError("row limit out of range")
+        except (ValueError, TypeError):
+            return await interaction.response.send_message(t("ERR_ROW_LIMIT", guild_id=self.view.guild_id), ephemeral=True)
 
         show_m = (self.mgmt_input.value.strip().lower() in [t("LBL_YES", guild_id=self.wizard_view.guild_id).lower(), "yes", "igen", "y", "i"])
 

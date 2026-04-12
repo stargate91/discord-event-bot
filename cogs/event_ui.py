@@ -109,7 +109,8 @@ class DynamicEventView(discord.ui.LayoutView):
                     try:
                         ex_dict = json.loads(ex_raw) if isinstance(ex_raw, str) else ex_raw
                         if isinstance(ex_dict, dict): self.event_conf.update(ex_dict)
-                    except: pass
+                    except Exception as e:
+                        log.debug("prepare extra_data: %s", e)
 
         event_conf = self.event_conf or {}
         guild_id = event_conf.get("guild_id")
@@ -141,7 +142,8 @@ class DynamicEventView(discord.ui.LayoutView):
                     role_limits = json.loads(extra_data).get("role_limits", {})
                 else:
                     role_limits = extra_data.get("role_limits", {})
-            except: pass
+            except Exception as e:
+                log.debug("prepare role_limits: %s", e)
 
         # === BUILD CONTAINER ITEMS ===
         container_items = []
@@ -307,7 +309,8 @@ class DynamicEventView(discord.ui.LayoutView):
             if not user:
                 try:
                     user = await self.bot.fetch_user(int(cid))
-                except: pass
+                except Exception as e:
+                    log.debug("fetch_user creator %s: %s", cid, e)
             if user:
                 creator_text = f"@{user.display_name}"
         elif cid:
@@ -494,7 +497,8 @@ class DynamicEventView(discord.ui.LayoutView):
             try:
                 d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
                 role_limits = d.get("role_limits", {})
-            except: pass
+            except Exception as e:
+                log.debug("_apply_rsvp_limits role_limits: %s", e)
 
         total_pos = sum(1 for _, s in rsvps_list if s in positive_statuses)
         status_counts = {}
@@ -532,7 +536,9 @@ class DynamicEventView(discord.ui.LayoutView):
         await interaction.response.defer(ephemeral=True, thinking=True)
         db_event = await database.get_active_event(self.event_id)
         if not db_event:
-            await interaction.followup.send(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+            await interaction.followup.send(
+                t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True
+            )
             return
 
         config_name = db_event.get("config_name")
@@ -627,7 +633,8 @@ class DynamicEventView(discord.ui.LayoutView):
                     try:
                         d = json.loads(ex) if isinstance(ex, str) else ex
                         if isinstance(d, dict): self.event_conf.update(d)
-                    except: pass
+                    except Exception as e:
+                        log.debug("handle_rsvp extra_data: %s", e)
         
         rsvps_list = await database.get_rsvps(self.event_id)
         old_status = next((s for uid, s in rsvps_list if uid == interaction.user.id), None)
@@ -636,8 +643,11 @@ class DynamicEventView(discord.ui.LayoutView):
         ex = db_event.get("extra_data")
         role_limits = {}
         if ex:
-            try: d = json.loads(ex) if isinstance(ex, str) else ex; role_limits = d.get("role_limits", {})
-            except: pass
+            try:
+                d = json.loads(ex) if isinstance(ex, str) else ex
+                role_limits = d.get("role_limits", {})
+            except Exception as e:
+                log.debug("handle_rsvp role_limits: %s", e)
             
         role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
         if role_limit and sum(1 for _, s in rsvps_list if s == status) >= role_limit and old_status != status:
@@ -647,7 +657,8 @@ class DynamicEventView(discord.ui.LayoutView):
                 try:
                     hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
                     await interaction.user.send(hint)
-                except: pass
+                except Exception as e:
+                    log.debug("waitlist hint DM: %s", e)
             else: return await interaction.response.send_message(t("ERR_POS_FULL", guild_id=interaction.guild_id, name=(opt.get('label') or opt['id'])), ephemeral=True)
 
         positive_statuses = self.active_set.get("positive", [])
@@ -663,7 +674,8 @@ class DynamicEventView(discord.ui.LayoutView):
                     try:
                         hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
                         await interaction.user.send(hint)
-                    except: pass
+                    except Exception as e:
+                        log.debug("waitlist hint DM (event cap): %s", e)
 
         await interaction.response.defer()
         await database.update_rsvp(self.event_id, interaction.user.id, target_status)
@@ -707,8 +719,11 @@ class DynamicEventView(discord.ui.LayoutView):
         extra = self.event_conf.get("extra_data")
         custom_msg = None
         if extra:
-            try: d = json.loads(extra) if isinstance(extra, str) else extra; custom_msg = d.get("custom_promo_msg")
-            except: pass
+            try:
+                d = json.loads(extra) if isinstance(extra, str) else extra
+                custom_msg = d.get("custom_promo_msg")
+            except Exception as e:
+                log.debug("notify_promotion extra_data: %s", e)
         if custom_msg: msg = custom_msg.format(user_id=user_id, role=role_name, emoji=opt.get("emoji", ""), title=self.event_conf.get("title", ""))
         else: msg = t("MSG_PROMOTED_DEFAULT", guild_id=self.event_conf.get("guild_id"), user_id=user_id, role=role_name, emoji=opt.get("emoji", ""))
         if notify_type in ["channel", "both"]: await interaction.channel.send(msg)
@@ -716,7 +731,8 @@ class DynamicEventView(discord.ui.LayoutView):
             try:
                 user = self.bot.get_user(user_id) or await self.bot.fetch_user(user_id)
                 if user: await user.send(msg)
-            except: pass
+            except Exception as e:
+                log.debug("notify_promotion DM %s: %s", user_id, e)
         
         # Add to temp role if promoted
         db_event = await database.get_active_event(self.event_id, interaction.guild_id)
@@ -764,11 +780,16 @@ class PostponeModal(discord.ui.Modal):
         import database
         
         local_tz = tz.gettz(DEFAULT_TIMEZONE)
-        
-        
+
+        row = await database.get_active_event(self.event_id)
+        if not row:
+            return await interaction.followup.send(
+                t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True
+            )
+        db_event = dict(row)
+
         # Ha a dátum mezeje teljesen üres, akkor csak simán "Halasztott" státuszt kap új kártya nélkül!
         if not self.start_input.value.strip():
-            db_event = dict(await database.get_active_event(self.event_id))
             db_event["status"] = "postponed"
             await database.update_active_event(self.event_id, db_event)
             
@@ -790,7 +811,7 @@ class PostponeModal(discord.ui.Modal):
         try:
             start_dt = parser.parse(self.start_input.value).replace(tzinfo=local_tz)
             start_ts = int(start_dt.timestamp())
-        except:
+        except Exception:
             return await interaction.followup.send(t("ERR_INVALID_START", guild_id=interaction.guild_id, default="Érvénytelen kezdeti dátum!"), ephemeral=True)
             
         end_ts = None
@@ -798,10 +819,10 @@ class PostponeModal(discord.ui.Modal):
             try:
                 end_dt = parser.parse(self.end_input.value).replace(tzinfo=local_tz)
                 end_ts = int(end_dt.timestamp())
-            except:
+            except Exception:
                 return await interaction.followup.send(t("ERR_INVALID_END", guild_id=interaction.guild_id, default="Érvénytelen befejezési dátum!"), ephemeral=True)
         
-        db_event = dict(await database.get_active_event(self.event_id))
+        # db_event már betöltve a submit elején
         db_event["start_time"] = start_ts
         if end_ts:
             db_event["end_time"] = end_ts
@@ -870,7 +891,8 @@ class StatusChoiceView(discord.ui.View):
                 if chan:
                     try:
                         msg = await chan.fetch_message(ev["message_id"]); view = DynamicEventView(self.bot, eid, ev); await view.prepare(); await msg.edit(view=view)
-                    except: pass
+                    except Exception as e:
+                        log.debug("refresh_and_notify edit %s: %s", eid, e)
         if self.notify_type == "none": return
         participants = set()
         for eid in event_ids:
@@ -894,7 +916,8 @@ class StatusChoiceView(discord.ui.View):
                 try:
                     user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
                     if user: await user.send(notification_msg)
-                except: pass
+                except Exception as e:
+                    log.debug("status notify DM %s: %s", uid, e)
         if self.notify_type in ["chat", "both"]:
             pings = ' '.join([f'<@{uid}>' for uid in participants])
             await interaction.channel.send(f"{notification_msg}\n{pings}")
