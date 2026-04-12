@@ -949,7 +949,10 @@ class EventWizardView(ui.LayoutView):
                 else:
                     warning += f"\nNéhány szerepkör gombja váratlanul kikapcsolhat **{global_max}** főnél."
 
-            await interaction.followup.send(t("MSG_SAVED_PREVIEW", guild_id=self.guild_id) + warning, view=view, ephemeral=True)
+            preview_text = t("MSG_SAVED_PREVIEW", guild_id=self.guild_id) + warning
+            if preview_text:
+                await interaction.followup.send(preview_text, ephemeral=True)
+            await interaction.followup.send(view=view, ephemeral=True)
             await self.refresh_message(interaction)
         except Exception as e:
             log.error(f"Error in handle_save_preview: {e}")
