@@ -199,6 +199,7 @@ class DynamicEventView(discord.ui.LayoutView):
         # --- ROLE LISTS ---
         container_items.append(discord.ui.Separator())
         waiting_list = []
+        role_sections = []
         for opt in self.active_set["options"]:
             role_id = opt["id"]
             users = status_map.get(role_id, [])
@@ -221,15 +222,17 @@ class DynamicEventView(discord.ui.LayoutView):
             if label_text:
                 name_parts.append(label_text)
 
-            users_str = "\n".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
-            field_text = f"**{' '.join(name_parts)} ({count_text})**\n{users_str}"
-            container_items.append(discord.ui.TextDisplay(field_text))
+            users_str = ", ".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
+            role_sections.append(f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
                 emoji = opt.get("emoji", "⏳")
                 for u in status_map[wait_tag]:
                     waiting_list.append(f"{emoji} {u}")
+
+        if role_sections:
+            container_items.append(discord.ui.TextDisplay("\n".join(role_sections)))
 
         if waiting_list:
             container_items.append(discord.ui.Separator())
