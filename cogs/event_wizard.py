@@ -134,9 +134,14 @@ class SingleEventModal(ui.Modal):
             self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
             
             # Parse combined time
-            time_parts = str(self.time_input.value).split(",")
-            self.wizard_view.data["start_str"] = time_parts[0].strip()
-            self.wizard_view.data["end_str"] = time_parts[1].strip() if len(time_parts) > 1 else ""
+            time_val = str(self.time_input.value).strip()
+            if "," in time_val: parts = time_val.split(",", 1)
+            elif " - " in time_val: parts = time_val.split(" - ", 1)
+            elif ". " in time_val: parts = time_val.split(". ", 1)
+            else: parts = [time_val]
+            
+            self.wizard_view.data["start_str"] = parts[0].strip()
+            self.wizard_view.data["end_str"] = parts[1].strip() if len(parts) > 1 else ""
             
             self.wizard_view.steps_completed["step1"] = True
             await self.wizard_view.save_to_draft()
@@ -225,8 +230,21 @@ class Step2Modal(ui.Modal):
         self.wizard_view.data["color"] = str(self.color_input.value)
         self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
         self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
-        self.wizard_view.data["start_str"] = str(self.start_input.value)
-        self.wizard_view.data["end_str"] = str(self.end_input.value)
+        
+        start_val = str(self.start_input.value).strip()
+        end_val = str(self.end_input.value).strip()
+        
+        if not end_val:
+            if "," in start_val: parts = start_val.split(",", 1)
+            elif " - " in start_val: parts = start_val.split(" - ", 1)
+            elif ". " in start_val: parts = start_val.split(". ", 1)
+            else: parts = [start_val]
+            
+            start_val = parts[0].strip()
+            end_val = parts[1].strip() if len(parts) > 1 else ""
+
+        self.wizard_view.data["start_str"] = start_val
+        self.wizard_view.data["end_str"] = end_val
         self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
