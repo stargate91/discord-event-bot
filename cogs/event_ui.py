@@ -347,9 +347,6 @@ class DynamicEventView(discord.ui.LayoutView):
         # Management buttons in a separate row
         if self.active_set.get("show_mgmt", True) and added_count < 40:
             mgmt_items = []
-            calendar_btn = discord.ui.Button(style=discord.ButtonStyle.secondary, emoji="📅", custom_id=f"calendar_{self.event_id}")
-            calendar_btn.callback = self.calendar_callback
-            mgmt_items.append(calendar_btn)
 
             edit_btn = discord.ui.Button(label=t("BTN_EDIT", guild_id=guild_id), style=discord.ButtonStyle.gray, custom_id=f"edit_{self.event_id}")
             edit_btn.callback = self.edit_callback
@@ -479,27 +476,6 @@ class DynamicEventView(discord.ui.LayoutView):
         if bulk_ids: title = f"📦 {title} (TÖMEGES SZERKESZTÉS)"
         embed = discord.Embed(title=title, description=t("WIZARD_DESC", status=view.get_status_text()), color=discord.Color.gold())
         await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-
-    async def calendar_callback(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        db_event = await database.get_active_event(self.event_id)
-        if not db_event: return await interaction.followup.send(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
-        
-        from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
-        title = db_event.get("title") or "Event"
-        desc = db_event.get("description") or ""
-        start_ts = db_event["start_time"]
-        end_ts = db_event.get("end_time")
-
-        google_url = get_google_calendar_url(title, desc, start_ts, end_ts)
-        outlook_url = get_outlook_calendar_url(title, desc, start_ts, end_ts)
-        yahoo_url = get_yahoo_calendar_url(title, desc, start_ts, end_ts)
-
-        view = discord.ui.View()
-        view.add_item(discord.ui.Button(label=t("BTN_GOOGLE"), url=google_url, emoji="💙"))
-        view.add_item(discord.ui.Button(label=t("BTN_OUTLOOK"), url=outlook_url, emoji="🧡"))
-        view.add_item(discord.ui.Button(label=t("BTN_YAHOO"), url=yahoo_url, emoji="💜"))
-        await interaction.followup.send(t("MSG_CHOOSE_CALENDAR"), view=view, ephemeral=True)
 
     async def delete_callback(self, interaction: discord.Interaction):
         if not await is_admin(interaction):
