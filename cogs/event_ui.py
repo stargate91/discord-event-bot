@@ -222,7 +222,7 @@ class DynamicEventView(discord.ui.LayoutView):
                         waiting_list.append(u)
 
         if role_sections:
-            container_items.append(discord.ui.TextDisplay("\n".join(role_sections)))
+            container_items.append(discord.ui.TextDisplay("\n\n".join(role_sections) + "\n\n"))
 
         if waiting_list:
             container_items.append(discord.ui.Separator())
