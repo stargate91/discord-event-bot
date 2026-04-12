@@ -856,6 +856,7 @@ class EventWizardView(ui.LayoutView):
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
+        self.can_publish = False
         if not self.data.get("draft_id"): self.data["draft_id"] = str(uuid.uuid4())[:8]
         await database.save_draft(self.guild_id, self.data["draft_id"], str(self.creator_id), self.data.get("title") or "manual", self.data)
 
