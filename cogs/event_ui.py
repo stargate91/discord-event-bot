@@ -171,6 +171,13 @@ class DynamicEventView(discord.ui.LayoutView):
         # --- TIME ---
         start_ts = event_conf.get('start_time') or (db_event['start_time'] if db_event else time.time())
         time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+        
+        end_ts = event_conf.get('end_time') or (db_event.get('end_time') if db_event else None)
+        if end_ts:
+            end_label = t('EMBED_END_TIME', guild_id=guild_id)
+            if end_label == 'EMBED_END_TIME': end_label = 'Befejezés ideje'
+            time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+
         recurrence = event_conf.get('recurrence_type', 'none')
         if recurrence != 'none':
             time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {recurrence.capitalize()}"
@@ -207,9 +214,12 @@ class DynamicEventView(discord.ui.LayoutView):
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
-                emoji = opt.get("emoji", "⏳")
+                emoji = opt.get("emoji", "")
                 for u in status_map[wait_tag]:
-                    waiting_list.append(f"{emoji} {u}")
+                    if limit and emoji:
+                        waiting_list.append(f"{u} {emoji}")
+                    else:
+                        waiting_list.append(u)
 
         if role_sections:
             container_items.append(discord.ui.TextDisplay("\n".join(role_sections)))
@@ -217,7 +227,7 @@ class DynamicEventView(discord.ui.LayoutView):
         if waiting_list:
             container_items.append(discord.ui.Separator())
             wait_header = t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'
-            wait_str = f"**⏳ {wait_header} ({len(waiting_list)})**\n" + "\n".join(waiting_list)
+            wait_str = f"**⏳ {wait_header} ({len(waiting_list)}):** " + ", ".join(waiting_list)
             container_items.append(discord.ui.TextDisplay(wait_str))
 
         # --- IMAGE ---
@@ -240,8 +250,42 @@ class DynamicEventView(discord.ui.LayoutView):
             except Exception:
                 container_items.append(discord.ui.Thumbnail(media=image_url))
 
-        # === BUTTONS ===
-        container_items.append(discord.ui.Separator())
+        # --- FOOTER ---
+        creator_text = "System"
+        cid = event_conf.get("creator_id")
+        if cid and str(cid).isdigit():
+            user = self.bot.get_user(int(cid))
+            if not user:
+                try:
+                    user = await self.bot.fetch_user(int(cid))
+                except: pass
+            if user:
+                creator_text = f"@{user.display_name}"
+        elif cid:
+            creator_text = str(cid)
+        footer_text = t("EMBED_FOOTER", guild_id=guild_id, event_id=self.event_id, creator_id=creator_text)
+
+        # Calendar Links
+        cal_title = event_conf.get("title") or (db_event.get("title") if db_event else "Event")
+        cal_desc = event_conf.get("description") or (db_event.get("description") if db_event else "")
+        cal_start_ts = event_conf.get('start_time') or (db_event['start_time'] if db_event else time.time())
+        cal_end_ts = event_conf.get('end_time') or (db_event.get('end_time') if db_event else None)
+
+        from utils.calendar_utils import get_google_calendar_url, get_outlook_calendar_url, get_yahoo_calendar_url
+        google_url = get_google_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+        outlook_url = get_outlook_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+        yahoo_url = get_yahoo_calendar_url(cal_title, cal_desc, cal_start_ts, cal_end_ts)
+
+        cal_links = f"[Gmail]({google_url}) │ [Yahoo]({yahoo_url}) │ [Outlook]({outlook_url})"
+
+        container_items.append(discord.ui.TextDisplay(f"-# {footer_text} • {cal_links}"))
+
+        # Build container
+        accent_color = int(str(event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
+        container = discord.ui.Container(*container_items, accent_color=accent_color)
+        self.add_item(container)
+
+        # === BUTTONS (Outside Container) ===
         per_row = self.active_set.get("buttons_per_row", 5)
         options = self.active_set.get("options", [])
         rows = []
@@ -318,29 +362,7 @@ class DynamicEventView(discord.ui.LayoutView):
             rows.append(discord.ui.ActionRow(*mgmt_items))
 
         for r in rows:
-            container_items.append(r)
-
-        # --- FOOTER ---
-        container_items.append(discord.ui.Separator())
-        creator_text = "System"
-        cid = event_conf.get("creator_id")
-        if cid and str(cid).isdigit():
-            user = self.bot.get_user(int(cid))
-            if not user:
-                try:
-                    user = await self.bot.fetch_user(int(cid))
-                except: pass
-            if user:
-                creator_text = f"@{user.display_name}"
-        elif cid:
-            creator_text = str(cid)
-        footer_text = t("EMBED_FOOTER", guild_id=guild_id, event_id=self.event_id, creator_id=creator_text)
-        container_items.append(discord.ui.TextDisplay(f"*{footer_text}*"))
-
-        # Build container
-        accent_color = int(str(event_conf.get("color") or "0x3498db").replace("0x", ""), 16)
-        container = discord.ui.Container(*container_items, accent_color=accent_color)
-        self.add_item(container)
+            self.add_item(r)
 
         self.update_button_states(rsvps, event_conf)
 
