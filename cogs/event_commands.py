@@ -227,9 +227,37 @@ class EventCommands(commands.Cog):
             log.warning(f"[Remove] Not found! All event IDs in guild: {all_ids}")
             return await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True)
         
+        await interaction.response.defer(ephemeral=True)
+
         for ev in target_events:
             eid = ev["event_id"]
             
+            # Update the live card to show DELETED status
+            msg_id = ev.get("message_id")
+            chan_id = ev.get("channel_id")
+            if msg_id and chan_id:
+                try:
+                    channel = self.bot.get_channel(int(chan_id))
+                    if channel:
+                        msg = await channel.fetch_message(int(msg_id))
+                        if msg:
+                            from cogs.event_ui import DynamicEventView
+                            ev_conf = dict(ev)
+                            ev_conf["status"] = "deleted"
+                            view = DynamicEventView(self.bot, eid, ev_conf)
+                            await view.prepare()
+                            # Disable all buttons
+                            for child in view.children:
+                                if isinstance(child, discord.ui.Container):
+                                    for row in child.children:
+                                        if isinstance(row, discord.ui.ActionRow):
+                                            for item in row.children:
+                                                if isinstance(item, discord.ui.Button):
+                                                    item.disabled = True
+                            await msg.edit(view=view)
+                except Exception as e:
+                    log.warning(f"[Remove] Could not update card for {eid}: {e}")
+
             # Role cleanup
             temp_role_id = ev.get("temp_role_id")
             if temp_role_id:
@@ -248,7 +276,7 @@ class EventCommands(commands.Cog):
 
             await database.delete_active_event(eid, interaction.guild_id)
         
-        await interaction.response.send_message(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)
+        await interaction.followup.send(t("MSG_EVENT_REMOVED", guild_id=interaction.guild_id), ephemeral=True)
 
     @remove_event.autocomplete("event_id")
     async def remove_event_autocomplete(self, interaction: discord.Interaction, current: str):
