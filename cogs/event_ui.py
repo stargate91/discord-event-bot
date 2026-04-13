@@ -993,7 +993,7 @@ class PostponeModal(discord.ui.Modal):
         self.start_input = discord.ui.TextInput(
             label=t("MODAL_POSTPONE_START", guild_id=guild_id),
             placeholder=t("PH_POSTPONE_START_EXAMPLE", guild_id=guild_id),
-            required=True
+            required=False
         )
         self.add_item(self.start_input)
         
