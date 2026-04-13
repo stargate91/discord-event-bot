@@ -761,7 +761,8 @@ class AdminCommands(commands.GroupCog, name="admin"):
                 
             from cogs.server_setup import ServerSetupView
             view = ServerSetupView(self.bot, guild_id)
-            await view.refresh_message(interaction)
+            await view.prepare(interaction)
+            await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             await interaction.followup.send(f"{t('ERR_CRITICAL_SETUP', guild_id=interaction.guild_id)}: `{e}`", ephemeral=True)
 

@@ -15,10 +15,11 @@ class ServerSetupView(ui.LayoutView):
         self.bot = bot
         self.guild_id = guild_id
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def prepare(self, interaction: discord.Interaction):
+        """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
         
-        # Action Buttons
+        # 1. Action Buttons
         general_btn = ui.Button(label=t("BTN_GENERAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def general_cb(it):
             v = GeneralSetupView(self.bot, self.guild_id)
@@ -39,12 +40,10 @@ class ServerSetupView(ui.LayoutView):
             await v.refresh_message(it)
         reminder_btn.callback = reminder_cb
 
-        # Color Dropdown Selection
+        # 2. Color Dropdown Selection
         cur_color_raw = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
-        # Normalize color format for comparison
         cur_color = cur_color_raw.lower().strip().replace("#", "0x")
-        if not cur_color.startswith("0x"):
-            cur_color = "0x" + cur_color
+        if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
         
         presets = ["0x00bfff", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
         is_preset = cur_color in presets
@@ -76,6 +75,7 @@ class ServerSetupView(ui.LayoutView):
             await v.refresh_message(it)
         defaults_btn.callback = defaults_cb
 
+        # 3. Final Assembly
         container = ui.Container(
             ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
@@ -86,16 +86,21 @@ class ServerSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(container)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        """Instantiate and await a properly prepared view for the refresh cycle."""
+        new_view = ServerSetupView(self.bot, self.guild_id)
+        await new_view.prepare(interaction)
         
         try:
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=self)
+                await interaction.edit_original_response(view=new_view)
             else:
-                await interaction.response.edit_message(view=self)
+                await interaction.response.edit_message(view=new_view)
         except Exception as e:
             log.error(f"[ServerSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=self, ephemeral=True)
+                await interaction.response.send_message(view=new_view, ephemeral=True)
 
 class GeneralSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -103,10 +108,11 @@ class GeneralSetupView(ui.LayoutView):
         self.bot = bot
         self.guild_id = guild_id
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def prepare(self, interaction: discord.Interaction):
+        """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
         
-        # Get current language from DB
+        # 1. Get current language from DB
         cur_lang = await database.get_guild_setting(self.guild_id, "language", default="en")
 
         lang_hu = ui.Button(
@@ -139,7 +145,7 @@ class GeneralSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         channels_btn.callback = channels_cb
 
-        # Template Lang Select
+        # 2. Template Lang Select
         cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="en")
         tpl_opts = [
             discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id), value="default", default=(cur_tpl_lang=="default")),
@@ -160,6 +166,7 @@ class GeneralSetupView(ui.LayoutView):
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
+        # 3. Final Assembly
         container = ui.Container(
             ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
             ui.Separator(),
@@ -171,16 +178,21 @@ class GeneralSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(container)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        """Instantiate and await a properly prepared view for the refresh cycle."""
+        new_view = GeneralSetupView(self.bot, self.guild_id)
+        await new_view.prepare(interaction)
         
         try:
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=self)
+                await interaction.edit_original_response(view=new_view)
             else:
-                await interaction.response.edit_message(view=self)
+                await interaction.response.edit_message(view=new_view)
         except Exception as e:
             log.error(f"[GeneralSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=self, ephemeral=True)
+                await interaction.response.send_message(view=new_view, ephemeral=True)
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
@@ -232,10 +244,11 @@ class ReminderSetupView(ui.LayoutView):
         self.bot = bot
         self.guild_id = guild_id
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def prepare(self, interaction: discord.Interaction):
+        """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
         
-        # Get current reminder type from DB
+        # 1. Get current reminder type from DB
         cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="ping")
 
         async def set_rem(it, rtype):
@@ -272,7 +285,7 @@ class ReminderSetupView(ui.LayoutView):
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
-        # Reminder Offset button
+        # 2. Reminder Offset button
         offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def offset_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
@@ -280,6 +293,7 @@ class ReminderSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         offset_btn.callback = offset_cb
 
+        # 3. Final Assembly
         container = ui.Container(
             ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
             ui.Separator(),
@@ -288,16 +302,21 @@ class ReminderSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(container)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        """Instantiate and await a properly prepared view for the refresh cycle."""
+        new_view = ReminderSetupView(self.bot, self.guild_id)
+        await new_view.prepare(interaction)
         
         try:
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=self)
+                await interaction.edit_original_response(view=new_view)
             else:
-                await interaction.response.edit_message(view=self)
+                await interaction.response.edit_message(view=new_view)
         except Exception as e:
             log.error(f"[ReminderSetupView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=self, ephemeral=True)
+                await interaction.response.send_message(view=new_view, ephemeral=True)
 
 class EventDefaultsView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -305,9 +324,11 @@ class EventDefaultsView(ui.LayoutView):
         self.bot = bot
         self.guild_id = guild_id
 
-    async def refresh_message(self, interaction: discord.Interaction):
+    async def prepare(self, interaction: discord.Interaction):
+        """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
         
+        # 1. Static Configuration Buttons
         channel_btn = ui.Button(label=t("BTN_DEFAULT_CHANNEL", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channel_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_event_channel", default="")
@@ -342,7 +363,7 @@ class EventDefaultsView(ui.LayoutView):
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
-        # Waitlist Toggle
+        # 2. Toggle Toggles
         wait_val = await database.get_guild_setting(self.guild_id, "default_use_waiting_list", default="false")
         is_on = wait_val.lower() == "true"
         state_text = t("LBL_WAITLIST_ON", guild_id=self.guild_id) if is_on else t("LBL_WAITLIST_OFF", guild_id=self.guild_id)
@@ -377,7 +398,6 @@ class EventDefaultsView(ui.LayoutView):
             await self.refresh_message(it)
         trig_sel.callback = trig_cb
 
-        # Temp Role Toggle
         temp_val = await database.get_guild_setting(self.guild_id, "default_use_temp_role", default="false")
         is_temp_on = temp_val.lower() == "true"
         temp_state_text = t("LBL_TEMP_ROLE_ON", guild_id=self.guild_id) if is_temp_on else t("LBL_TEMP_ROLE_OFF", guild_id=self.guild_id)
@@ -392,7 +412,7 @@ class EventDefaultsView(ui.LayoutView):
             await self.refresh_message(it)
         temp_role_btn.callback = temp_cb
 
-        # Auto-Archive Duration
+        # 3. Archive & Promotion Selection
         archive_val = await database.get_guild_setting(self.guild_id, "auto_archive_hours", default="12")
         archive_btn = ui.Button(label=f"{t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", emoji=to_emoji("⏱️"), style=discord.ButtonStyle.gray)
         async def archive_cb(it):
@@ -407,7 +427,6 @@ class EventDefaultsView(ui.LayoutView):
             await it.response.send_modal(modal)
         archive_btn.callback = archive_cb
 
-        # Promotion Notify Selection (Waiting List Automation)
         cur_promo = await database.get_guild_setting(self.guild_id, "default_notify_promotion", default="none")
         promo_opts = [
             discord.SelectOption(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo=="none")),
@@ -421,6 +440,7 @@ class EventDefaultsView(ui.LayoutView):
             await self.refresh_message(it)
         promo_sel.callback = promo_cb
 
+        # 4. Final Assembly
         container = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
@@ -431,16 +451,21 @@ class EventDefaultsView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(container)
+
+    async def refresh_message(self, interaction: discord.Interaction):
+        """Instantiate and await a properly prepared view for the refresh cycle."""
+        new_view = EventDefaultsView(self.bot, self.guild_id)
+        await new_view.prepare(interaction)
         
         try:
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=self)
+                await interaction.edit_original_response(view=new_view)
             else:
-                await interaction.response.edit_message(view=self)
+                await interaction.response.edit_message(view=new_view)
         except Exception as e:
             log.error(f"[EventDefaultsView] refresh error: {e}", exc_info=True)
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=self, ephemeral=True)
+                await interaction.response.send_message(view=new_view, ephemeral=True)
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
