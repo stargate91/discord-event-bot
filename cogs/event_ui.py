@@ -184,9 +184,9 @@ async def send_status_notification(bot, event_id, db_event, status_name, guild_i
     if msg_body:
         content = f"{ping_prefix}{msg_body}"
 
-    rem_type = db_event.get("reminder_type", "both").lower()
-    notify_type = rem_type if rem_type in ["dm", "chat", "both", "none"] else "both"
-
+    notify_type = await database.get_guild_setting(guild_id, "status_notification_type", default="none")
+    notify_type = notify_type.lower()
+    
     if notify_type in ["chat", "both"]:
         await channel.send(content=content)
 
@@ -1176,8 +1176,9 @@ class PostponeModal(discord.ui.Modal):
         rsvps = await database.get_rsvps(self.event_id)
         notification_msg = f"{PING} {t('MSG_RESCHEDULED_BROADCAST', guild_id=interaction.guild_id)}"
         
-        rem_type = db_event.get("reminder_type", "both").lower()
-        if rem_type in ["dm", "both"]:
+        notify_type = await database.get_guild_setting(interaction.guild_id, "status_notification_type", default="none")
+        notify_type = notify_type.lower()
+        if notify_type in ["dm", "both"]:
             for uid, s in rsvps:
                 try:
                     user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)

@@ -263,6 +263,21 @@ class ReminderSetupView(ui.LayoutView):
             modal = MultiReminderOffsetModal(self.guild_id, curr, self)
             await it.response.send_modal(modal)
         offset_btn.callback = offset_cb
+        
+        # Status Change Notification config
+        cur_status_notify = await database.get_guild_setting(self.guild_id, "status_notification_type", default="none")
+        status_opts = [
+            discord.SelectOption(label=t("OPT_NOTIFY_NONE", guild_id=self.guild_id) or "Semmi", value="none", default=(cur_status_notify=="none")),
+            discord.SelectOption(label=t("OPT_NOTIFY_DM", guild_id=self.guild_id) or "Csak DM", value="dm", default=(cur_status_notify=="dm")),
+            discord.SelectOption(label=t("OPT_NOTIFY_CHAT", guild_id=self.guild_id) or "Csak Ping", value="chat", default=(cur_status_notify=="chat")),
+            discord.SelectOption(label=t("OPT_NOTIFY_BOTH", guild_id=self.guild_id) or "Mindkettő", value="both", default=(cur_status_notify=="both")),
+        ]
+        status_sel = ui.Select(placeholder=t("PH_STATUS_NOTIFY", guild_id=self.guild_id) or "Státuszváltozás értesítő...", options=status_opts)
+        async def status_sel_cb(it):
+            val = status_sel.values[0]
+            await database.save_guild_setting(self.guild_id, "status_notification_type", val)
+            await self.refresh_message(it)
+        status_sel.callback = status_sel_cb
 
         # Final Assembly
         header = ui.Container(
@@ -270,6 +285,7 @@ class ReminderSetupView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(header)
+        self.add_item(ui.ActionRow(status_sel))
         self.add_item(ui.ActionRow(offset_btn, back_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
