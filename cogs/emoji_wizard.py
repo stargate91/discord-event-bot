@@ -87,7 +87,8 @@ class EmojiWizardView(ui.LayoutView):
                 s_data = current["data"]
                 sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
                 opts = sdata.get("options", [])
-                preview = " ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts])
+                # Resolve placeholders in the composite preview string
+                preview = resolve_placeholders(" ".join([f"{o.get('emoji')} `{o.get('label')}`" for o in opts]))
                 selection_details = t("EMOJI_WIZ_SELECTED_DESC", guild_id=self.guild_id, name=current['name'], preview=preview)
 
         # Create a FRESH view instance to ensure clean interaction handling
