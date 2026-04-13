@@ -154,8 +154,7 @@ async def send_status_notification(bot, event_id, db_event, status_name, guild_i
     rsvps = await database.get_rsvps(event_id)
     participants = set()
     for uid, s in rsvps:
-        if not s.startswith("wait_") and s not in ("declined", "not_coming"):
-            participants.add(uid)
+        participants.add(uid)
 
     channel_id = db_event.get("channel_id")
     if not channel_id: return
@@ -1180,12 +1179,11 @@ class PostponeModal(discord.ui.Modal):
         rem_type = db_event.get("reminder_type", "both").lower()
         if rem_type in ["dm", "both"]:
             for uid, s in rsvps:
-                if not s.startswith("wait_") and s not in ("declined", "not_coming"):
-                    try:
-                        user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
-                        if user: await user.send(notification_msg)
-                    except Exception:
-                        pass
+                try:
+                    user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
+                    if user: await user.send(notification_msg)
+                except Exception:
+                    pass
         
         await interaction.followup.send(
             t("MSG_RESCHEDULE_DONE", guild_id=interaction.guild_id),
