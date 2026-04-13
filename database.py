@@ -24,9 +24,7 @@ def normalize_reminders_for_store(data):
     """Parses offsets and messages into a list of dict objects for DB storage."""
     if data.get("lobby_mode"):
         return []
-    rt = (data.get("reminder_type") or "none").strip().lower()
-    if rt == "none":
-        return []
+    # We no longer bail on reminder_type="none" as modern offsets define their own logic
         
     raw_offsets = data.get("reminder_offsets") or []
     if not isinstance(raw_offsets, list):
