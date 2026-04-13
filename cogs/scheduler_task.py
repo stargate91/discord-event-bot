@@ -312,9 +312,8 @@ class SchedulerTask(commands.Cog):
         if db_event.get("lobby_mode"):
             return
 
-        rem_type = (db_event.get("reminder_type") or "none").lower()
-        if rem_type == "none":
-            return
+        # We no longer bail on reminder_type="none" as modern offsets handle their own method
+        pass
 
         event_id = db_event["event_id"]
         guild_id = db_event.get("guild_id")
@@ -345,7 +344,8 @@ class SchedulerTask(commands.Cog):
         due.sort(key=lambda x: int(x["slot_idx"]))
 
         rsvps = await database.get_event_rsvps(event_id)
-        participants = [r for r in rsvps if r["status"] == "accepted"]
+        # Include everyone who is not on the waitlist, since custom roles have dynamic statuses, not just 'accepted'
+        participants = [r for r in rsvps if not str(r["status"]).startswith("wait_")]
         if not participants:
             if legacy_only:
                 await database.mark_reminder_sent(event_id)
