@@ -843,6 +843,11 @@ class EventWizardView(ui.LayoutView):
             else t("BTN_REMINDERS", guild_id=self.guild_id)
         )
         rem_type_sel = ui.Select(placeholder=rem_ph, options=rem_type_opts)
+        async def rem_type_cb(it):
+            await it.response.defer()
+            view.data["reminder_type"] = rem_type_sel.values[0]
+            await view.save_to_draft()
+            await view.refresh_message(it)
         rem_type_sel.callback = rem_type_cb
 
         # Promotion Notify Selection (Waiting List Automation)
