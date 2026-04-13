@@ -249,32 +249,6 @@ class ReminderSetupView(ui.LayoutView):
     async def prepare(self, interaction: discord.Interaction):
         """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
-        
-        # 1. Get current reminder type from DB
-        cur_type = await database.get_guild_setting(self.guild_id, "reminder_type", default="ping")
-
-        async def set_rem(it, rtype):
-            await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
-            await self.refresh_message(it)
-
-        rem_none = ui.Button(
-            label=t("SEL_REM_NONE", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_type == "none" else discord.ButtonStyle.secondary
-        )
-        async def none_cb(it): await set_rem(it, "none")
-        rem_none.callback = none_cb
-        
-        rem_ping = ui.Button(label=t("SEL_REM_PING", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "ping" else discord.ButtonStyle.secondary)
-        async def ping_cb(it): await set_rem(it, "ping")
-        rem_ping.callback = ping_cb
-        
-        rem_dm = ui.Button(label=t("SEL_REM_DM", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "dm" else discord.ButtonStyle.secondary)
-        async def dm_cb(it): await set_rem(it, "dm")
-        rem_dm.callback = dm_cb
-        
-        rem_both = ui.Button(label=t("SEL_REM_BOTH", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "both" else discord.ButtonStyle.secondary)
-        async def both_cb(it): await set_rem(it, "both")
-        rem_both.callback = both_cb
 
         back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
@@ -282,22 +256,21 @@ class ReminderSetupView(ui.LayoutView):
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
-        # 2. Reminder Offset button
+        # Reminder Offset button
         offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def offset_cb(it):
-            curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+            curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="")
             modal = MultiReminderOffsetModal(self.guild_id, curr, self)
             await it.response.send_modal(modal)
         offset_btn.callback = offset_cb
 
-        # 3. Final Assembly
+        # Final Assembly
         header = ui.Container(
             ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
             accent_color=0x00bfff
         )
         self.add_item(header)
-        self.add_item(ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn))
-        self.add_item(ui.ActionRow(offset_btn))
+        self.add_item(ui.ActionRow(offset_btn, back_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
