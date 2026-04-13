@@ -274,6 +274,7 @@
   "SYNC_CLEAR_START": "Parancsok törlése... {WAIT} (Eltarthat egy ideig)",
   "SYNC_CLEAR_SUCCESS": "Minden slash parancs törölve. Használd a !sync{suffix} copy parancsot a visszaállításhoz.",
   "TAG_CANCELLED": "ELMARAD",
+  "TAG_CLOSED": "VÉGE",
   "TAG_DELETED": "TÖRÖLVE",
   "TAG_POSTPONED": "ELHALASZTVA",
   "TITLE_ADVANCED_SETTINGS": "4. Haladó beállítások",

@@ -302,6 +302,8 @@ class DynamicEventView(discord.ui.LayoutView):
             title_prefix = f"[{t('TAG_RESCHEDULED', guild_id=guild_id) or 'ÁTRAKVA'}]"
         elif status_cfg == "lobby_expired":
             title_prefix = f"[{t('TAG_LOBBY_EXPIRED', guild_id=guild_id)}]"
+        elif status_cfg == "closed":
+            title_prefix = f"[{t('TAG_CLOSED', guild_id=guild_id) or 'VÉGE'}]"
 
         title_str = ""
         if title_prefix:
@@ -484,7 +486,7 @@ class DynamicEventView(discord.ui.LayoutView):
             accent_hex = "0xe74c3c" # Red
         elif status_for_color == "postponed":
             accent_hex = "0xf1c40f" # Yellow
-        elif status_for_color == "deleted":
+        elif status_for_color in ["deleted", "closed"]:
             accent_hex = "0x95a5a6" # Gray
         elif status_for_color == "rescheduled":
             accent_hex = "0x2ecc71" # Green
@@ -620,7 +622,7 @@ class DynamicEventView(discord.ui.LayoutView):
             elif isinstance(child, discord.ui.Button):
                 all_buttons.append(child)
 
-        if status in ["cancelled", "postponed", "deleted", "rescheduled", "lobby_expired"]:
+        if status in ["cancelled", "postponed", "deleted", "rescheduled", "lobby_expired", "closed"]:
             for btn in all_buttons:
                 allowed_prefix = ("edit_", "delete_", "calendar_", "resched_")
                 if status == "postponed":

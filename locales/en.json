@@ -274,6 +274,7 @@
   "SYNC_CLEAR_START": "Clearing commands... {WAIT} (This may take a while)",
   "SYNC_CLEAR_SUCCESS": "All slash commands cleared. Use !sync{suffix} copy to restore them.",
   "TAG_CANCELLED": "CANCELLED",
+  "TAG_CLOSED": "ENDED",
   "TAG_DELETED": "DELETED",
   "TAG_POSTPONED": "POSTPONED",
   "TITLE_ADVANCED_SETTINGS": "4. Advanced Settings",
