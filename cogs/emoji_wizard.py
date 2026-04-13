@@ -8,28 +8,44 @@ import database
 from utils.i18n import t
 from utils.auth import is_admin
 import utils.emojis as emojis
-from utils.emoji_utils import slugify, parse_emoji_config, to_emoji
+from utils.emoji_utils import slugify, parse_emoji_config, to_emoji, resolve_placeholders
 from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
-async def send_emoji_help(interaction: discord.Interaction, guild_id):
-    """Sends ephemeral help guide using Components V2 architecture."""
-    view = ui.LayoutView(timeout=300)
-    
-    close_btn = ui.Button(label=t("BTN_CLOSE", guild_id=guild_id), emoji=emojis.CROSS, style=discord.ButtonStyle.secondary)
-    async def close_cb(it):
-        await it.response.edit_message(view=None, content=t("MSG_HELP_CLOSED", guild_id=guild_id))
-    close_btn.callback = close_cb
+class EmojiHelpView(ui.LayoutView):
+    """Ephemeral help guide using Components V2 architecture with stable dispatching."""
+    def __init__(self, guild_id):
+        super().__init__(timeout=300)
+        self.guild_id = guild_id
+        self.prepare()
 
-    container = ui.Container(
-        ui.TextDisplay(f"### {t('HELP_EMOJI_TITLE', guild_id=guild_id)}"),
-        ui.Separator(),
-        ui.TextDisplay(t("HELP_EMOJI_DESC", guild_id=guild_id)),
-        ui.Separator(),
-        ui.ActionRow(close_btn),
-        accent_color=0x00bfff
-    )
-    view.add_item(container)
+    def prepare(self):
+        self.clear_items()
+        
+        close_btn = ui.Button(
+            label=t("BTN_CLOSE", guild_id=self.guild_id), 
+            emoji=emojis.CROSS, 
+            style=discord.ButtonStyle.secondary
+        )
+        close_btn.callback = self.close_callback
+
+        container = ui.Container(
+            ui.TextDisplay(f"### {t('HELP_EMOJI_TITLE', guild_id=self.guild_id)}"),
+            ui.Separator(),
+            ui.TextDisplay(t("HELP_EMOJI_DESC", guild_id=self.guild_id)),
+            ui.Separator(),
+            ui.ActionRow(close_btn),
+            accent_color=0x00bfff
+        )
+        self.add_item(container)
+
+    async def close_callback(self, interaction: discord.Interaction):
+        """Removes the help guide completely."""
+        await interaction.response.edit_message(view=None, content=t("MSG_HELP_CLOSED", guild_id=self.guild_id))
+
+async def send_emoji_help(interaction: discord.Interaction, guild_id):
+    """Sends ephemeral help guide using the stable EmojiHelpView class."""
+    view = EmojiHelpView(guild_id)
     await interaction.response.send_message(view=view, ephemeral=True)
 
 class EmojiWizardView(ui.LayoutView):
@@ -214,7 +230,8 @@ class TemplateChoiceView(ui.LayoutView):
             opts, _ = parse_emoji_config(v["text"])
             preview_emojis = [o["emoji"] for o in opts[:3]]
             preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
-            label = t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str
+            # Resolve placeholders in the final label
+            label = resolve_placeholders(t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str)
             options.append(discord.SelectOption(label=label[:100], value=k, emoji=to_emoji(v["emoji"]) or None))
         
         options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))

@@ -60,6 +60,24 @@ def parse_emoji_config(text_value: str):
         
     return new_opts, positive_count
 
+def resolve_placeholders(text: str) -> str:
+    """Replaces all {PLACEHOLDERS} in a string with their centralized registry values."""
+    if not text or "{" not in text:
+        return text
+    
+    try:
+        from utils.emojis import get_all_emojis
+        registry = get_all_emojis()
+        
+        def replace(match):
+            key = match.group(1).upper()
+            return registry.get(key, match.group(0)) # Fallback to original text if key not found
+        
+        import re
+        return re.sub(r"\{([a-zA-Z0-9\_]+)\}", replace, text)
+    except Exception:
+        return text
+
 def to_emoji(emoji_str: str):
     """Converts a string to a discord.PartialEmoji if it matches custom emoji format, 
     resolves {PLACEHOLDERS} from the registry, otherwise returns original."""
