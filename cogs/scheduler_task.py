@@ -359,8 +359,6 @@ class SchedulerTask(commands.Cog):
         
         # Determine mention string
         temp_role_id = db_event.get("temp_role_id")
-        if temp_role_id:
-
         # Resolve emoji set for positivity checks
         active_set = get_active_set(db_event.get("icon_set", "standard"))
         pos_ids = set([s.lower() for s in positive_status_ids(active_set)])

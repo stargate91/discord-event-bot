@@ -13,21 +13,28 @@ from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
 class EmojiHelpView(ui.LayoutView):
-    """Ephemeral help guide using Components V2 architecture with stable dispatching."""
+    """Ephemeral help guide utilizing asynchronous prepare for stable interaction scaling."""
     def __init__(self, guild_id):
         super().__init__(timeout=300)
         self.guild_id = guild_id
-        self.prepare()
 
-    def prepare(self):
+    async def prepare(self):
+        """Asynchronous initialization required by V2 architecture for reliable dispatching."""
         self.clear_items()
         
+        async def close_callback(interaction: discord.Interaction):
+            """Removes the help guide guide with explicit error safety."""
+            try:
+                await interaction.response.edit_message(view=None, content=t("MSG_HELP_CLOSED", guild_id=self.guild_id))
+            except Exception as e:
+                log.error(f"[EmojiWizard] Error in EmojiHelpView close_callback: {e}", exc_info=True)
+
         close_btn = ui.Button(
             label=t("BTN_CLOSE", guild_id=self.guild_id), 
             emoji=emojis.CROSS, 
             style=discord.ButtonStyle.secondary
         )
-        close_btn.callback = self.close_callback
+        close_btn.callback = close_callback
 
         container = ui.Container(
             ui.TextDisplay(f"### {t('HELP_EMOJI_TITLE', guild_id=self.guild_id)}"),
@@ -39,13 +46,10 @@ class EmojiHelpView(ui.LayoutView):
         )
         self.add_item(container)
 
-    async def close_callback(self, interaction: discord.Interaction):
-        """Removes the help guide completely."""
-        await interaction.response.edit_message(view=None, content=t("MSG_HELP_CLOSED", guild_id=self.guild_id))
-
 async def send_emoji_help(interaction: discord.Interaction, guild_id):
-    """Sends ephemeral help guide using the stable EmojiHelpView class."""
+    """Sends ephemeral help guide ensures the view is awaited for stable callback registration."""
     view = EmojiHelpView(guild_id)
+    await view.prepare()
     await interaction.response.send_message(view=view, ephemeral=True)
 
 class EmojiWizardView(ui.LayoutView):
