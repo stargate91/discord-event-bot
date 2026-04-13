@@ -778,7 +778,8 @@ class AdminCommands(commands.GroupCog, name="admin"):
             
             from cogs.message_wizard import MessageWizardView
             view = MessageWizardView(self.bot, interaction.guild.id)
-            await view.refresh_message(interaction)
+            await view.prepare(interaction)
+            await interaction.followup.send(view=view, ephemeral=True)
         except Exception as e:
             from utils.logger import log
             log.error(f"Error in admin_messages: {e}")
