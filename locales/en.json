@@ -1,4 +1,9 @@
 {
+  "BTN_CLOSE": "Close",
+  "ICON_CLOSE": "✖️",
+  "ICON_HELP": "❓",
+  "ICON_WIZARD": "🛠️",
+  "MSG_HELP_CLOSED": "Help closed.",
   "BTN_ACCEPT": "Accept",
   "BTN_ADVANCED": "⚙️ Advanced",
   "BTN_ADMIN_CHANNELS": "📺 Admin Channels",
@@ -17,7 +22,7 @@
   "BTN_EDIT": "Edit",
   "BTN_ENTIRE_SERIES": "Entire series (Bulk)",
   "BTN_GENERAL": "🌐 General",
-  "BTN_HELP": "❓",
+  "BTN_HELP": "Help",
   "BTN_MESSAGES": "Custom Messages",
   "BTN_NEW_SET": "➕ New Set",
   "BTN_PUBLISH": "PUBLISH",

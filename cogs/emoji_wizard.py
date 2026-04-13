@@ -12,13 +12,24 @@ from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
 async def send_emoji_help(interaction: discord.Interaction, guild_id):
-    """Sends an ephemeral embed explaining the emoji set configuration."""
-    embed = discord.Embed(
-        title=t("HELP_EMOJI_TITLE", guild_id=guild_id),
-        description=t("HELP_EMOJI_DESC", guild_id=guild_id),
-        color=discord.Color.blue()
+    """Sends ephemeral help guide using Components V2 architecture."""
+    view = ui.LayoutView(timeout=300)
+    
+    close_btn = ui.Button(label=t("BTN_CLOSE", guild_id=guild_id), emoji=to_emoji(t("ICON_CLOSE", guild_id=guild_id)), style=discord.ButtonStyle.secondary)
+    async def close_cb(it):
+        await it.response.edit_message(view=None, content=t("MSG_HELP_CLOSED", guild_id=guild_id))
+    close_btn.callback = close_cb
+
+    container = ui.Container(
+        ui.TextDisplay(f"### {t('ICON_WIZARD', guild_id=guild_id)} {t('HELP_EMOJI_TITLE', guild_id=guild_id)}"),
+        ui.Separator(),
+        ui.TextDisplay(t("HELP_EMOJI_DESC", guild_id=guild_id)),
+        ui.Separator(),
+        ui.ActionRow(close_btn),
+        accent_color=0x00bfff
     )
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    view.add_item(container)
+    await interaction.response.send_message(view=view, ephemeral=True)
 
 class EmojiWizardView(ui.LayoutView):
     """Main management console for emoji sets (Guild or Global)."""
@@ -158,7 +169,7 @@ class EmojiWizardView(ui.LayoutView):
             await new_view.refresh_message(it)
         del_btn.callback = del_cb
         
-        help_btn = ui.Button(label=t("BTN_HELP", guild_id=new_view.guild_id), style=discord.ButtonStyle.secondary)
+        help_btn = ui.Button(label=t("BTN_HELP", guild_id=new_view.guild_id), emoji=to_emoji(t("ICON_HELP", guild_id=new_view.guild_id)), style=discord.ButtonStyle.secondary)
         async def help_cb(it): await send_emoji_help(it, new_view.guild_id)
         help_btn.callback = help_cb
         

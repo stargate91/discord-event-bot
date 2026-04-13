@@ -1,4 +1,9 @@
 {
+  "BTN_CLOSE": "Bezárás",
+  "ICON_CLOSE": "✖️",
+  "ICON_HELP": "❓",
+  "ICON_WIZARD": "🛠️",
+  "MSG_HELP_CLOSED": "Súgó bezárva.",
   "BTN_ACCEPT": "Elfogadom",
   "BTN_ADVANCED": "⚙️ Haladó",
   "BTN_ADMIN_CHANNELS": "🌐 Admin Csatornák",
@@ -17,7 +22,7 @@
   "BTN_EDIT": "Szerkesztés",
   "BTN_ENTIRE_SERIES": "Az egész sorozatot (Tömeges)",
   "BTN_GENERAL": "🌐 Általános",
-  "BTN_HELP": "❓",
+  "BTN_HELP": "Súgó",
   "BTN_MESSAGES": "Egyedi üzenetek",
   "BTN_NEW_SET": "➕ Új szett",
   "BTN_PUBLISH": "KÖZZÉTÉTEL",
