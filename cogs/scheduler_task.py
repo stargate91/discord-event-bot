@@ -106,6 +106,7 @@ class SchedulerTask(commands.Cog):
         if should_close:
             await database.set_event_status(db_event["event_id"], "closed")
             log.info(f"[Lifecycle] Auto-archived expired event {db_event['event_id']} (Threshold: {archive_hours}h)", guild_id=gid)
+            await self._refresh_event_card(db_event)
 
     async def check_role_cleanup(self, db_event, now):
         """Deletes temporary Discord roles once the event has finished."""
