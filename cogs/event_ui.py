@@ -1075,7 +1075,7 @@ class PostponeModal(discord.ui.Modal):
         db_event["start_time"] = start_ts
         if end_ts:
             db_event["end_time"] = end_ts
-        db_event["status"] = "active"
+        db_event["status"] = "rescheduled"
         await database.update_active_event(self.event_id, db_event)
         
         if not self.parent_view.event_conf: self.parent_view.event_conf = {}

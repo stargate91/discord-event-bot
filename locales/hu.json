@@ -328,7 +328,7 @@
   "BTN_BACK": "{BACK}",
   "LBL_TEMPLATE_LANG": "Emoji szettek nyelve",
   "SEL_LANG_DEFAULT": "Alapértelmezett (Szerver követése)",
-  "TAG_RESCHEDULED": "ÁTÜTEMEZVE",
+  "TAG_RESCHEDULED": "📅 ÚJ DÁTUM",
   "TAG_LOBBY_EXPIRED": "LEZÁRULT",
   "BTN_STEP_2_LOBBY": "2. Kiegészítők (lobby)",
   "WIZARD_LOBBY_SUBTITLE": "*Feltöltős rendszer — Határidő a közzétételtől számítva*",

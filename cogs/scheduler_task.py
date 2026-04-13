@@ -74,7 +74,7 @@ class SchedulerTask(commands.Cog):
 
     async def handle_event_completion(self, db_event, now):
         """Marks one-time events as 'closed' after they have finished based on guild settings."""
-        if db_event.get("status") != "active":
+        if db_event.get("status") not in ("active", "rescheduled"):
             return
             
         rec_type = db_event.get("recurrence_type", "once")

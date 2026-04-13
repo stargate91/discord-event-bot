@@ -328,7 +328,7 @@
   "BTN_BACK": "{BACK}",
   "LBL_TEMPLATE_LANG": "Emoji Sets Language",
   "SEL_LANG_DEFAULT": "Default (Follow Server)",
-  "TAG_RESCHEDULED": "RESCHEDULED",
+  "TAG_RESCHEDULED": "📅 NEW DATE",
   "TAG_LOBBY_EXPIRED": "LOBBY CLOSED",
   "BTN_STEP_2_LOBBY": "2. Extras (lobby)",
   "WIZARD_LOBBY_SUBTITLE": "*Fill-to-start — RSVP deadline from publish*",
