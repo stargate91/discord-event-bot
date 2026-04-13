@@ -352,7 +352,7 @@
   "LBL_WIZ_START_LOBBY_OPTIONAL": "Start time (optional)",
   "BTN_RESCHEDULE": "{CALENDAR} Reschedule",
   "MODAL_POSTPONE_TITLE": "Reschedule Event",
-  "MODAL_POSTPONE_START": "New Start (YYYY-MM-DD HH:MM) (Empty=Postpone)",
+  "MODAL_POSTPONE_START": "New Time (YYYY-MM-DD HH:MM) (Empty=Postpone)",
   "MODAL_POSTPONE_END": "New End Time (optional)",
   "MSG_RESCHEDULED_BROADCAST": "Rescheduled!",
   "MSG_PUBLISHED_IN_CHANNEL": "Published in <#{channel_id}>!",

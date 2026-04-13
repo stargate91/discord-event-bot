@@ -352,7 +352,7 @@
   "LBL_WIZ_START_LOBBY_OPTIONAL": "Kezdési időpont (opcionális)",
   "BTN_RESCHEDULE": "{CALENDAR} Átütemezés",
   "MODAL_POSTPONE_TITLE": "Esemény Átütemezése",
-  "MODAL_POSTPONE_START": "Új Kezdés (ÉÉÉÉ-HH-NN ÓÓ:PP) (Üres=Elhalasztás)",
+  "MODAL_POSTPONE_START": "Új Kezdés (ÉÉÉÉ-HH-NN ÓÓ:PP) (Üres=Halaszt)",
   "MODAL_POSTPONE_END": "Új Vége (opcionális)",
   "MSG_RESCHEDULED_BROADCAST": "Esemény átütemezve!",
   "MSG_PUBLISHED_IN_CHANNEL": "Közzétéve itt: <#{channel_id}>!",
