@@ -7,7 +7,7 @@ import json
 import database
 from utils.i18n import t
 from utils.auth import is_admin
-from utils.emoji_utils import slugify, parse_emoji_config
+from utils.emoji_utils import slugify, parse_emoji_config, to_emoji
 from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
