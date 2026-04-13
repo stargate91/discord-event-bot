@@ -50,15 +50,29 @@ LANG_EN = "🇺🇸"
 PACKAGE = "📦"
 TV = "📺"
 
-# Template Specialized Icons
-TANK = "🛡️"
-HEAL = "🏥"
-DPS = "🗡️"
-LIKE = "👍"
-DISLIKE = "👎"
-TEAM_A = "🅰️"
-TEAM_B = "🅱️"
-EYES = "👀"
+# Template-Specific RSVP Icons
+# Standard
+TEMP_STD_YES = "✅"
+TEMP_STD_MAYBE = "❓"
+TEMP_STD_NO = "❌"
+
+# MMO
+TEMP_MMO_TANK = "🛡️"
+TEMP_MMO_HEAL = "🏥"
+TEMP_MMO_DPS = "🗡️"
+TEMP_MMO_MAYBE = "❓"
+TEMP_MMO_NO = "❌"
+
+# Survey
+TEMP_SURVEY_LIKE = "👍"
+TEMP_SURVEY_DISLIKE = "👎"
+
+# Teams
+TEMP_TEAM_A = "🅰️"
+TEMP_TEAM_B = "🅱️"
+TEMP_TEAM_SPECTATE = "👀"
+TEMP_TEAM_MAYBE = "❓"
+TEMP_TEAM_NO = "❌"
 
 # Recurrence Types
 REC_DAILY = "📅"

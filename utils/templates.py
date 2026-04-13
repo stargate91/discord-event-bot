@@ -7,7 +7,7 @@ ICON_SET_TEMPLATES = {
         "id": "standard",
         "label_key": "TEMP_STANDARD", # "Alap (Igen / Nem)"
         "emoji": "",
-        "text": "{SUCCESS} | I'm coming | Coming | 0 | SPEY\n{WAIT} | Maybe | Not sure | 0 | SEY\n{CROSS} | Not coming | Not coming | 0 | SEY",
+        "text": "{TEMP_STD_YES} | I'm coming | Coming | 0 | SPEY\n{TEMP_STD_MAYBE} | Maybe | Not sure | 0 | SEY\n{TEMP_STD_NO} | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
         "show_mgmt": True
     },
@@ -15,7 +15,7 @@ ICON_SET_TEMPLATES = {
         "id": "mmo",
         "label_key": "TEMP_MMO", # "Raid (Tank / Heal / DPS)"
         "emoji": "",
-        "text": "{TANK} | Tank | Tanks | 0 | SPEY\n{HEAL} | Heal | Healers | 0 | SPEY\n{DPS} | DPS | DPSes | 0 | SPEY\n{WAIT} | Maybe | Not sure | 0 | SEY\n{CROSS} | Not coming | Not coming | 0 | SEY",
+        "text": "{TEMP_MMO_TANK} | Tank | Tanks | 0 | SPEY\n{TEMP_MMO_HEAL} | Heal | Healers | 0 | SPEY\n{TEMP_MMO_DPS} | DPS | DPSes | 0 | SPEY\n{TEMP_MMO_MAYBE} | Maybe | Not sure | 0 | SEY\n{TEMP_MMO_NO} | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
         "show_mgmt": False
     },
@@ -23,7 +23,7 @@ ICON_SET_TEMPLATES = {
         "id": "survey",
         "label_key": "TEMP_SURVEY", # "Szavazás (👍 / 👎)"
         "emoji": "",
-        "text": "{LIKE} | Like | Liked it | 0 | SPEY\n{DISLIKE} | Dislike | Disliked it | 0 | SPEY",
+        "text": "{TEMP_SURVEY_LIKE} | Like | Liked it | 0 | SPEY\n{TEMP_SURVEY_DISLIKE} | Dislike | Disliked it | 0 | SPEY",
         "buttons_per_row": 5,
         "show_mgmt": False
     },
@@ -31,7 +31,7 @@ ICON_SET_TEMPLATES = {
         "id": "teams",
         "label_key": "SET_TEAMS", # "Csapatok (🅰️, 🅱️, 👀)"
         "emoji": "",
-        "text": "{TEAM_A} | Team A | Team A | 0 | SPBB\n{TEAM_B} | Team B | Team B | 0 | SPBB\n{EYES} | I'll spectate | Spectators | 0 | SPBB\n{WAIT} | Maybe | Unsure | 0 | SBB\n{CROSS} | Not coming | Not coming | 0 | SBB",
+        "text": "{TEMP_TEAM_A} | Team A | Team A | 0 | SPBB\n{TEMP_TEAM_B} | Team B | Team B | 0 | SPBB\n{TEMP_TEAM_SPECTATE} | I'll spectate | Spectators | 0 | SPBB\n{TEMP_TEAM_MAYBE} | Maybe | Unsure | 0 | SBB\n{TEMP_TEAM_NO} | Not coming | Not coming | 0 | SBB",
         "buttons_per_row": 3,
         "show_mgmt": False
     }
