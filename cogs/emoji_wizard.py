@@ -23,8 +23,11 @@ class EmojiHelpView(ui.LayoutView):
         self.clear_items()
         
         async def close_callback(interaction: discord.Interaction):
-            """Removes the help guide completely by deleting the ephemeral response."""
+            """Removes the help guide completely with proper interaction lifecycle management."""
             try:
+                # We must FIRST acknowledge the interaction (defer) to secure the token,
+                # then we can safely delete the 'original response' (the help guide).
+                await interaction.response.defer()
                 await interaction.delete_original_response()
             except Exception as e:
                 log.error(f"[EmojiWizard] Error in EmojiHelpView close_callback: {e}", exc_info=True)
