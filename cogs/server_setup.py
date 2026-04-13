@@ -76,16 +76,13 @@ class ServerSetupView(ui.LayoutView):
         defaults_btn.callback = defaults_cb
 
         # 3. Final Assembly
-        container = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
-            ui.Separator(),
-            ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
-            ui.Separator(),
-            ui.ActionRow(general_btn, local_btn, reminder_btn, defaults_btn),
-            ui.ActionRow(color_sel),
+        header = ui.Container(
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
             accent_color=0x00bfff
         )
-        self.add_item(container)
+        self.add_item(header)
+        self.add_item(ui.ActionRow(general_btn, local_btn, reminder_btn, defaults_btn))
+        self.add_item(ui.ActionRow(color_sel))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
@@ -171,17 +168,14 @@ class GeneralSetupView(ui.LayoutView):
         back_btn.callback = back_cb
 
         # 3. Final Assembly
-        container = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
-            ui.Separator(),
-            ui.TextDisplay(t("SETUP_GENERAL_DESC", guild_id=self.guild_id)),
-            ui.Separator(),
-            ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn),
-            ui.ActionRow(tpl_sel),
-            ui.ActionRow(back_btn),
+        header = ui.Container(
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
             accent_color=0x00bfff
         )
-        self.add_item(container)
+        self.add_item(header)
+        self.add_item(ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn))
+        self.add_item(ui.ActionRow(tpl_sel))
+        self.add_item(ui.ActionRow(back_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
@@ -257,7 +251,7 @@ class ReminderSetupView(ui.LayoutView):
         self.clear_items()
         
         # 1. Get current reminder type from DB
-        cur_rem = await database.get_guild_setting(self.guild_id, "reminder_type", default="ping")
+        cur_type = await database.get_guild_setting(self.guild_id, "reminder_type", default="ping")
 
         async def set_rem(it, rtype):
             await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
@@ -297,14 +291,13 @@ class ReminderSetupView(ui.LayoutView):
         offset_btn.callback = offset_cb
 
         # 3. Final Assembly
-        container = ui.Container(
+        header = ui.Container(
             ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
-            ui.Separator(),
-            ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn),
-            ui.ActionRow(offset_btn),
             accent_color=0x00bfff
         )
-        self.add_item(container)
+        self.add_item(header)
+        self.add_item(ui.ActionRow(rem_none, rem_ping, rem_dm, rem_both, back_btn))
+        self.add_item(ui.ActionRow(offset_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
@@ -448,16 +441,15 @@ class EventDefaultsView(ui.LayoutView):
         promo_sel.callback = promo_cb
 
         # 4. Final Assembly
-        container = ui.Container(
+        header = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
-            ui.Separator(),
-            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
-            ui.ActionRow(archive_btn, trig_sel),
-            ui.ActionRow(promo_sel),
-            ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )
-        self.add_item(container)
+        self.add_item(header)
+        self.add_item(ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn))
+        self.add_item(ui.ActionRow(archive_btn, trig_sel))
+        self.add_item(ui.ActionRow(promo_sel))
+        self.add_item(ui.ActionRow(back_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
