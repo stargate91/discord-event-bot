@@ -182,11 +182,12 @@ async def process_lobby_transition(bot, event_id: str, active_set: dict, guild_i
 
 class DynamicEventView(discord.ui.LayoutView):
     # This class creates the buttons people see under the event message
-    def __init__(self, bot, event_id: str, event_conf: dict = None):
+    def __init__(self, bot, event_id: str, event_conf: dict = None, is_preview: bool = False):
         super().__init__(timeout=None)
         self.bot = bot
         self.event_id = event_id
         self.event_conf = event_conf
+        self.is_preview = is_preview
         
         # We check which icon set this event should use
         icon_set_key = "standard"
@@ -194,6 +195,13 @@ class DynamicEventView(discord.ui.LayoutView):
             icon_set_key = event_conf.get("icon_set", "standard")
         
         self.active_set = get_active_set(icon_set_key).copy()
+        
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if getattr(self, "is_preview", False):
+            # Csak egy előnézeti kártya, ezen nem lehet gombokat nyomni
+            await interaction.response.send_message(t("MSG_SAVED_PREVIEW", guild_id=interaction.guild_id), ephemeral=True)
+            return False
+        return True
         
     async def prepare(self):
         """Builds the complete V2 event card with TextDisplay content and buttons."""

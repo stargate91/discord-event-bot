@@ -1337,7 +1337,7 @@ class EventWizardView(ui.LayoutView):
 
             self.can_publish = True
             
-            view = DynamicEventView(self.bot, event_id, self.data)
+            view = DynamicEventView(self.bot, event_id, self.data, is_preview=True)
             await view.prepare()
             
             global_max = int(self.data.get("max_accepted") or 0)
