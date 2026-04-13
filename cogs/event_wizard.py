@@ -15,7 +15,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
-from utils.emoji_utils import parse_emoji_config
+from utils.emoji_utils import parse_emoji_config, to_emoji
 
 async def resolve_channel(guild, channel_query):
     """Tries to resolve a channel by ID or Name. Returns channel_id or None."""
@@ -749,7 +749,7 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_advanced else "◀️", style=discord.ButtonStyle.secondary)
+        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
             await it.response.defer()
             view.show_advanced = not view.show_advanced
@@ -759,7 +759,7 @@ class EventWizardView(ui.LayoutView):
         adv_btn.callback = adv_cb
 
         # Reminder Toggle
-        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id), emoji=DROPDOWN_OPEN if view.show_reminder else "◀️", style=discord.ButtonStyle.secondary)
+        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_reminder else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
         async def rem_toggle_cb(it):
             await it.response.defer()
             view.show_reminder = not view.show_reminder
@@ -1192,7 +1192,7 @@ class EventWizardView(ui.LayoutView):
             self.icon_set_options.append(discord.SelectOption(
                 label=label[:100], 
                 value=k, 
-                emoji=v["emoji"] or None, 
+                emoji=to_emoji(v["emoji"]) or None, 
                 default=(current_set == k)
             ))
             
@@ -1218,7 +1218,7 @@ class EventWizardView(ui.LayoutView):
             ("biweekly", REC_BIWEEKLY), ("weekdays", REC_WEEKDAYS), ("weekends", REC_WEEKENDS),
             ("custom", REC_CUSTOM), ("relative", REC_RELATIVE)
         ]
-        self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=e, default=(current_rec == k)) for k, e in rec_types]
+        self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=to_emoji(e), default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
         s1 = SUCCESS if self.steps_completed["step1"] else ERROR

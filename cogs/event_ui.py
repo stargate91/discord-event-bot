@@ -1,5 +1,6 @@
 import discord
 from utils.emojis import WARNING, PING, SYNC
+from utils.emoji_utils import to_emoji
 from discord.ext import commands
 import database
 from utils.i18n import t
@@ -536,7 +537,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
             btn = discord.ui.Button(
                 style=btn_color,
-                emoji=btn_emoji or None,
+                emoji=to_emoji(btn_emoji) or None,
                 label=btn_label or None,
                 custom_id=f"{role_id}_{self.event_id}"
             )

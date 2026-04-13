@@ -59,3 +59,18 @@ def parse_emoji_config(text_value: str):
         })
         
     return new_opts, positive_count
+
+def to_emoji(emoji_str: str):
+    """Converts a string to a discord.PartialEmoji if it matches custom emoji format, otherwise returns original."""
+    if not emoji_str:
+        return None
+    emoji_str = str(emoji_str).strip()
+    # Check for Discord custom emoji format: <:name:id> or <a:name:id>
+    import discord
+    import re
+    if re.match(r'^<(a?):[a-zA-Z0-9\_]+:[0-9]+>$', emoji_str):
+        try:
+            return discord.PartialEmoji.from_str(emoji_str)
+        except Exception:
+            return emoji_str
+    return emoji_str

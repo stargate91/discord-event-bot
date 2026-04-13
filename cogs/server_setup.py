@@ -4,6 +4,7 @@ from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations
+from utils.emoji_utils import to_emoji
 from utils.auth import is_admin
 from utils.logger import log
 
@@ -25,8 +26,7 @@ class ServerSetupView(ui.LayoutView):
         general_btn.callback = general_cb
 
         curr_tz = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
-        local_label = f"{GLOBE} {curr_tz}"
-        local_btn = ui.Button(label=local_label, style=discord.ButtonStyle.secondary)
+        local_btn = ui.Button(label=curr_tz, emoji=to_emoji(GLOBE), style=discord.ButtonStyle.secondary)
         async def local_cb(it):
             modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
                                      placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), default_val=curr_tz, parent_view=self)
@@ -394,7 +394,7 @@ class EventDefaultsView(ui.LayoutView):
 
         # Auto-Archive Duration
         archive_val = await database.get_guild_setting(self.guild_id, "auto_archive_hours", default="12")
-        archive_btn = ui.Button(label=f"⏱️ {t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", style=discord.ButtonStyle.gray)
+        archive_btn = ui.Button(label=f"{t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", emoji=to_emoji("⏱️"), style=discord.ButtonStyle.gray)
         async def archive_cb(it):
             modal = SimpleConfigModal(
                 self.guild_id,
