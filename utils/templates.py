@@ -7,7 +7,7 @@ ICON_SET_TEMPLATES = {
         "id": "standard",
         "label_key": "TEMP_STANDARD", # "Alap (Igen / Nem)"
         "emoji": "",
-        "text": "✅ | I'm coming | Coming | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY",
+        "text": "{SUCCESS} | I'm coming | Coming | 0 | SPEY\n{WAIT} | Maybe | Not sure | 0 | SEY\n{CROSS} | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
         "show_mgmt": True
     },
@@ -15,7 +15,7 @@ ICON_SET_TEMPLATES = {
         "id": "mmo",
         "label_key": "TEMP_MMO", # "Raid (Tank / Heal / DPS)"
         "emoji": "",
-        "text": "🛡️ | Tank | Tanks | 0 | SPEY\n🏥 | Heal | Healers | 0 | SPEY\n🗡️ | DPS | DPSes | 0 | SPEY\n❓ | Maybe | Not sure | 0 | SEY\n❌ | Not coming | Not coming | 0 | SEY",
+        "text": "{TANK} | Tank | Tanks | 0 | SPEY\n{HEAL} | Heal | Healers | 0 | SPEY\n{DPS} | DPS | DPSes | 0 | SPEY\n{WAIT} | Maybe | Not sure | 0 | SEY\n{CROSS} | Not coming | Not coming | 0 | SEY",
         "buttons_per_row": 5,
         "show_mgmt": False
     },
@@ -23,15 +23,15 @@ ICON_SET_TEMPLATES = {
         "id": "survey",
         "label_key": "TEMP_SURVEY", # "Szavazás (👍 / 👎)"
         "emoji": "",
-        "text": "👍 | Like | Liked it | 0 | SPEY\n👎 | Dislike | Disliked it | 0 | SPEY",
+        "text": "{LIKE} | Like | Liked it | 0 | SPEY\n{DISLIKE} | Dislike | Disliked it | 0 | SPEY",
         "buttons_per_row": 5,
         "show_mgmt": False
     },
     "teams": {
         "id": "teams",
-        "label_key": "SET_TEAMS", # "Csapatok (🅰️, 🅱️, 👁️)"
+        "label_key": "SET_TEAMS", # "Csapatok (🅰️, 🅱️, 👀)"
         "emoji": "",
-        "text": "🅰️ | Team A | Team A | 0 | SPBB\n🅱️ | Team B | Team B | 0 | SPBB\n👀 | I'll spectate | Spectators | 0 | SPBB\n❓ | Maybe | Unsure | 0 | SBB\n❌ | Not coming | Not coming | 0 | SBB",
+        "text": "{TEAM_A} | Team A | Team A | 0 | SPBB\n{TEAM_B} | Team B | Team B | 0 | SPBB\n{EYES} | I'll spectate | Spectators | 0 | SPBB\n{WAIT} | Maybe | Unsure | 0 | SBB\n{CROSS} | Not coming | Not coming | 0 | SBB",
         "buttons_per_row": 3,
         "show_mgmt": False
     }

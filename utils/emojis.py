@@ -50,6 +50,16 @@ LANG_EN = "🇺🇸"
 PACKAGE = "📦"
 TV = "📺"
 
+# Template Specialized Icons
+TANK = "🛡️"
+HEAL = "🏥"
+DPS = "🗡️"
+LIKE = "👍"
+DISLIKE = "👎"
+TEAM_A = "🅰️"
+TEAM_B = "🅱️"
+EYES = "👀"
+
 # Recurrence Types
 REC_DAILY = "📅"
 REC_WEEKLY = "🗓️"

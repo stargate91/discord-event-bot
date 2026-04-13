@@ -61,10 +61,23 @@ def parse_emoji_config(text_value: str):
     return new_opts, positive_count
 
 def to_emoji(emoji_str: str):
-    """Converts a string to a discord.PartialEmoji if it matches custom emoji format, otherwise returns original."""
+    """Converts a string to a discord.PartialEmoji if it matches custom emoji format, 
+    resolves {PLACEHOLDERS} from the registry, otherwise returns original."""
     if not emoji_str:
         return None
     emoji_str = str(emoji_str).strip()
+
+    # Dynamic Placeholder Resolution
+    if emoji_str.startswith("{") and emoji_str.endswith("}"):
+        try:
+            from utils.emojis import get_all_emojis
+            registry = get_all_emojis()
+            key = emoji_str[1:-1].upper()
+            if key in registry:
+                return registry[key]
+        except Exception:
+            pass
+
     # Check for Discord custom emoji format: <:name:id> or <a:name:id>
     import discord
     import re
