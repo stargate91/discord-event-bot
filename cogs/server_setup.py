@@ -208,7 +208,7 @@ class MultiReminderOffsetModal(ui.Modal):
         self.guild_id = guild_id
         self.parent_view = parent_view
         self.inp = ui.TextInput(
-            label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id),
+            label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id)[:45],
             default=current_val or "15m",
             style=discord.TextStyle.paragraph,
             max_length=400,
@@ -446,10 +446,14 @@ class EventDefaultsView(ui.LayoutView):
             accent_color=0x00bfff
         )
         self.add_item(header)
-        self.add_item(ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn))
-        self.add_item(ui.ActionRow(archive_btn, trig_sel))
+        # Row 1: Primary configuration buttons (Max 4 to leave room for clarity)
+        self.add_item(ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn))
+        # Row 2: Secondary buttons + Navigation (3 buttons)
+        self.add_item(ui.ActionRow(archive_btn, temp_role_btn, back_btn))
+        # Row 3: Select menu 1 (MUST be alone)
+        self.add_item(ui.ActionRow(trig_sel))
+        # Row 4: Select menu 2 (MUST be alone)
         self.add_item(ui.ActionRow(promo_sel))
-        self.add_item(ui.ActionRow(back_btn))
 
     async def refresh_message(self, interaction: discord.Interaction):
         """Standard interaction refresh: prepare self and update the message."""
@@ -478,7 +482,7 @@ class SimpleConfigModal(ui.Modal):
         self.parent_view = parent_view
         
         style = discord.TextStyle.paragraph if is_long else discord.TextStyle.short
-        self.input_field = ui.TextInput(label=title, placeholder=placeholder, style=style, default=default_val, required=True)
+        self.input_field = ui.TextInput(label=title[:45], placeholder=placeholder[:45], style=style, default=default_val, required=True)
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):
