@@ -456,11 +456,21 @@ class DraftCommands(commands.GroupCog, name="draft"):
 
     @app_commands.command(name="continue", description="Finish an event you started earlier")
     async def continue_draft(self, interaction: discord.Interaction, draft_id: str):
-        data = await database.get_draft(draft_id, interaction.guild_id)
-        if not data: return await interaction.response.send_message(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
+        await interaction.response.defer(ephemeral=True)
+        record = await database.get_draft(draft_id, interaction.guild_id)
+        if not record: 
+            return await interaction.followup.send(t("ERR_DRAFT_NOT_FOUND"), ephemeral=True)
+        
+        # Extract the actual draft data from the JSONB column
+        data = record["data"]
+        if isinstance(data, str):
+            import json
+            data = json.loads(data)
+
         from cogs.event_wizard import EventWizardView
         view = EventWizardView(self.bot, interaction.user.id, existing_data=data, guild_id=interaction.guild_id)
         await view.refresh_message(interaction)
+
 
     @continue_draft.autocomplete("draft_id")
     async def continue_draft_autocomplete(self, interaction: discord.Interaction, current: str):

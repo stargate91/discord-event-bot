@@ -533,17 +533,34 @@ class NotificationSettingsModal(ui.Modal):
 
 class EventWizardView(ui.LayoutView):
     """Main wizard controller using Components V2 architecture."""
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type="series", show_advanced=False, show_reminder=False):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type=None, show_advanced=False, show_reminder=False):
         super().__init__(timeout=600)
         self.bot = bot
         self.creator_id = creator_id
         self.is_edit = is_edit
         self.guild_id = guild_id
         self.bulk_ids = bulk_ids
-        self.wizard_type = wizard_type
+        self.data = existing_data or {}
+
+        # wizard_type detection/persistence
+        if wizard_type:
+            self.wizard_type = wizard_type
+        elif self.data.get("wizard_type"):
+            self.wizard_type = self.data["wizard_type"]
+        elif self.data.get("lobby_mode"):
+            self.wizard_type = "lobby"
+        elif self.data.get("recurrence_type") and self.data["recurrence_type"] != "none":
+            self.wizard_type = "series"
+        else:
+            # Fallback for old drafts or unspecified
+            self.wizard_type = "single"
+        
+        # Ensure it's saved in data for future save_to_draft calls
+        self.data["wizard_type"] = self.wizard_type
+
         self.show_advanced = show_advanced
         self.show_reminder = show_reminder
-        self.data = existing_data or {}
+
         self.can_publish = False
         self.chan_warning = ""
         if self.wizard_type == "lobby":
