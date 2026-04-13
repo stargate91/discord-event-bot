@@ -23,10 +23,9 @@ class MasterCommands(commands.GroupCog, name="master"):
         try:
             stats = await database.get_global_stats()
             
-            # Read version from config.json
-            with open("config.json", "r", encoding="utf-8") as f:
-                config_data = json.load(f)
-            bot_version = config_data.get("globals", {}).get("version", "v2.1.0")
+            from utils.config import config
+            bot_version = config.version
+
 
             body_text = (
                 f"{t('MASTER_STATS_GUILDS', guild_id=None, val=stats['guilds'])}\n"

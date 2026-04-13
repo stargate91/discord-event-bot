@@ -6,7 +6,9 @@ import time
 import uuid
 import datetime
 import json
-from cogs.event_ui import DynamicEventView, get_event_conf
+from cogs.event_ui import DynamicEventView, get_event_conf, get_active_set
+from utils.emoji_utils import slugify
+from utils.lobby_utils import positive_status_ids
 from utils.i18n import t
 from dateutil import parser as dtparser
 from dateutil import tz as dttz
@@ -14,25 +16,7 @@ from dateutil.relativedelta import relativedelta
 from utils.logger import log
 from utils.offset_parse import parse_offset
 
-def calc_next_start(current_start_ts, event_conf):
-    # This calculates when the same event should happen next (Daily, Weekly, etc)
-    local_tz = dttz.gettz(event_conf.get("timezone", "UTC"))
-    dt = datetime.datetime.fromtimestamp(current_start_ts, tz=local_tz)
-    rec = event_conf.get("recurrence_type", "once")
-
-    if rec == "daily":
-        dt += datetime.timedelta(days=1)
-    elif rec == "weekly":
-        dt += datetime.timedelta(weeks=1)
-    elif rec == "weekdays":
-        dt += datetime.timedelta(days=1)
-        while dt.weekday() >= 5:
-            dt += datetime.timedelta(days=1)
-    elif rec == "monthly":
-        dt += relativedelta(months=1)
-    else:
-        return None
-    return dt.timestamp()
+from utils.calendar_utils import calc_next_start
 
 class SchedulerTask(commands.Cog):
     # This part of the bot runs in the background and checks things every minute
@@ -82,6 +66,47 @@ class SchedulerTask(commands.Cog):
             except Exception as e:
                 log.error(f"[Scheduler] Error handling reposting for {db_event['event_id']}: {e}", guild_id=db_event.get("guild_id"))
 
+            # 4. Auto-completion (Lifecycle)
+            try:
+                await self.handle_event_completion(db_event, now)
+            except Exception as e:
+                log.error(f"[Scheduler] Error handling completion for {db_event['event_id']}: {e}", guild_id=db_event.get("guild_id"))
+
+    async def handle_event_completion(self, db_event, now):
+        """Marks one-time events as 'closed' after they have finished based on guild settings."""
+        if db_event.get("status") != "active":
+            return
+            
+        rec_type = db_event.get("recurrence_type", "once")
+        if rec_type not in ("once", "none"):
+            return
+            
+        start_ts = db_event.get("start_time")
+        if not start_ts:
+            return
+            
+        # Get dynamic archive duration for this guild
+        gid = db_event.get("guild_id")
+        archive_hours_str = await database.get_guild_setting(gid, "auto_archive_hours", default="12")
+        try:
+            archive_hours = float(archive_hours_str)
+        except:
+            archive_hours = 12.0
+            
+        archive_threshold = archive_hours * 3600
+        
+        end_ts = db_event.get("end_time")
+        should_close = False
+        
+        if end_ts and now > end_ts:
+            should_close = True
+        elif now > (float(start_ts) + archive_threshold):
+            should_close = True
+            
+        if should_close:
+            await database.set_event_status(db_event["event_id"], "closed")
+            log.info(f"[Lifecycle] Auto-archived expired event {db_event['event_id']} (Threshold: {archive_hours}h)", guild_id=gid)
+
     async def check_role_cleanup(self, db_event, now):
         """Deletes temporary Discord roles once the event has finished."""
         temp_role_id = db_event.get("temp_role_id")
@@ -94,16 +119,14 @@ class SchedulerTask(commands.Cog):
         status = db_event.get("status") or "active"
         lobby_mode = bool(db_event.get("lobby_mode"))
 
-        if lobby_mode:
-            if status in ("lobby_expired", "closed", "cancelled", "deleted"):
-                should_delete = True
-            elif start_ts is None:
+        if status in ("closed", "cancelled", "deleted", "lobby_expired"):
+            should_delete = True
+        elif lobby_mode:
+            if start_ts is None:
                 should_delete = False
             elif end_ts and now > end_ts:
                 should_delete = True
             elif not end_ts and start_ts is not None and now > (float(start_ts) + 14400):
-                should_delete = True
-            elif status == "closed":
                 should_delete = True
         else:
             if start_ts is not None:
@@ -111,8 +134,6 @@ class SchedulerTask(commands.Cog):
                     should_delete = True
                 elif not end_ts and now > (float(start_ts) + 14400):
                     should_delete = True
-            if db_event.get("status") == "closed":
-                should_delete = True
 
         if should_delete:
             guild = self.bot.get_guild(int(db_event["guild_id"]))
@@ -332,71 +353,123 @@ class SchedulerTask(commands.Cog):
                 await database.mark_all_reminder_slots_sent(event_id)
             return
 
+        # Shared settings/fallbacks
+        global_rem_type = (db_event.get("reminder_type") or "none").lower()
+        shared_custom_msg = (db_event.get("reminder_message") or "").strip() or None
+        
+        # Determine mention string
         temp_role_id = db_event.get("temp_role_id")
         if temp_role_id:
-            mention_str = f"<@&{temp_role_id}>"
-        else:
-            mention_str = ", ".join([f"<@{p['user_id']}>" for p in participants])
 
-        send_ping = rem_type in ["ping", "both"]
-        send_dm = rem_type in ["dm", "both"]
-
-        custom_reminder = (db_event.get("reminder_message") or "").strip() or None
-        if not custom_reminder:
-            extra_data = db_event.get("extra_data")
-            if extra_data:
-                try:
-                    if isinstance(extra_data, str):
-                        custom_reminder = (json.loads(extra_data).get("custom_reminder_msg") or "").strip() or None
-                    else:
-                        custom_reminder = (extra_data.get("custom_reminder_msg") or "").strip() or None
-                except Exception as e:
-                    log.warning(
-                        f"[Scheduler] extra_data parse for reminder {event_id}: {e}",
-                        guild_id=guild_id,
-                    )
-
-        if custom_reminder:
-            rem_text = custom_reminder.format(title=db_event["title"])
-        else:
-            rem_text = t("MSG_REM_DESC", guild_id=guild_id, title=db_event["title"])
+        # Resolve emoji set for positivity checks
+        active_set = get_active_set(db_event.get("icon_set", "standard"))
+        pos_ids = set([s.lower() for s in positive_status_ids(active_set)])
+        pos_ids.add("accepted") # Ensure legacy consistency
+        
+        # Build a mapping of labels -> option IDs for easier target resolution
+        label_to_id = {}
+        for opt in active_set.get("options", []):
+            oid = opt["id"].lower()
+            label_to_id[oid] = oid # Map ID to itself
+            
+            # Slugified labels as aliases
+            if opt.get("label"):
+                label_to_id[slugify(opt["label"])] = oid
+            if opt.get("list_label"):
+                label_to_id[slugify(opt["list_label"])] = oid
 
         for r in due:
+            target_raw = (r.get("target") or "coming")
+            target_key = slugify(target_raw)
+            
+            # Special aliases for positivity
+            is_coming_alias = target_key in ["coming", "positive", "accepted"]
+            is_not_coming_alias = target_key in ["not_coming", "negative", "declined"]
+            
+            # Resolve Target Users
+            target_users = []
+            if target_key == "all":
+                target_users = participants
+            elif is_coming_alias:
+                target_users = [p for p in participants if p["status"].lower() in pos_ids]
+            elif is_not_coming_alias:
+                target_users = [p for p in participants if p["status"].lower() not in pos_ids]
+            elif target_key in label_to_id:
+                # Resolve via our label map (hit: Tank, Tanks, or tank ID)
+                resolved_id = label_to_id[target_key]
+                target_users = [p for p in participants if p["status"].lower() == resolved_id]
+            elif target_key in [p["status"].lower() for p in participants]:
+                # Fallback check directly against status just in case
+                target_users = [p for p in participants if p["status"].lower() == target_key]
+            else:
+                # Check for Role Name
+                guild = self.bot.get_guild(int(guild_id))
+                if guild:
+                    role = discord.utils.get(guild.roles, name=target_raw)
+                    if role:
+                        target_users = [{"user_id": m.id} for m in role.members]
+                    else:
+                        pass
+            
+            if not target_users:
+                # Mark as handled anyway if no one to notify
+                if legacy_only: await database.mark_reminder_sent(event_id)
+                else: await database.mark_reminder_slot_sent(event_id, int(r["slot_idx"]))
+                continue
+
+            # 1. Determine local reminder type
+            local_type = (r.get("method") or global_rem_type or "ping").lower()
+            if local_type == "none":
+                if legacy_only: await database.mark_reminder_sent(event_id)
+                else: await database.mark_reminder_slot_sent(event_id, int(r["slot_idx"]))
+                continue
+            
+            # Final safety: if unknown type, fallback to ping
+            if local_type not in ["ping", "dm", "both"]:
+                local_type = "ping"
+            
+            send_ping = local_type in ["ping", "both"]
+            send_dm = local_type in ["dm", "both"]
+            
+            # Determine mention string for this specific group
+            if target_key == "all" and temp_role_id:
+                mention_str = f"<@&{temp_role_id}>"
+            else:
+                mention_str = ", ".join([f"<@{p['user_id']}>" for p in target_users[:50]]) # Cap to 50 mentions for sanity
+
+            # 2. Determine local reminder text
+            rem_text_raw = r.get("custom_message") or shared_custom_msg
+            if rem_text_raw:
+                rem_text = rem_text_raw.format(title=db_event["title"])
+            else:
+                rem_text = t("MSG_REM_DESC", guild_id=guild_id, title=db_event["title"])
+
+            # 3. Send Notifications
+            embed = discord.Embed(
+                title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
+                description=rem_text,
+                color=discord.Color.orange(),
+            )
+            embed.add_field(
+                name=t("LBL_STARTS", guild_id=guild_id),
+                value=f"<t:{int(start_ts)}:R>",
+            )
+
             if send_ping:
                 channel = self.bot.get_channel(db_event["channel_id"])
                 if channel:
-                    embed = discord.Embed(
-                        title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
-                        description=rem_text,
-                        color=discord.Color.orange(),
-                    )
-                    embed.add_field(
-                        name=t("LBL_STARTS", guild_id=guild_id),
-                        value=f"<t:{int(start_ts)}:R>",
-                    )
                     await channel.send(content=mention_str, embed=embed)
 
             if send_dm:
-                for p in participants:
+                for p in target_users:
                     try:
                         user = self.bot.get_user(p["user_id"]) or await self.bot.fetch_user(p["user_id"])
                         if user:
-                            embed = discord.Embed(
-                                title=t("LBL_REMINDER_TITLE", guild_id=guild_id),
-                                description=rem_text,
-                                color=discord.Color.orange(),
-                            )
-                            embed.add_field(
-                                name=t("LBL_STARTS", guild_id=guild_id),
-                                value=f"<t:{int(start_ts)}:R>",
-                            )
                             await user.send(embed=embed)
                     except Exception as e:
-                        log.error(
-                            f"Could not send DM to {p['user_id']}: {e}",
-                            guild_id=db_event.get("guild_id"),
-                        )
+                        log.debug(f"Could not send DM to {p['user_id']}: {e}")
 
+            # 4. Mark Sent
             if legacy_only:
                 await database.mark_reminder_sent(event_id)
             else:

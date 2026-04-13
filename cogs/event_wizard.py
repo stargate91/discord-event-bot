@@ -516,18 +516,56 @@ class NotificationSettingsModal(ui.Modal):
         self.wizard_view = wizard_view
         extra = wizard_view.data.get("extra_data", {})
         if isinstance(extra, str): extra = json.loads(extra)
-        self.promo_input = ui.TextInput(label=t("LBL_PROMO_MSG", guild_id=wizard_view.guild_id), default=extra.get("custom_promo_msg", ""), style=discord.TextStyle.paragraph, required=False)
-        self.rem_input = ui.TextInput(label=t("LBL_REMINDER_MSG", guild_id=wizard_view.guild_id), default=extra.get("custom_reminder_msg", ""), style=discord.TextStyle.paragraph, required=False)
+        
+        self.promo_input = ui.TextInput(
+            label=t("LBL_PROMO_MSG", guild_id=wizard_view.guild_id),
+            default=extra.get("custom_promo_msg", ""),
+            style=discord.TextStyle.paragraph,
+            required=False
+        )
         self.add_item(self.promo_input)
-        self.add_item(self.rem_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         extra = self.wizard_view.data.get("extra_data", {})
         if isinstance(extra, str): extra = json.loads(extra)
         extra["custom_promo_msg"] = self.promo_input.value
-        extra["custom_reminder_msg"] = self.rem_input.value
-        self.wizard_view.data["reminder_message"] = (self.rem_input.value or "").strip() or None
         self.wizard_view.data["extra_data"] = json.dumps(extra)
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.refresh_message(interaction)
+
+class ReminderMessagesModal(ui.Modal):
+    def __init__(self, wizard_view):
+        super().__init__(title=t("TITLE_REMINDER_MESSAGES", guild_id=wizard_view.guild_id)[:45])
+        self.wizard_view = wizard_view
+        gid = wizard_view.guild_id
+        data = wizard_view.data
+        
+        offsets = data.get("reminder_offsets") or []
+        msgs = data.get("reminder_messages") or []
+        
+        # Ensure we have at least 1 offset, default to 15m if none
+        display_offsets = offsets if offsets else ["15m"]
+        
+        self.inputs = []
+        for i in range(len(display_offsets)):
+            off_full = display_offsets[i]
+            label = t("LBL_REMINDER_MSG_N", guild_id=gid, n=i+1, offset=off_full)
+            
+            default_val = msgs[i] if i < len(msgs) else ""
+            
+            inp = ui.TextInput(
+                label=label[:45],
+                style=discord.TextStyle.paragraph,
+                default=str(default_val or ""),
+                required=False,
+                max_length=400
+            )
+            self.inputs.append(inp)
+            self.add_item(inp)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        msgs = [inp.value.strip() for inp in self.inputs]
+        self.wizard_view.data["reminder_messages"] = msgs
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
 
@@ -660,6 +698,19 @@ class EventWizardView(ui.LayoutView):
         )
         temp_role_btn.callback = temp_role_cb
 
+        # Thread Toggle
+        async def thread_cb(it):
+            view.data["use_threads"] = not view.data.get("use_threads", False)
+            await view.save_to_draft()
+            await view.refresh_message(it)
+        
+        use_threads = view.data.get("use_threads", False)
+        thread_btn = ui.Button(
+            label=t("LBL_WIZ_THREADS", guild_id=self.guild_id) + (f": {t('LBL_THREADS_ON', guild_id=self.guild_id)}" if use_threads else f": {t('LBL_THREADS_OFF', guild_id=self.guild_id)}"),
+            style=discord.ButtonStyle.green if use_threads else discord.ButtonStyle.gray
+        )
+        thread_btn.callback = thread_cb
+
         save_style = discord.ButtonStyle.green
         save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
         async def save_cb(it): await view.handle_save_preview(it)
@@ -731,6 +782,7 @@ class EventWizardView(ui.LayoutView):
                         dflt = str(self.v.data.get("reminder_offset", "15m"))
                     self.inp = ui.TextInput(
                         label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=v.guild_id),
+                        placeholder="15m, 1h,dm,all, 30m,ping,Tank",
                         default=dflt,
                         style=discord.TextStyle.paragraph,
                         max_length=400,
@@ -738,17 +790,44 @@ class EventWizardView(ui.LayoutView):
                     )
                     self.add_item(self.inp)
                 async def on_submit(self, i):
-                    lines = [
-                        x.strip()
-                        for x in str(self.inp.value).splitlines()
-                        if x.strip()
-                    ][: database.MAX_EVENT_REMINDERS]
-                    self.v.data["reminder_offsets"] = lines
+                    raw_val = str(self.inp.value).strip()
+                    if not raw_val:
+                        # Empty modal = Disable reminders
+                        self.v.data["reminder_offsets"] = []
+                        self.v.data["reminder_type"] = "none"
+                        self.v.data["reminder_offset"] = "15m" 
+                        await self.v.save_to_draft()
+                        return await self.v.refresh_message(i)
+
+                    lines = [x.strip() for x in raw_val.splitlines() if x.strip()]
+                    
+                    # Validation
+                    valid_pattern = re.compile(r"^(\d+)([mhd])(?:,([^,]*))?(?:,(.*))?$", re.IGNORECASE)
+                    for line in lines:
+                        if not valid_pattern.match(line):
+                            return await i.response.send_message(
+                                t("ERR_INVALID_OFFSET_FORMAT", guild_id=self.v.guild_id),
+                                ephemeral=True
+                            )
+                    
+                    self.v.data["reminder_offsets"] = lines[: database.MAX_EVENT_REMINDERS]
                     self.v.data["reminder_offset"] = lines[0] if lines else "15m"
                     await self.v.save_to_draft()
                     await self.v.refresh_message(i)
             await it.response.send_modal(ReminderOffsetModal(view))
         rem_offset_btn.callback = rem_offset_cb
+
+        # New Reminder Messages Button
+        rem_msg_raw = view.data.get("reminder_offsets") or []
+        has_reminders = len(rem_msg_raw) > 0
+        rem_msg_btn = ui.Button(
+            label=t("BTN_REMINDER_MESSAGES", guild_id=self.guild_id), 
+            style=discord.ButtonStyle.gray,
+            disabled=not has_reminders
+        )
+        async def rem_msg_cb(it):
+            await it.response.send_modal(ReminderMessagesModal(view))
+        rem_msg_btn.callback = rem_msg_cb
 
         # Reminder Type Dropdown (lobby: megteléskori értesítés módja)
         cur_rem_type = view.data.get("reminder_type", "none")
@@ -764,12 +843,27 @@ class EventWizardView(ui.LayoutView):
             else t("BTN_REMINDERS", guild_id=self.guild_id)
         )
         rem_type_sel = ui.Select(placeholder=rem_ph, options=rem_type_opts)
-        async def rem_type_cb(it):
+        rem_type_sel.callback = rem_type_cb
+
+        # Promotion Notify Selection (Waiting List Automation)
+        cur_promo_type = view.data.get("notify_promotion")
+        if cur_promo_type is None:
+            cur_promo_type = await database.get_guild_setting(self.guild_id, "default_notify_promotion", default="none")
+            view.data["notify_promotion"] = cur_promo_type
+
+        promo_type_opts = [
+            discord.SelectOption(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo_type=="none")),
+            discord.SelectOption(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo_type=="channel")),
+            discord.SelectOption(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo_type=="dm")),
+            discord.SelectOption(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo_type=="both"))
+        ]
+        promo_type_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_type_opts)
+        async def promo_type_cb(it):
             await it.response.defer()
-            view.data["reminder_type"] = rem_type_sel.values[0]
+            view.data["notify_promotion"] = promo_type_sel.values[0]
             await view.save_to_draft()
             await view.refresh_message(it)
-        rem_type_sel.callback = rem_type_cb
+        promo_type_sel.callback = promo_type_cb
 
         creator_btn = ui.Button(label=t("LBL_WIZ_CREATOR", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def creator_cb(it):
@@ -893,8 +987,8 @@ class EventWizardView(ui.LayoutView):
 
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, thread_btn))
+                container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
@@ -910,8 +1004,9 @@ class EventWizardView(ui.LayoutView):
                         t("LBL_REMINDER_LIST_PREVIEW", guild_id=self.guild_id, offsets=off_preview)
                     )
                 )
-                container_items.append(ui.ActionRow(rem_offset_btn))
+                container_items.append(ui.ActionRow(rem_offset_btn, rem_msg_btn))
                 container_items.append(ui.ActionRow(rem_type_sel))
+                container_items.append(ui.ActionRow(promo_type_sel))
                 container_items.append(ui.Separator())
 
             container_items.append(ui.ActionRow(sel_icon))
@@ -925,7 +1020,7 @@ class EventWizardView(ui.LayoutView):
 
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(temp_role_btn, creator_btn, role_btn, msg_btn))
+                container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.Separator())
@@ -962,7 +1057,7 @@ class EventWizardView(ui.LayoutView):
                         t("LBL_REMINDER_LIST_PREVIEW", guild_id=self.guild_id, offsets=off_preview)
                     )
                 )
-                container_items.append(ui.ActionRow(rem_offset_btn))
+                container_items.append(ui.ActionRow(rem_offset_btn, rem_msg_btn))
                 container_items.append(ui.ActionRow(rem_type_sel))
                 container_items.append(ui.Separator())
             
@@ -1001,22 +1096,24 @@ class EventWizardView(ui.LayoutView):
                 rem_rows = await database.get_event_reminders(ev_id)
                 if rem_rows:
                     self.data["reminder_offsets"] = [r["offset_str"] for r in rem_rows]
+                    self.data["reminder_messages"] = [r["custom_message"] for r in rem_rows]
                 else:
-                    ro = self.data.get("reminder_offset") or await database.get_guild_setting(
+                    def_ro = self.data.get("reminder_offset") or await database.get_guild_setting(
                         self.guild_id, "default_reminder_offset", default="15m"
                     )
-                    self.data["reminder_offsets"] = (
-                        [ro]
-                        if (self.data.get("reminder_type") or "none") != "none" and ro
-                        else []
-                    )
+                    ro_list = [x.strip() for x in def_ro.splitlines() if x.strip()]
+                    rt = self.data.get("reminder_type") or await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
+                    self.data["reminder_offsets"] = ro_list if rt != "none" else []
+                    self.data["reminder_messages"] = []
             else:
-                ro = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
-                rt = self.data.get("reminder_type") or await database.get_guild_setting(
-                    self.guild_id, "reminder_type", default="none"
-                )
-                self.data["reminder_type"] = rt
-                self.data["reminder_offsets"] = [ro] if rt != "none" and ro else []
+                    def_ro = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+                    ro_list = [x.strip() for x in def_ro.splitlines() if x.strip()]
+                    rt = self.data.get("reminder_type") or await database.get_guild_setting(
+                        self.guild_id, "reminder_type", default="none"
+                    )
+                    self.data["reminder_type"] = rt
+                    self.data["reminder_offsets"] = ro_list if rt != "none" else []
+                    self.data["reminder_messages"] = []
         if not (self.data.get("reminder_message") or "").strip() and self.data.get("extra_data"):
             try:
                 ed = (
@@ -1412,6 +1509,32 @@ class EventWizardView(ui.LayoutView):
                 msg = await target_chan.send(view=view)
                 await database.set_event_message(event_id, msg.id)
                 self.bot.add_view(view)
+
+                # --- NEW: Automatic Thread Creation ---
+                if self.data.get("use_threads"):
+                    try:
+                        title = self.data.get("title") or "Event"
+                        thread_name = title
+                        
+                        start_ts = self.data.get("start_time")
+                        if start_ts and not self.data.get("lobby_mode"):
+                            dt = datetime.datetime.fromtimestamp(float(start_ts))
+                            thread_name = f"{title} - {dt.strftime('%m/%d')}"
+                        
+                        thread = await msg.create_thread(name=thread_name[:100])
+                        
+                        # Store thread_id in extra_data for future use
+                        extra_data = self.data.get("extra_data", {})
+                        if isinstance(extra_data, str):
+                            extra_data = json.loads(extra_data)
+                        extra_data["thread_id"] = thread.id
+                        self.data["extra_data"] = json.dumps(extra_data)
+                        await database.update_active_event(event_id, self.data)
+                        
+                        log.info(f"[Wizard] Created thread '{thread_name}' for event {event_id}")
+                    except Exception as te:
+                        log.error(f"[Wizard] Failed to create thread: {te}")
+
                 await interaction.followup.send(
                     t("MSG_PUBLISHED_IN_CHANNEL", guild_id=self.guild_id, channel_id=target_chan.id),
                     ephemeral=True,

@@ -10,23 +10,16 @@ import time
 import random
 
 # We try to load the config to see who is the boss (admin)
-try:
-    from utils.jsonc import load_jsonc
-    config_data = load_jsonc('config.json')
-    ADMIN_ROLE_ID = config_data.get("admin_role_id")
-except Exception:
-    ADMIN_ROLE_ID = None
+from utils.config import config
+ADMIN_ROLE_ID = config.get("admin_role_id")
 
 from utils.auth import is_admin
 
 def get_event_conf(name):
     # This helper gets the settings for a specific event type from config.json
     try:
-        from utils.jsonc import load_jsonc
-        config_data = load_jsonc('config.json')
-        events = config_data.get("events_config", [])
-        globals_cfg = config_data.get("globals", {})
-        defaults = globals_cfg.get("event_defaults", {})
+        events = config.get("events_config", [])
+        defaults = config.get("globals", {}).get("event_defaults", {})
         
         for e in events:
             if e.get("config_name") == name or e.get("name") == name:
@@ -37,6 +30,7 @@ def get_event_conf(name):
     except Exception as e:
         log.error(f"Error loading event config: {e}")
     return None
+
 
 # This will hold sets loaded from the database
 CUSTOM_ICON_SETS = {}
@@ -313,9 +307,6 @@ class DynamicEventView(discord.ui.LayoutView):
             title_str += f"### **{title_prefix}**\n"
             
         raw_title = event_conf.get('title', t('LBL_EVENT', guild_id=guild_id))
-        if len(raw_title) > 40:
-            raw_title = raw_title[:37] + "..."
-            
         title_str += f"## {raw_title}"
         container_items.append(discord.ui.TextDisplay(title_str))
 
@@ -407,21 +398,9 @@ class DynamicEventView(discord.ui.LayoutView):
                 # Anonymous mode: only show the count
                 role_sections.append(f"**{' '.join(name_parts)} ({count_text})**")
             else:
-                if not users:
-                    users_str = t("EMBED_NONE", guild_id=guild_id)
-                else:
-                    lines, cur_line, cur_len = [], [], 0
-                    for u in users:
-                        if cur_line and cur_len + len(u) > 45:
-                            lines.append(", ".join(cur_line))
-                            cur_line, cur_len = [u], len(u)
-                        else:
-                            cur_line.append(u)
-                            cur_len += len(u) + 2
-                    if cur_line: lines.append(", ".join(cur_line))
-                    users_str = "\n".join(lines)
-                    
+                users_str = ", ".join(users) if users else t("EMBED_NONE", guild_id=guild_id)
                 role_sections.append(f"**{' '.join(name_parts)} ({count_text}):**\n{users_str}" if users else f"**{' '.join(name_parts)} ({count_text}):** {users_str}")
+
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
@@ -439,16 +418,7 @@ class DynamicEventView(discord.ui.LayoutView):
             container_items.append(discord.ui.Separator())
             wait_header = t('EMBED_WAITLIST', guild_id=guild_id) or 'Waiting List'
             
-            lines, cur_line, cur_len = [], [], 0
-            for u in waiting_list:
-                if cur_line and cur_len + len(u) > 45:
-                    lines.append(", ".join(cur_line))
-                    cur_line, cur_len = [u], len(u)
-                else:
-                    cur_line.append(u)
-                    cur_len += len(u) + 2
-            if cur_line: lines.append(", ".join(cur_line))
-            wait_str = "\n".join(lines)
+            wait_str = ", ".join(waiting_list)
             
             container_items.append(discord.ui.TextDisplay(f"**⏳ {wait_header} ({len(waiting_list)}):**\n{wait_str}"))
 
@@ -796,6 +766,22 @@ class DynamicEventView(discord.ui.LayoutView):
             await interaction.response.send_message(t("ERR_NO_PERM", guild_id=interaction.guild_id), ephemeral=True)
             return
         await interaction.response.defer()
+        
+        # Role cleanup
+        db_event = await database.get_active_event(self.event_id, interaction.guild_id)
+        if db_event:
+            temp_role_id = db_event.get("temp_role_id")
+            if temp_role_id:
+                guild = interaction.guild
+                if guild and guild.me.guild_permissions.manage_roles:
+                    try:
+                        role = guild.get_role(int(temp_role_id))
+                        if role:
+                            await role.delete(reason=f"Event {self.event_id} deleted by UI button ({interaction.user})")
+                            log.info(f"[UI-Delete] Deleted temp role {temp_role_id} for event {self.event_id}")
+                    except Exception as e:
+                        log.error(f"[UI-Delete] Failed to delete role {temp_role_id}: {e}")
+
         await database.delete_active_event(self.event_id)
         # Rebuild view with deleted state
         if not self.event_conf:
@@ -947,6 +933,10 @@ class DynamicEventView(discord.ui.LayoutView):
     async def notify_promotion(self, interaction, user_id, opt):
         notify_type = self.event_conf.get("notify_promotion", "none")
         if notify_type == "none": return
+        
+        db_event = await database.get_active_event(self.event_id, interaction.guild_id)
+        if not db_event: return
+
         role_name = opt.get("label") or opt.get("list_label") or opt["id"]
         extra = self.event_conf.get("extra_data")
         custom_msg = None
@@ -956,8 +946,16 @@ class DynamicEventView(discord.ui.LayoutView):
                 custom_msg = d.get("custom_promo_msg")
             except Exception as e:
                 log.debug("notify_promotion extra_data: %s", e)
-        if custom_msg: msg = custom_msg.format(user_id=user_id, role=role_name, emoji=opt.get("emoji", ""), title=self.event_conf.get("title", ""))
-        else: msg = t("MSG_PROMOTED_DEFAULT", guild_id=self.event_conf.get("guild_id"), user_id=user_id, role=role_name, emoji=opt.get("emoji", ""))
+        
+        if custom_msg: 
+            msg = custom_msg.format(user_id=user_id, role=role_name, emoji=opt.get("emoji", ""), title=self.event_conf.get("title", ""))
+        else: 
+            msg = t("MSG_PROMOTED_DEFAULT", guild_id=interaction.guild_id, user_id=user_id, role=role_name, emoji=opt.get("emoji", ""))
+            
+        # Add jump link for better UX
+        jump_link = f"https://discord.com/channels/{interaction.guild_id}/{db_event['channel_id']}/{db_event['message_id']}"
+        msg += f"\n🔗 {jump_link}"
+
         if notify_type in ["channel", "both"]: await interaction.channel.send(msg)
         if notify_type in ["dm", "both"]:
             try:
@@ -967,8 +965,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 log.debug("notify_promotion DM %s: %s", user_id, e)
         
         # Add to temp role if promoted
-        db_event = await database.get_active_event(self.event_id, interaction.guild_id)
-        if db_event and db_event.get("temp_role_id"):
+        if db_event.get("temp_role_id"):
             guild = interaction.guild
             if not guild.me.guild_permissions.manage_roles:
                 log.warning(f"[Promotion] Missing 'Manage Roles' permission to handle temp role in guild {guild.id}")

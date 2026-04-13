@@ -20,20 +20,55 @@ async def get_pool():
     return _pool
 
 
-def normalize_reminder_offsets_for_store(data):
-    """Up to MAX_EVENT_REMINDERS offset strings; empty if reminder_type is none."""
+def normalize_reminders_for_store(data):
+    """Parses offsets and messages into a list of dict objects for DB storage."""
     if data.get("lobby_mode"):
         return []
     rt = (data.get("reminder_type") or "none").strip().lower()
     if rt == "none":
         return []
-    raw = data.get("reminder_offsets")
-    if isinstance(raw, list):
-        offs = [str(x).strip() for x in raw if str(x).strip()]
-    else:
+        
+    raw_offsets = data.get("reminder_offsets") or []
+    if not isinstance(raw_offsets, list):
         one = str(data.get("reminder_offset") or "15m").strip()
-        offs = [one] if one else []
-    return offs[:MAX_EVENT_REMINDERS]
+        raw_offsets = [one] if one else []
+        
+    raw_msgs = data.get("reminder_messages") or []
+    if not isinstance(raw_msgs, list):
+        raw_msgs = []
+
+    out = []
+    for idx, full_offset in enumerate(raw_offsets[:MAX_EVENT_REMINDERS]):
+        # Smart logic: "15m,tank" -> target is tank, method is ping
+        # "15m,dm" -> method is dm, target is coming
+        parts = [p.strip() for p in str(full_offset).split(",")]
+        off_str = parts[0]
+        
+        # Default values
+        method = "ping"
+        target = "coming"
+        
+        if len(parts) == 2:
+            p2 = parts[1].lower()
+            if p2 in ("dm", "ping", "both", "none"):
+                method = p2
+            else:
+                target = parts[1]
+        elif len(parts) >= 3:
+            method = parts[1] or "ping"
+            target = parts[2] or "coming"
+        
+        cmsg = raw_msgs[idx] if idx < len(raw_msgs) else None
+        if cmsg:
+            cmsg = str(cmsg).strip() or None
+            
+        out.append({
+            "offset_str": off_str,
+            "method": method,
+            "target": target,
+            "custom_message": cmsg
+        })
+    return out
 
 
 def normalize_reminder_message_for_store(data):
@@ -214,11 +249,20 @@ async def init_db():
                 event_id TEXT NOT NULL,
                 slot_idx SMALLINT NOT NULL,
                 offset_str TEXT NOT NULL,
+                method TEXT,
+                custom_message TEXT,
                 sent INTEGER NOT NULL DEFAULT 0,
                 PRIMARY KEY (event_id, slot_idx),
                 CHECK (slot_idx >= 0 AND slot_idx < 5)
             )
         """)
+
+        # Migration for existing event_reminders table
+        for col_name, dt in [("method", "TEXT"), ("custom_message", "TEXT"), ("target", "TEXT DEFAULT 'coming'")]:
+            try:
+                await conn.execute(f"ALTER TABLE event_reminders ADD COLUMN IF NOT EXISTS {col_name} {dt}")
+            except Exception as e:
+                log.debug(f"init_db event_reminders {col_name} column: {e}")
 
         try:
             await conn.execute(
@@ -259,7 +303,7 @@ async def get_event_reminders(event_id):
     pool = await get_pool()
     return await pool.fetch(
         """
-        SELECT slot_idx, offset_str, sent
+        SELECT slot_idx, offset_str, method, target, custom_message, sent
         FROM event_reminders
         WHERE event_id = $1
         ORDER BY slot_idx ASC
@@ -268,28 +312,43 @@ async def get_event_reminders(event_id):
     )
 
 
-async def replace_event_reminders(event_id, offsets):
-    """Replace reminder slots; preserve sent=1 when offset at same index unchanged."""
-    offs = [str(o).strip() for o in offsets if str(o).strip()][:MAX_EVENT_REMINDERS]
+async def replace_event_reminders(event_id, reminders):
+    """
+    Replace reminder slots.
+    reminders: list of dicts with 'offset_str', 'method', 'custom_message'
+    """
+    rems = reminders[:MAX_EVENT_REMINDERS]
     pool = await get_pool()
     old_rows = await get_event_reminders(event_id)
+    # Use offset_str as key to preserve 'sent' status if offset doesn't change
     old = {r["slot_idx"]: (r["offset_str"], int(r["sent"] or 0)) for r in old_rows}
+    
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM event_reminders WHERE event_id = $1", event_id)
-        for idx, off in enumerate(offs):
+        for idx, r in enumerate(rems):
+            off = r.get("offset_str", "15m")
+            method = r.get("method", "ping")
+            target = r.get("target", "coming")
+            msg = r.get("custom_message")
+            
             prev = old.get(idx)
             sent = 1 if prev and prev[0] == off and prev[1] == 1 else 0
+            
             await conn.execute(
                 """
-                INSERT INTO event_reminders (event_id, slot_idx, offset_str, sent)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO event_reminders (event_id, slot_idx, offset_str, method, target, custom_message, sent)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 """,
                 event_id,
                 idx,
                 off,
+                method,
+                target,
+                msg,
                 sent,
             )
-    if not offs:
+            
+    if not rems:
         await pool.execute(
             "UPDATE active_events SET reminder_sent = 0 WHERE event_id = $1", event_id
         )
@@ -365,8 +424,8 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     creator_id = str(data.get("creator_id") or "System")
     
     reminder_type = data.get("reminder_type", "none")
-    roffs = normalize_reminder_offsets_for_store(data)
-    reminder_offset = roffs[0] if roffs else str(data.get("reminder_offset", "15m"))
+    rems = normalize_reminders_for_store(data)
+    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", "15m"))
     reminder_sent = int(data.get("reminder_sent") or 0)
     reminder_message = normalize_reminder_message_for_store(data)
 
@@ -407,7 +466,7 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
         str(guild_id), temp_role_id, use_temp_role, rsvp_allowed_role_ids,
         lobby_mode, lobby_expires_at, lobby_remind_on_fill,
     )
-    await replace_event_reminders(event_id, roffs)
+    await replace_event_reminders(event_id, normalize_reminders_for_store(data))
     return event_id
 
 async def get_active_events(guild_id=None):
@@ -458,8 +517,8 @@ async def update_active_event(event_id, data):
     creator_id = str(data.get("creator_id") or "System")
     
     reminder_type = data.get("reminder_type", "none")
-    roffs = normalize_reminder_offsets_for_store(data)
-    reminder_offset = roffs[0] if roffs else str(data.get("reminder_offset", "15m"))
+    rems = normalize_reminders_for_store(data)
+    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", "15m"))
     reminder_sent = int(data.get("reminder_sent") or 0)
 
     recurrence_limit = int(data.get("recurrence_limit") or 0)
@@ -563,9 +622,9 @@ async def update_active_event(event_id, data):
 
     if any(
         k in data
-        for k in ("reminder_offsets", "reminder_offset", "reminder_type", "reminder_message")
+        for k in ("reminder_offsets", "reminder_offset", "reminder_type", "reminder_message", "reminder_messages")
     ):
-        await replace_event_reminders(event_id, roffs)
+        await replace_event_reminders(event_id, normalize_reminders_for_store(data))
 
 async def update_event_status(event_id, status):
     """Simplified status update for cancellation or postponement."""
@@ -888,3 +947,158 @@ async def get_global_stats():
         "events": event_count or 0,
         "rsvps": rsvp_count or 0
     }
+
+async def get_guild_events_export(guild_id):
+    """Fetches all events for a guild with basic stats for CSV export."""
+    pool = await get_pool()
+    # We aggregate counts in SQL for performance
+    return await pool.fetch("""
+        SELECT 
+            e.event_id, 
+            e.title, 
+            e.creator_id, 
+            e.start_time, 
+            e.status, 
+            e.config_name,
+            (SELECT COUNT(*) FROM rsvps r WHERE r.event_id = e.event_id) as total_rsvps,
+            (SELECT COUNT(*) FROM rsvps r WHERE r.event_id = e.event_id AND r.attendance = 'no_show') as no_shows
+        FROM active_events e
+        WHERE e.guild_id = $1
+        ORDER BY e.start_time DESC
+    """, str(guild_id))
+
+async def get_guild_rsvps_export(guild_id):
+    """Fetches all RSVP records for a guild joined with event titles."""
+    pool = await get_pool()
+    return await pool.fetch("""
+        SELECT 
+            e.title as event_title, 
+            r.user_id, 
+            r.status, 
+            r.joined_at, 
+            r.attendance
+        FROM rsvps r
+        JOIN active_events e ON r.event_id = e.event_id
+        WHERE e.guild_id = $1
+        ORDER BY e.start_time DESC, r.joined_at DESC
+    """, str(guild_id))
+
+async def get_attendance_eligible_events(guild_id):
+    """Fetches events from the last 7 days that have started."""
+    pool = await get_pool()
+    now = time.time()
+    one_week_ago = now - (7 * 86400)
+    return await pool.fetch("""
+        SELECT event_id, title, start_time, status
+        FROM active_events
+        WHERE guild_id = $1 AND start_time < $2 AND start_time > $3
+        ORDER BY start_time DESC
+    """, str(guild_id), now, one_week_ago)
+
+async def get_event_attendance_data(event_id):
+    """Fetches RSVPs and their current attendance status."""
+    pool = await get_pool()
+    return await pool.fetch("""
+        SELECT user_id, status, attendance
+        FROM rsvps
+        WHERE event_id = $1
+        ORDER BY status, user_id
+    """, event_id)
+
+async def update_rsvp_attendance(event_id, user_id, status):
+    """Updates the attendance column (present/no_show)."""
+    pool = await get_pool()
+    await pool.execute("""
+        UPDATE rsvps
+        SET attendance = $1
+        WHERE event_id = $2 AND user_id = $3
+    """, status, event_id, int(user_id))
+
+async def get_guild_reliability_stats(guild_id, all_time=False):
+    """Fetches user reliability stats for a guild."""
+    pool = await get_pool()
+    now = time.time()
+    
+    where_clause = "WHERE e.guild_id = $1"
+    params = [str(guild_id)]
+    
+    if not all_time:
+        where_clause += " AND e.start_time <= $2"
+        params.append(now)
+        
+    query = f"""
+        SELECT 
+            r.user_id, 
+            COUNT(*) as total_rsvps,
+            SUM(CASE WHEN r.attendance = 'no_show' THEN 1 ELSE 0 END) as noshow_count
+        FROM rsvps r
+        JOIN active_events e ON r.event_id = e.event_id
+        {where_clause}
+        GROUP BY r.user_id
+        HAVING SUM(CASE WHEN r.attendance = 'no_show' THEN 1 ELSE 0 END) > 0
+        ORDER BY noshow_count DESC
+    """
+    return await pool.fetch(query, *params)
+
+async def get_event_reliability_audit(event_id, guild_id):
+    """Fetches reliability stats for all participants of a specific event."""
+    pool = await get_pool()
+    now = time.time()
+    return await pool.fetch("""
+        WITH participants AS (
+            SELECT DISTINCT user_id FROM rsvps WHERE event_id = $1
+        )
+        SELECT 
+            p.user_id, 
+            COUNT(r2.event_id) as total_past_rsvps,
+            SUM(CASE WHEN r2.attendance = 'no_show' THEN 1 ELSE 0 END) as noshow_count
+        FROM participants p
+        LEFT JOIN rsvps r2 ON p.user_id = r2.user_id
+        LEFT JOIN active_events e ON r2.event_id = e.event_id
+        GROUP BY p.user_id
+        ORDER BY noshow_count DESC
+    """, event_id, str(guild_id), now)
+
+async def get_user_event_history(guild_id, user_id, limit=20):
+    """Fetches past events where the user was the organizer or a participant."""
+    pool = await get_pool()
+    return await pool.fetch("""
+        SELECT DISTINCT e.event_id, e.title, e.start_time, e.channel_id, e.message_id, 
+               e.creator_id, r.status as user_status, r.attendance
+        FROM active_events e
+        LEFT JOIN rsvps r ON e.event_id = r.event_id AND r.user_id = $2
+        WHERE e.guild_id = $1 
+          AND e.status IN ('closed', 'ended')
+          AND (e.creator_id = $2 OR (r.user_id IS NOT NULL))
+        ORDER BY e.start_time DESC NULLS LAST
+        LIMIT $3
+    """, str(guild_id), int(user_id), limit)
+
+async def get_endable_events(guild_id):
+    """Fetches active events that have already started (for autocomplete)."""
+    pool = await get_pool()
+    now = time.time()
+    return await pool.fetch("""
+        SELECT event_id, title, start_time, config_name
+        FROM active_events
+        WHERE guild_id = $1 AND status = 'active'
+          AND (start_time <= $2 OR start_time IS NULL)
+        ORDER BY start_time DESC
+        LIMIT 25
+    """, str(guild_id), now)
+
+async def get_user_active_events(guild_id, user_id):
+    """Fetches upcoming events where the user is either the organizer or a participant."""
+    pool = await get_pool()
+    now = time.time()
+    return await pool.fetch("""
+        SELECT DISTINCT e.event_id, e.title, e.start_time, e.channel_id, e.message_id, 
+               e.creator_id, r.status as user_status
+        FROM active_events e
+        LEFT JOIN rsvps r ON e.event_id = r.event_id AND r.user_id = $2
+        WHERE e.guild_id = $1 
+          AND (e.creator_id = $2 OR r.user_id IS NOT NULL)
+          AND e.status = 'active'
+          AND (e.start_time > $3 OR e.start_time IS NULL)
+        ORDER BY e.start_time ASC NULLS LAST
+    """, str(guild_id), int(user_id), now - 86400)

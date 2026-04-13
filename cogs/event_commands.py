@@ -15,15 +15,175 @@ from utils.auth import is_admin
 from utils.logger import log
 
 # We load the config for command suffixes
-try:
-    from utils.jsonc import load_jsonc
-    config_data = load_jsonc('config.json')
-    SUFFIX = config_data.get("command_suffix", "")
-    EVENTS_CONFIG = config_data.get("events_config", [])
-except Exception:
-    SUFFIX = ""
-    EVENTS_CONFIG = []
+from utils.config import config
+SUFFIX = config.command_suffix
+EVENTS_CONFIG = config.get("events_config", [])
 
+
+
+class MyEventsView(ui.View):
+    def __init__(self, bot, guild_id, user_id, events):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guild_id = guild_id
+        self.user_id = user_id
+        self.events = events
+        self.page = 0
+        self.per_page = 3
+
+    async def build(self):
+        self.clear_items()
+        
+        start = self.page * self.per_page
+        end = start + self.per_page
+        slice = self.events[start:end]
+        
+        for ev in slice:
+            title = ev["title"] or "Unnamed Event"
+            st = ev["start_time"]
+            eid = ev["event_id"]
+            cid = ev["channel_id"]
+            mid = ev["message_id"]
+            creator_id = ev["creator_id"]
+            status_raw = ev["user_status"]
+            
+            # Container with accent color (Gold for Organizer, Blue for Participant)
+            accent = 0xFFD700 if int(creator_id) == self.user_id else 0x5865F2
+            container = ui.Container(accent_color=accent)
+            
+            # Content
+            time_rel = f"<t:{int(st)}:R>" if st else t("LBL_LOBBY_LIST_NO_START", guild_id=self.guild_id)
+            container.add_item(ui.TextDisplay(
+                label=f"📅 {title}",
+                value=f"ID: `{eid}` | {time_rel}",
+                style=discord.TextStyle.paragraph
+            ))
+            
+            if int(creator_id) == self.user_id:
+                state_text = f"👑 **{t('LBL_ORGANIZER', guild_id=self.guild_id)}**"
+            else:
+                state_text = f"✨ {str(status_raw).capitalize()}"
+                
+            container.add_item(ui.TextDisplay(
+                label=t("LBL_STATUS", guild_id=self.guild_id) or "Status",
+                value=state_text,
+                style=discord.TextStyle.short
+            ))
+            
+            self.add_item(container)
+            
+            # Link button
+            link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
+            self.add_item(ui.Button(
+                label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
+                url=link,
+                style=discord.ButtonStyle.link
+            ))
+
+        # Pagination controls
+        if len(self.events) > self.per_page:
+            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            async def prev_cb(it):
+                self.page -= 1
+                await self.build()
+                await it.response.edit_message(view=self)
+            prev_btn.callback = prev_cb
+            
+            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            async def next_cb(it):
+                self.page += 1
+                await self.build()
+                await it.response.edit_message(view=self)
+            next_btn.callback = next_cb
+            
+            self.add_item(prev_btn)
+            self.add_item(next_btn)
+
+class EventHistoryView(ui.View):
+    def __init__(self, bot, guild_id, user_id, events):
+        super().__init__(timeout=300)
+        self.bot = bot
+        self.guild_id = guild_id
+        self.user_id = user_id
+        self.events = events
+        self.page = 0
+        self.per_page = 3
+
+    async def build(self):
+        self.clear_items()
+        
+        start = self.page * self.per_page
+        end = start + self.per_page
+        slice = self.events[start:end]
+        
+        for ev in slice:
+            title = ev["title"] or "Unnamed Event"
+            st = ev["start_time"]
+            eid = ev["event_id"]
+            cid = ev["channel_id"]
+            mid = ev["message_id"]
+            creator_id = ev["creator_id"]
+            status_raw = ev["user_status"]
+            attendance = ev["attendance"]
+            
+            # Container (Gold for Organized, Gray for Joined)
+            is_creator = int(creator_id) == self.user_id
+            accent = 0xFFD700 if is_creator else 0x99AAB5
+            container = ui.Container(accent_color=accent)
+            
+            # Content
+            time_str = f"<t:{int(st)}:d> (<t:{int(st)}:R>)" if st else "Past event"
+            title_prefix = "👑" if is_creator else "📅"
+            container.add_item(ui.TextDisplay(
+                label=f"{title_prefix} {title}",
+                value=f"{time_str}",
+                style=discord.TextStyle.short
+            ))
+            
+            if is_creator:
+                res_text = f"👑 {t('LBL_ORGANIZER', guild_id=self.guild_id)}"
+            else:
+                if attendance == "present":
+                    res_text = f"✅ {t('LBL_PRESENT', guild_id=self.guild_id) or 'Present'}"
+                elif attendance == "no_show":
+                    res_text = f"❌ {t('LBL_NOSHOW', guild_id=self.guild_id) or 'No-show'}"
+                else:
+                    res_text = f"✨ {str(status_raw).capitalize()}"
+                
+            container.add_item(ui.TextDisplay(
+                label=t("LBL_RESULT", guild_id=self.guild_id) or "Result",
+                value=res_text,
+                style=discord.TextStyle.short
+            ))
+            
+            self.add_item(container)
+            
+            # Link button
+            link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
+            self.add_item(ui.Button(
+                label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
+                url=link,
+                style=discord.ButtonStyle.link
+            ))
+
+        # Pagination controls
+        if len(self.events) > self.per_page:
+            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            async def prev_cb(it):
+                self.page -= 1
+                await self.build()
+                await it.response.edit_message(view=self)
+            prev_btn.callback = prev_cb
+            
+            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            async def next_cb(it):
+                self.page += 1
+                await self.build()
+                await it.response.edit_message(view=self)
+            next_btn.callback = next_cb
+            
+            self.add_item(prev_btn)
+            self.add_item(next_btn)
 
 class EventCommands(commands.Cog):
     """Cog for general event management commands."""
@@ -197,6 +357,155 @@ class EventCommands(commands.Cog):
     async def activate_event(self, interaction: discord.Interaction, event_id: str, occurrence: int = None):
         await self._handle_status_change(interaction, event_id, "active", "none", occurrence)
 
+    @event_group.command(name="sheets", description="Export all event data to CSV for Google Sheets")
+    async def sheets_export(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+        try:
+            import io
+            import csv
+            import datetime
+            
+            # Fetch Data
+            events = await database.get_guild_events_export(guild_id)
+            rsvps = await database.get_guild_rsvps_export(guild_id)
+            
+            # 1. Events Summary CSV
+            e_buffer = io.StringIO()
+            e_writer = csv.writer(e_buffer)
+            # Headers
+            e_writer.writerow(["Event ID", "Title", "Creator ID", "Start Time", "Status", "Template", "Total RSVPs", "No-shows"])
+            for e in events:
+                st = datetime.datetime.fromtimestamp(e["start_time"]).strftime("%Y-%m-%d %H:%M") if e["start_time"] else "Lobby"
+                e_writer.writerow([e["event_id"], e["title"], e["creator_id"], st, e["status"], e["config_name"], e["total_rsvps"], e.get("no_shows", 0)])
+            
+            e_buffer.seek(0)
+            e_file = discord.File(e_buffer, filename=f"events_summary_{guild_id}.csv")
+            
+            # 2. RSVPs Details CSV
+            r_buffer = io.StringIO()
+            r_writer = csv.writer(r_buffer)
+            r_writer.writerow(["Event Title", "User ID", "Status", "Joined At", "Attendance"])
+            for r in rsvps:
+                ja = datetime.datetime.fromtimestamp(r["joined_at"]).strftime("%Y-%m-%d %H:%M") if r["joined_at"] else ""
+                r_writer.writerow([r["event_title"], r["user_id"], r["status"], ja, r["attendance"]])
+                
+            r_buffer.seek(0)
+            r_file = discord.File(r_buffer, filename=f"rsvps_details_{guild_id}.csv")
+            
+            await interaction.followup.send(
+                t("MSG_SHEETS_EXPORT_READY", guild_id=guild_id),
+                files=[e_file, r_file],
+                ephemeral=True
+            )
+            
+        except Exception as ex:
+            log.error(f"Sheets export error: {ex}")
+            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+
+    @event_group.command(name="ics", description="Export all future events to a .ics calendar file")
+    async def ics_export(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        try:
+            import io
+            from utils.calendar_utils import generate_ics_batch
+            
+            # Fetch active events
+            events = await database.get_all_active_events(guild_id)
+            if not events:
+                return await interaction.followup.send(t("ERR_NO_ACTIVE_EVENTS", guild_id=guild_id), ephemeral=True)
+            
+            now = time.time()
+            # Include events starting within the last 24h as well for safety
+            future_events = [e for e in events if (e["start_time"] or 0) > (now - 86400)]
+            
+            if not future_events:
+                return await interaction.followup.send(t("ERR_NO_ACTIVE_EVENTS", guild_id=guild_id), ephemeral=True)
+
+            ics_text = generate_ics_batch(future_events)
+            
+            buffer = io.BytesIO(ics_text.encode("utf-8"))
+            ics_file = discord.File(buffer, filename=f"events_{guild_id}.ics")
+            
+            await interaction.followup.send(
+                t("MSG_ICS_EXPORT_READY", guild_id=guild_id),
+                file=ics_file,
+                ephemeral=True
+            )
+            
+        except Exception as ex:
+            log.error(f"ICS export error: {ex}")
+            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+
+    @event_group.command(name="my-events", description="List all events you are organizing or attending")
+    async def my_events(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        user_id = interaction.user.id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        try:
+            events = await database.get_user_active_events(guild_id, user_id)
+            if not events:
+                return await interaction.followup.send(t("MSG_NO_MY_EVENTS", guild_id=guild_id), ephemeral=True)
+            
+            view = MyEventsView(self.bot, guild_id, user_id, events)
+            await view.build()
+            await interaction.followup.send(view=view, ephemeral=True)
+            
+        except Exception as ex:
+            log.error(f"My events error: {ex}")
+            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+
+    @event_group.command(name="end", description="Manually close an active event and move it to history")
+    @app_commands.describe(event_id="The ID of the event to close")
+    async def event_end(self, interaction: discord.Interaction, event_id: str):
+        if not await is_admin(interaction):
+            return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
+            
+        await database.set_event_status(event_id, "closed")
+        await interaction.response.send_message(f"✅ Event `{event_id}` has been closed and moved to history.", ephemeral=True)
+
+    @event_end.autocomplete("event_id")
+    async def end_autocomplete(self, interaction: discord.Interaction, current: str):
+        events = await database.get_endable_events(interaction.guild_id)
+        return [
+            app_commands.Choice(name=f"{ev['title']} ({ev['event_id']})", value=ev["event_id"])
+            for ev in events if current.lower() in ev["title"].lower() or current.lower() in ev["event_id"].lower()
+        ][:25]
+
+    @event_group.command(name="history", description="View your past event participation")
+    async def event_history(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        user_id = interaction.user.id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        try:
+            events = await database.get_user_event_history(guild_id, user_id)
+            if not events:
+                return await interaction.followup.send(t("MSG_NO_HISTORY", guild_id=guild_id), ephemeral=True)
+            
+            view = EventHistoryView(self.bot, guild_id, user_id, events)
+            await view.build()
+            await interaction.followup.send(view=view, ephemeral=True)
+            
+        except Exception as ex:
+            log.error(f"Event history error: {ex}")
+            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+
     async def _handle_status_change(self, interaction, event_id, status, notify_type, occurrence, new_time=None):
         if not await is_admin(interaction):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
@@ -368,6 +677,76 @@ class AdminCommands(commands.GroupCog, name="admin"):
     """Cog for server administrators to manage server settings."""
     def __init__(self, bot):
         self.bot = bot
+
+    check_group = app_commands.Group(name="check", description="Audit checks for administrators")
+
+    @check_group.command(name="no-show", description="Check member reliability scores (no-shows)")
+    @app_commands.describe(
+        event_id="Check the reliability of all participants in a specific event",
+        all_time="Show a global leaderboard of all users with no-shows in this guild"
+    )
+    async def admin_check_noshow(self, interaction: discord.Interaction, event_id: str = None, all_time: bool = False):
+        await interaction.response.defer(ephemeral=True)
+        guild_id = interaction.guild_id
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(guild_id)
+        
+        if not await is_admin(interaction):
+            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+            
+        if not event_id and not all_time:
+            return await interaction.followup.send("💡 Please provide an `event_id` to audit a specific group, or set `all_time=True` for a guild-wide check.", ephemeral=True)
+
+        if event_id:
+            # Mode A: Focus on specific event's participants
+            stats = await database.get_event_reliability_audit(event_id, guild_id)
+            title = f"### 📋 Event Reliability Audit: `{event_id}`"
+            show_all = True  # Show everyone in the raid, even with 0 no-shows
+        else:
+            # Mode B: Global leaderboard
+            stats = await database.get_guild_reliability_stats(guild_id, all_time=True)
+            title = "### 📋 Global Reliability Leaderboard (No-shows)"
+            show_all = False # Only show those with ns > 0 for global view
+
+        if not stats:
+            return await interaction.followup.send("✅ No reliability data found for the selection.", ephemeral=True)
+            
+        lines = []
+        for s in stats:
+            uid = s["user_id"]
+            ns = int(s["noshow_count"] or 0)
+            tot = int(s["total_past_rsvps"] or 0)
+            
+            if not show_all and ns == 0:
+                continue
+                
+            ratio = ns / tot if tot > 0 else 0
+            
+            # Resolve name
+            member = interaction.guild.get_member(int(uid))
+            name = member.display_name if member else f"User {uid}"
+            
+            lines.append(f"• **{name}** ({ns}/{tot}) - `{ratio:.3f}`")
+            
+        if not lines:
+            return await interaction.followup.send("✅ All participants have perfect attendance!", ephemeral=True)
+
+        full_text = "\n".join(lines)
+        if len(full_text) > 1900:
+            full_text = full_text[:1900] + "\n*(and more...)*"
+            
+        await interaction.followup.send(f"{title}\n{full_text}", ephemeral=True)
+
+    @admin_check_noshow.autocomplete("event_id")
+    async def check_noshow_autocomplete(self, interaction: discord.Interaction, current: str):
+        # List active events (usable cards)
+        events = await database.get_all_active_events(interaction.guild_id)
+        choices = []
+        for e in events:
+            label = f"{e['title']} ({e['event_id']})"
+            if current.lower() in label.lower():
+                choices.append(app_commands.Choice(name=label[:100], value=e['event_id']))
+        return choices[:25]
 
     @app_commands.command(name="setup", description="Configure server-wide default values and admin settings")
     async def admin_setup(self, interaction: discord.Interaction):

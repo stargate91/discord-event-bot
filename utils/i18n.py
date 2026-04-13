@@ -2,14 +2,11 @@ import json
 import os
 import database
 
+from utils.config import config
+
 # Default fallback language from config
-DEFAULT_LANG = "en"
-try:
-    from utils.jsonc import load_jsonc
-    config_data = load_jsonc('config.json')
-    DEFAULT_LANG = config_data.get("language", "en")
-except Exception:
-    pass
+DEFAULT_LANG = config.language
+
 
 # Load all available language files
 ALL_MESSAGES = {} # {"hu": {...}, "en": {...}}

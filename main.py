@@ -14,21 +14,17 @@ from cogs.event_ui import DynamicEventView, load_custom_sets
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 
+from utils.config import config
+
 class EventBot(commands.Bot):
     def __init__(self):
         intents = discord.Intents.default()
         intents.message_content = True
         
-        try:
-            from utils.jsonc import load_jsonc
-            config_data = load_jsonc('config.json')
-            prefix = config_data.get("command_prefix", "!")
-            self.config = config_data
-        except Exception:
-            prefix = "!"
-            self.config = {}
-            
-        super().__init__(command_prefix=prefix, intents=intents)
+        super().__init__(command_prefix=config.command_prefix, intents=intents)
+        # Keep a reference to the config object for convenience
+        self.config_obj = config
+
 
     async def setup_hook(self):
         dsn = os.getenv("DATABASE_URL")
@@ -43,10 +39,11 @@ class EventBot(commands.Bot):
             await database.init_db()
             log.info("Successfully connected to PostgreSQL.")
 
-            guild_id = self.config.get("guild_id")
-            if guild_id:
+            master_ids = config.master_guild_ids
+            if master_ids:
                 from utils.i18n import load_guild_translations
-                await load_guild_translations(guild_id)
+                for gid in master_ids:
+                    await load_guild_translations(gid)
 
             global_sets = await database.get_all_global_emoji_sets()
             if not global_sets:
@@ -67,12 +64,11 @@ class EventBot(commands.Bot):
         
         # Apply global logging level from config
         from utils.logger import set_log_level
-        globals_cfg = self.config.get("globals", {})
-        if "logging_level" in globals_cfg:
-            set_log_level(globals_cfg["logging_level"])
+        log_level = config.get("globals", {}).get("logging_level", "INFO")
+        set_log_level(log_level)
 
         # Master Guild configuration
-        self.master_guild_id = self.config.get("guild_id")
+        self.master_guild_ids = config.master_guild_ids
 
         try:
             # Load standard (Global) extensions
@@ -80,7 +76,8 @@ class EventBot(commands.Bot):
                 "cogs.event_commands",
                 "cogs.scheduler_task",
                 "cogs.server_setup",
-                "cogs.emoji_wizard"
+                "cogs.emoji_wizard",
+                "cogs.attendance"
             ]
             
             # Load Master (Restricted) extensions
@@ -105,16 +102,17 @@ class EventBot(commands.Bot):
                     log.error(f"Failed to load master extension {ext}: {e}", exc_info=True)
 
             # 3. Handle Special Synchronization Logic
-            if self.master_guild_id:
-                master_guild = discord.Object(id=self.master_guild_id)
-                # We specifically find the 'master' command group and bind it to our master guild
-                # This ensures it's NOT in the global tree and only shows up in the master guild
+            if self.master_guild_ids:
+                # We specifically find the 'master' command group and bind it to our master guilds
+                # This ensures it's NOT in the global tree and only shows up in the master guilds
                 master_cog = self.get_cog("MasterCommands")
                 if master_cog:
                     # In discord.py 2.x, GroupCog automatically registers to global tree
                     # We move it to the guild tree for isolation
-                    self.tree.add_command(master_cog, guild=master_guild)
-                    log.info(f"Master Hub isolated to guild {self.master_guild_id}")
+                    for gid in self.master_guild_ids:
+                        master_guild = discord.Object(id=gid)
+                        self.tree.add_command(master_cog, guild=master_guild)
+                    log.info(f"Master Hub isolated to guilds: {self.master_guild_ids}")
 
             # Load custom emoji sets into cache before persistent views
             await load_custom_sets()
@@ -172,9 +170,9 @@ class EventBot(commands.Bot):
                     )
 
                 if not isinstance(parsed, dict):
-                    cfg_list = self.config.get("dynamic_status", [])
+                    cfg_list = config.get("dynamic_status", [])
                     if cfg_list:
-                        config["statuses"] = [
+                        config_data["statuses"] = [
                             {"id": str(uuid.uuid4()), "type": "watching", "text": text}
                             for text in cfg_list
                         ]

@@ -65,12 +65,12 @@ async def is_admin(ctx_or_int):
     # 4. Fallback to config.json for initial setup (if no roles/channels configured in DB)
     if not admin_roles_str:
         try:
-            from utils.jsonc import load_jsonc
-            config = load_jsonc('config.json')
-            config_role = str(config.get("admin_role_id"))
+            from utils.config import config
+            config_role = str(config.get("admin_role_id", ""))
             if config_role and any(str(r.id) == config_role for r in user.roles):
                  return True
         except Exception as e:
-            log.debug("is_admin config.json fallback: %s", e)
+            log.debug("is_admin config fallback: %s", e)
+
 
     return False

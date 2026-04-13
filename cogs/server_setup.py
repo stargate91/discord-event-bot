@@ -188,6 +188,44 @@ class GeneralSetupView(ui.LayoutView):
         # No ephemeral popup here for smoother transition
         await self.refresh_message(interaction)
 
+class MultiReminderOffsetModal(ui.Modal):
+    def __init__(self, guild_id, current_val, parent_view):
+        super().__init__(title=t("BTN_REMINDER_OFFSET", guild_id=guild_id)[:45])
+        self.guild_id = guild_id
+        self.parent_view = parent_view
+        self.inp = ui.TextInput(
+            label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id),
+            default=current_val or "15m",
+            style=discord.TextStyle.paragraph,
+            max_length=400,
+            required=False,
+        )
+        self.add_item(self.inp)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        raw_val = str(self.inp.value).strip()
+        if not raw_val:
+            # Set to default 15m or empty
+            await database.save_guild_setting(self.guild_id, "default_reminder_offset", "")
+            return await self.parent_view.refresh_message(interaction)
+
+        lines = [x.strip() for x in raw_val.splitlines() if x.strip()]
+        
+        # Validation
+        import re
+        valid_pattern = re.compile(r"^(\d+)([mhd])(?:,([^,]*))?(?:,(.*))?$", re.IGNORECASE)
+        for line in lines:
+            if not valid_pattern.match(line):
+                return await interaction.response.send_message(
+                    t("ERR_INVALID_OFFSET_FORMAT", guild_id=self.guild_id),
+                    ephemeral=True
+                )
+        
+        # Save as newline-separated string (database compatible)
+        final_val = "\n".join(lines[:5])
+        await database.save_guild_setting(self.guild_id, "default_reminder_offset", final_val)
+        await self.parent_view.refresh_message(interaction)
+
 class ReminderSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
         super().__init__(timeout=300)
@@ -202,7 +240,6 @@ class ReminderSetupView(ui.LayoutView):
 
         async def set_rem(it, rtype):
             await database.save_guild_setting(self.guild_id, "reminder_type", rtype)
-            # No ephemeral popup here for smoother transition
             await self.refresh_message(it)
 
         rem_none = ui.Button(
@@ -239,8 +276,7 @@ class ReminderSetupView(ui.LayoutView):
         offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def offset_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
-            modal = SimpleConfigModal(self.guild_id, "default_reminder_offset", t("SETTING_REMINDER_OFFSET", guild_id=self.guild_id), 
-                                     placeholder=t("PH_REMINDER_OFFSET", guild_id=self.guild_id), default_val=curr, parent_view=self)
+            modal = MultiReminderOffsetModal(self.guild_id, curr, self)
             await it.response.send_modal(modal)
         offset_btn.callback = offset_cb
 
@@ -356,11 +392,41 @@ class EventDefaultsView(ui.LayoutView):
             await self.refresh_message(it)
         temp_role_btn.callback = temp_cb
 
+        # Auto-Archive Duration
+        archive_val = await database.get_guild_setting(self.guild_id, "auto_archive_hours", default="12")
+        archive_btn = ui.Button(label=f"⏱️ {t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", style=discord.ButtonStyle.gray)
+        async def archive_cb(it):
+            modal = SimpleConfigModal(
+                self.guild_id,
+                "auto_archive_hours",
+                t("LBL_SET_ARCHIVE_TIME", guild_id=self.guild_id),
+                placeholder="12",
+                default_val=archive_val,
+                parent_view=self,
+            )
+            await it.response.send_modal(modal)
+        archive_btn.callback = archive_cb
+
+        # Promotion Notify Selection (Waiting List Automation)
+        cur_promo = await database.get_guild_setting(self.guild_id, "default_notify_promotion", default="none")
+        promo_opts = [
+            discord.SelectOption(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo=="none")),
+            discord.SelectOption(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo=="channel")),
+            discord.SelectOption(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo=="dm")),
+            discord.SelectOption(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo=="both")),
+        ]
+        promo_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_opts)
+        async def promo_cb(it):
+            await database.save_guild_setting(self.guild_id, "default_notify_promotion", promo_sel.values[0])
+            await self.refresh_message(it)
+        promo_sel.callback = promo_cb
+
         container = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
-            ui.ActionRow(trig_sel),
+            ui.ActionRow(archive_btn, trig_sel),
+            ui.ActionRow(promo_sel),
             ui.ActionRow(back_btn),
             accent_color=0x00bfff
         )
