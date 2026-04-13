@@ -145,7 +145,7 @@
   "MSG_CHANNEL_NOT_FOUND": "{WARNING} Nem található csatorna: `{name}`. Marad a jelenlegi.",
   "MSG_ADVANCED_SAVED": "{SUCCESS} Haladó beállítások elmentve!",
   "HELP_EMOJI_TITLE": "{TOOLS} Emoji Szett Segédlet",
-  "HELP_EMOJI_DESC": "**Formátum:** `Emoji | Gomb Szövege | Lista Fejléce | Limit | Flags` \n\n**Mezők magyarázata:**\n• **Gomb**: Ez a szöveg kerül magára a gombra.\n• **Lista**: Ez a fejléc sor jelenik meg a nevek felett.\n• **Limit**: Maximális helyek száma (0 = korlátlan).\n\n**Használható Flag-ek:**\n`S` - **Show**: Megjelenjen a listában? (Ha kiveszed, a kategória rejtett marad)\n`P` - **Positive**: Számítson bele a résztvevői össszlétszámba?\n\n**Stílusok (válassz egyet):**\n`B` - Button: Emoji + Szöveg\n`E` - Button: Csak emoji\n`T` - Button: Csak szöveg\n\n**Színek (válassz egyet):**\n`G` - Zöld (Success)\n`R` - Piros (Danger)\n`B` - Kék (Primary)\n`Y` - Szürke (Secondary)",
+  "HELP_EMOJI_DESC": "**Formátum:** `Emoji | Gomb Szövege | Lista Fejléce | Limit | Flags` \n\n**Mezők magyarázata:**\n• **Gomb**: Ez a szöveg kerül magára a gombra.\n• **Lista**: Ez a fejléc sor jelenik meg a nevek felett.\n• **Limit**: Maximális helyek száma (0 = korlátlan).\n\n**Használható Flag-ek:**\n`S` - **Show**: Megjelenjenek a résztvevők a listában? (Ha kiveszed, a jelentkezők névsora rejtve marad az embedben)\n`P` - **Positive**: Számítson bele a résztvevői össszlétszámba?\n\n**Stílusok (válassz egyet):**\n`B` - Button: Emoji + Szöveg\n`E` - Button: Csak emoji\n`T` - Button: Csak szöveg\n\n**Színek (válassz egyet):**\n`G` - Zöld (Success)\n`R` - Piros (Danger)\n`B` - Kék (Primary)\n`Y` - Szürke (Secondary)",
   "TEMP_STANDARD": "Alapértelmezett",
   "TEMP_MMO": "MMO / Raid",
   "TEMP_SURVEY": "Szavazás",

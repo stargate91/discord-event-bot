@@ -145,7 +145,7 @@
   "MSG_CHANNEL_NOT_FOUND": "{WARNING} Could not find channel with name: `{name}`. Falling back to current channel.",
   "MSG_ADVANCED_SAVED": "{SUCCESS} Advanced settings saved!",
   "HELP_EMOJI_TITLE": "{TOOLS} Icon Set Guide",
-  "HELP_EMOJI_DESC": "**Format:** `Emoji | Button Text | List Header | Limit | Flags` \n\n**Field Explanation:**\n• **Button**: This appears on the physical button.\n• **List**: This header appears above the names in the list.\n• **Limit**: Max slots for this position (0 = infinite).\n\n**Available Flags:**\n`S` - **Show**: Show in the list? (Remove to hide category)\n`P` - **Positive**: Count towards the total participant number?\n\n**Styles (pick one):**\n`B` - Button: Emoji + Text\n`E` - Button: Emoji only\n`T` - Button: Text only\n\n**Colors (pick one):**\n`G` - Green (Success)\n`R` - Red (Danger)\n`B` - Blue (Primary)\n`Y` - Gray (Secondary)",
+  "HELP_EMOJI_DESC": "**Format:** `Emoji | Button Text | List Header | Limit | Flags` \n\n**Field Explanation:**\n• **Button**: This appears on the physical button.\n• **List**: This header appears above the names in the list.\n• **Limit**: Max slots for this position (0 = infinite).\n\n**Available Flags:**\n`S` - **Show**: Show participant names in the list? (If removed, the list of names for this role remains hidden)\n`P` - **Positive**: Count towards the total participant number?\n\n**Styles (pick one):**\n`B` - Button: Emoji + Text\n`E` - Button: Emoji only\n`T` - Button: Text only\n\n**Colors (pick one):**\n`G` - Green (Success)\n`R` - Red (Danger)\n`B` - Blue (Primary)\n`Y` - Gray (Secondary)",
   "TEMP_STANDARD": "Standard",
   "TEMP_MMO": "MMO / Raid",
   "TEMP_SURVEY": "Survey",

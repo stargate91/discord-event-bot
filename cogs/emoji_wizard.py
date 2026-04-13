@@ -23,17 +23,9 @@ class EmojiHelpView(ui.LayoutView):
         self.clear_items()
         
         async def close_callback(interaction: discord.Interaction):
-            """Removes the help guide guide with explicit error safety."""
+            """Removes the help guide completely by deleting the ephemeral response."""
             try:
-                # V2 architecture forbids 'content' field when using V2 components.
-                # We update the view with a status container instead.
-                self.clear_items()
-                status_container = ui.Container(
-                    ui.TextDisplay(t("MSG_HELP_CLOSED", guild_id=self.guild_id)),
-                    accent_color=0x34495e  # Subtle grey for closed state
-                )
-                self.add_item(status_container)
-                await interaction.response.edit_message(view=self)
+                await interaction.delete_original_response()
             except Exception as e:
                 log.error(f"[EmojiWizard] Error in EmojiHelpView close_callback: {e}", exc_info=True)
 
