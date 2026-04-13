@@ -328,7 +328,7 @@ class SchedulerTask(commands.Cog):
             if int(db_event.get("reminder_sent") or 0) == 1:
                 return
             rows = [
-                {"slot_idx": 0, "offset_str": db_event.get("reminder_offset", "15m"), "sent": 0}
+                {"slot_idx": 0, "offset_str": db_event.get("reminder_offset", ""), "sent": 0}
             ]
             legacy_only = True
 

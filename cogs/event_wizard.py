@@ -328,7 +328,7 @@ class Step3Modal(ui.Modal):
         if isinstance(ro, list) and ro:
             def_offset = "\n".join(ro[:database.MAX_EVENT_REMINDERS])
         else:
-            def_offset = str(data.get("reminder_offset", "15m"))
+            def_offset = str(data.get("reminder_offset", ""))
         self.rem_offset = ui.TextInput(
             label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id),
             placeholder=t("PH_REMINDER_OFFSETS", guild_id=guild_id),
@@ -355,7 +355,7 @@ class Step3Modal(ui.Modal):
             if x.strip()
         ][: database.MAX_EVENT_REMINDERS]
         self.wizard_view.data["reminder_offsets"] = lines
-        self.wizard_view.data["reminder_offset"] = lines[0] if lines else "15m"
+        self.wizard_view.data["reminder_offset"] = lines[0] if lines else ""
         
         limit_val = str(self.rec_limit.value).strip()
         if limit_val.isdigit():
@@ -543,8 +543,8 @@ class ReminderMessagesModal(ui.Modal):
         offsets = data.get("reminder_offsets") or []
         msgs = data.get("reminder_messages") or []
         
-        # Ensure we have at least 1 offset, default to 15m if none
-        display_offsets = offsets if offsets else ["15m"]
+        # Ensure we don't display default if empty
+        display_offsets = offsets if offsets else []
         
         self.inputs = []
         for i in range(len(display_offsets)):
@@ -779,7 +779,7 @@ class EventWizardView(ui.LayoutView):
                     if isinstance(ro, list) and ro:
                         dflt = "\n".join(ro[: database.MAX_EVENT_REMINDERS])
                     else:
-                        dflt = str(self.v.data.get("reminder_offset", "15m"))
+                        dflt = str(self.v.data.get("reminder_offset", ""))
                     self.inp = ui.TextInput(
                         label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=v.guild_id),
                         placeholder="15m, 1h,dm,all, 30m,ping,Tank",
@@ -795,7 +795,7 @@ class EventWizardView(ui.LayoutView):
                         # Empty modal = Disable reminders
                         self.v.data["reminder_offsets"] = []
                         self.v.data["reminder_type"] = "none"
-                        self.v.data["reminder_offset"] = "15m" 
+                        self.v.data["reminder_offset"] = "" 
                         await self.v.save_to_draft()
                         return await self.v.refresh_message(i)
 
@@ -811,7 +811,7 @@ class EventWizardView(ui.LayoutView):
                             )
                     
                     self.v.data["reminder_offsets"] = lines[: database.MAX_EVENT_REMINDERS]
-                    self.v.data["reminder_offset"] = lines[0] if lines else "15m"
+                    self.v.data["reminder_offset"] = lines[0] if lines else ""
                     await self.v.save_to_draft()
                     await self.v.refresh_message(i)
             await it.response.send_modal(ReminderOffsetModal(view))
@@ -1091,7 +1091,7 @@ class EventWizardView(ui.LayoutView):
         if "repost_trigger" not in self.data:
             self.data["repost_trigger"] = await database.get_guild_setting(self.guild_id, "default_repost_trigger", default="after_end")
         if "reminder_offset" not in self.data:
-            self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+            self.data["reminder_offset"] = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="")
         if "reminder_type" not in self.data:
             self.data["reminder_type"] = await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
         if "reminder_offsets" not in self.data:
@@ -1103,14 +1103,14 @@ class EventWizardView(ui.LayoutView):
                     self.data["reminder_messages"] = [r["custom_message"] for r in rem_rows]
                 else:
                     def_ro = self.data.get("reminder_offset") or await database.get_guild_setting(
-                        self.guild_id, "default_reminder_offset", default="15m"
+                        self.guild_id, "default_reminder_offset", default=""
                     )
                     ro_list = [x.strip() for x in def_ro.splitlines() if x.strip()]
                     rt = self.data.get("reminder_type") or await database.get_guild_setting(self.guild_id, "reminder_type", default="none")
                     self.data["reminder_offsets"] = ro_list if rt != "none" else []
                     self.data["reminder_messages"] = []
             else:
-                    def_ro = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="15m")
+                    def_ro = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="")
                     ro_list = [x.strip() for x in def_ro.splitlines() if x.strip()]
                     rt = self.data.get("reminder_type") or await database.get_guild_setting(
                         self.guild_id, "reminder_type", default="none"

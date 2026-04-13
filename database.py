@@ -30,7 +30,7 @@ def normalize_reminders_for_store(data):
         
     raw_offsets = data.get("reminder_offsets") or []
     if not isinstance(raw_offsets, list):
-        one = str(data.get("reminder_offset") or "15m").strip()
+        one = str(data.get("reminder_offset") or "").strip()
         raw_offsets = [one] if one else []
         
     raw_msgs = data.get("reminder_messages") or []
@@ -326,7 +326,7 @@ async def replace_event_reminders(event_id, reminders):
     async with pool.acquire() as conn:
         await conn.execute("DELETE FROM event_reminders WHERE event_id = $1", event_id)
         for idx, r in enumerate(rems):
-            off = r.get("offset_str", "15m")
+            off = r.get("offset_str", "")
             method = r.get("method", "ping")
             target = r.get("target", "coming")
             msg = r.get("custom_message")
@@ -425,7 +425,7 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     
     reminder_type = data.get("reminder_type", "none")
     rems = normalize_reminders_for_store(data)
-    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", "15m"))
+    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", ""))
     reminder_sent = int(data.get("reminder_sent") or 0)
     reminder_message = normalize_reminder_message_for_store(data)
 
@@ -518,7 +518,7 @@ async def update_active_event(event_id, data):
     
     reminder_type = data.get("reminder_type", "none")
     rems = normalize_reminders_for_store(data)
-    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", "15m"))
+    reminder_offset = rems[0]["offset_str"] if rems else str(data.get("reminder_offset", ""))
     reminder_sent = int(data.get("reminder_sent") or 0)
 
     recurrence_limit = int(data.get("recurrence_limit") or 0)
