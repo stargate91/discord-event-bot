@@ -15,7 +15,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
-from utils.emoji_utils import parse_emoji_config, to_emoji
+from utils.emoji_utils import parse_emoji_config, to_emoji, resolve_placeholders
 
 async def resolve_channel(guild, channel_query):
     """Tries to resolve a channel by ID or Name. Returns channel_id or None."""
@@ -1191,7 +1191,8 @@ class EventWizardView(ui.LayoutView):
         for k, v in ICON_SET_TEMPLATES.items():
             opts, _ = parse_emoji_config(v["text"])
             preview_emojis = [o["emoji"] for o in opts[:3]]
-            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            preview_raw = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            preview_str = resolve_placeholders(preview_raw)
             label = t(v["label_key"], guild_id=self.guild_id) + preview_str
             
             self.icon_set_options.append(discord.SelectOption(
@@ -1209,7 +1210,8 @@ class EventWizardView(ui.LayoutView):
             sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
             opts = sdata.get("options", [])
             preview_emojis = [o.get("emoji") or "?" for o in opts[:3]]
-            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            preview_raw = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
+            preview_str = resolve_placeholders(preview_raw)
             label = (s["name"][:30] + preview_str)[:100]
             
             self.icon_set_options.append(discord.SelectOption(
