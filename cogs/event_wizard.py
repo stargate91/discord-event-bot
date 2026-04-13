@@ -494,8 +494,8 @@ class RsvpRolesModal(ui.Modal):
         gid = wizard_view.guild_id
         cur = database.normalize_rsvp_allowed_role_ids_value(wizard_view.data.get("rsvp_allowed_role_ids"))
         self.roles_input = ui.TextInput(
-            label=t("LBL_RSVP_ALLOWED_ROLES", guild_id=gid),
-            placeholder=t("PH_RSVP_ALLOWED_ROLES", guild_id=gid),
+            label=t("LBL_RSVP_ALLOWED_ROLES", guild_id=gid)[:45],
+            placeholder=t("PH_RSVP_ALLOWED_ROLES", guild_id=gid)[:45],
             default=cur,
             style=discord.TextStyle.paragraph,
             max_length=400,
