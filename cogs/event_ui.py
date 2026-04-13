@@ -147,6 +147,59 @@ async def send_lobby_fill_notifications(bot, db_event, active_set: dict, guild_i
             except Exception as e:
                 log.debug("[Lobby fill] DM %s: %s", uid, e)
 
+import time
+
+async def send_status_notification(bot, event_id, db_event, status_name, guild_id):
+    """Sends a ping broadcast in the channel and DMs participants about status changes."""
+    rsvps = await database.get_rsvps(event_id)
+    participants = set()
+    for uid, s in rsvps:
+        if not s.startswith("wait_") and s not in ("declined", "not_coming"):
+            participants.add(uid)
+
+    channel_id = db_event.get("channel_id")
+    if not channel_id: return
+
+    channel = bot.get_channel(int(channel_id))
+    if not channel:
+        try:
+            channel = await bot.fetch_channel(int(channel_id))
+        except Exception:
+            return
+
+    ping_role = db_event.get("ping_role")
+    ping_prefix = ""
+    if ping_role and str(ping_role).isdigit() and int(ping_role) > 0:
+        ping_prefix = f"{PING} <@&{ping_role}> "
+
+    title = db_event.get("title", "Event")
+    if status_name == "cancelled":
+        msg_body = t("MSG_EVENT_CANCELLED", guild_id=guild_id, title=title)
+    elif status_name == "postponed":
+        msg_body = t("MSG_EVENT_POSTPONED", guild_id=guild_id, title=title)
+    elif status_name == "deleted":
+        msg_body = f"Az esemény ({title}) törölve lett."
+    else:
+        msg_body = f"Esemény: ({title}) státusza megváltozott: {status_name}"
+
+    if msg_body:
+        content = f"{ping_prefix}{msg_body}"
+
+    rem_type = db_event.get("reminder_type", "both").lower()
+    notify_type = rem_type if rem_type in ["dm", "chat", "both", "none"] else "both"
+
+    if notify_type in ["chat", "both"]:
+        await channel.send(content=content)
+
+    if notify_type in ["dm", "both"]:
+        notification_msg = f"{PING} {msg_body}"
+        for uid in participants:
+            try:
+                user = bot.get_user(uid) or await bot.fetch_user(uid)
+                if user:
+                    await user.send(notification_msg)
+            except Exception:
+                log.debug(f"Failed to DM {uid} for {status_name}")
 
 async def process_lobby_transition(bot, event_id: str, active_set: dict, guild_id_int: int):
     from utils.lobby_utils import (
@@ -770,6 +823,9 @@ class DynamicEventView(discord.ui.LayoutView):
                         for item in row.children:
                             if isinstance(item, discord.ui.Button): item.disabled = True
         await interaction.message.edit(view=self)
+        db_ev = await database.get_active_event(self.event_id)
+        if db_ev:
+            await send_status_notification(self.bot, self.event_id, db_ev, "cancelled", interaction.guild_id)
         log.info(f"Event {self.event_id} cancelled by {interaction.user}")
 
     async def delete_callback(self, interaction: discord.Interaction):
@@ -1046,6 +1102,9 @@ class PostponeModal(discord.ui.Modal):
                                     
             if interaction.message:
                 await interaction.message.edit(view=self.parent_view)
+            
+            await send_status_notification(self.bot, self.event_id, db_event, "postponed", interaction.guild_id)
+            
             return await interaction.followup.send(
                 t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status="postponed"),
                 ephemeral=True,
@@ -1113,6 +1172,20 @@ class PostponeModal(discord.ui.Modal):
             view=new_view,
         )
         await database.set_event_message(self.event_id, new_msg.id)
+        
+        # DM participants dynamically
+        rsvps = await database.get_rsvps(self.event_id)
+        notification_msg = f"{PING} {t('MSG_RESCHEDULED_BROADCAST', guild_id=interaction.guild_id)}"
+        
+        rem_type = db_event.get("reminder_type", "both").lower()
+        if rem_type in ["dm", "both"]:
+            for uid, s in rsvps:
+                if not s.startswith("wait_") and s not in ("declined", "not_coming"):
+                    try:
+                        user = self.bot.get_user(uid) or await self.bot.fetch_user(uid)
+                        if user: await user.send(notification_msg)
+                    except Exception:
+                        pass
         
         await interaction.followup.send(
             t("MSG_RESCHEDULE_DONE", guild_id=interaction.guild_id),
