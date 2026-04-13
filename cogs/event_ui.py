@@ -1,6 +1,6 @@
 import discord
 from utils.emojis import WARNING, PING, SYNC
-from utils.emoji_utils import to_emoji
+from utils.emoji_utils import to_emoji, resolve_placeholders
 from discord.ext import commands
 import database
 from utils.i18n import t
@@ -391,7 +391,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
             name_parts = []
             if opt.get("emoji"):
-                name_parts.append(opt["emoji"])
+                name_parts.append(resolve_placeholders(opt["emoji"]))
             if label_text:
                 name_parts.append(label_text)
 
@@ -405,7 +405,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
             wait_tag = f"wait_{role_id}"
             if wait_tag in status_map:
-                emoji = opt.get("emoji", "")
+                emoji = resolve_placeholders(opt.get("emoji", ""))
                 for u in status_map[wait_tag]:
                     if limit and emoji:
                         waiting_list.append(f"{u} {emoji}")
