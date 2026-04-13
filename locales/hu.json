@@ -93,7 +93,7 @@
   "LBL_REMINDER_MSG": "Emlékeztető szövege",
   "LBL_REMINDER_TITLE": "🔔 Emlékeztető",
   "LBL_REMINDER_TYPE": "Emlékeztető típusa",
-  "LBL_REMINDER_OFFSETS_PARAGRAPH": "Időzítések (soronként: időhossz,mód,cél). Pl: 15m,dm,Tank",
+  "LBL_REMINDER_OFFSETS_PARAGRAPH": "Időzítések (idő,mód,cél) pl: 15m,dm,Tank",
   "LBL_REMINDER_LIST_PREVIEW": "Aktuális időzítések: {offsets}",
   "LBL_RSVP_ALLOWED_ROLES": "Jelentkezéshez engedélyezett rang ID-k (vesszővel, VAGY — üresen mindenki)",
   "LBL_SERIES_AUTOCOMPLETE": "{PACKAGE} [SOROZAT] {title} ({count} aktív)",

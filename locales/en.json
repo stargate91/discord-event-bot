@@ -93,7 +93,7 @@
   "LBL_REMINDER_MSG": "Reminder Message (Variable: {title})",
   "LBL_REMINDER_TITLE": "{BELL} Reminder",
   "LBL_REMINDER_TYPE": "Reminder type",
-  "LBL_REMINDER_OFFSETS_PARAGRAPH": "Offsets (one per line: time,method,target). e.g. 15m,dm,all",
+  "LBL_REMINDER_OFFSETS_PARAGRAPH": "Offsets (time,method,target) e.g. 15m,dm",
   "LBL_REMINDER_LIST_PREVIEW": "Current offsets: {offsets}",
   "LBL_RSVP_ALLOWED_ROLES": "Role IDs allowed to RSVP (comma-separated, OR — leave empty for everyone)",
   "LBL_SERIES_AUTOCOMPLETE": "{PACKAGE} [SERIES] {title} ({count} active)",
