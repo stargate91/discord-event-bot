@@ -71,7 +71,7 @@ class EmojiWizardView(ui.LayoutView):
             s_data = s["data"]
             sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
             opts = sdata.get("options", [])
-            preview_emojis = [o.get("emoji") or "?" for o in opts[:3]]
+            preview_emojis = [to_emoji(o.get("emoji")) or "?" for o in opts[:3]]
             preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
             label = (s["name"][:50] + preview_str)[:100]
             
@@ -203,7 +203,7 @@ class TemplateChoiceView(ui.LayoutView):
             preview_emojis = [o["emoji"] for o in opts[:3]]
             preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
             label = t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str
-            options.append(discord.SelectOption(label=label[:100], value=k, emoji=v["emoji"] or None))
+            options.append(discord.SelectOption(label=label[:100], value=k, emoji=to_emoji(v["emoji"]) or None))
         
         options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))
         
