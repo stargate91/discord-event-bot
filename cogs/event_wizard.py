@@ -1047,6 +1047,7 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
+                container_items.append(ui.ActionRow(promo_type_sel))
                 container_items.append(ui.Separator())
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
