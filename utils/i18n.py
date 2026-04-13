@@ -3,6 +3,10 @@ import os
 import database
 
 from utils.config import config
+from utils.emojis import get_all_emojis
+
+# Cache emojis globally to avoid redundant function calls
+GLOBAL_EMOJIS = get_all_emojis()
 
 # Default fallback language from config
 DEFAULT_LANG = config.language
@@ -75,11 +79,15 @@ def t(translation_key: str, guild_id=None, use_template_lang=False, **kwargs):
     if text is None:
         text = translation_key
     
-    if kwargs:
-        try:
-            return text.format(**kwargs)
-        except Exception:
-            return text
+    # Merge global emojis with provided kwargs
+    # Emojis are used for placeholders like {SUCCESS}, {ERROR}, etc.
+    formatting_args = {**GLOBAL_EMOJIS, **kwargs}
+    
+    try:
+        return text.format(**formatting_args)
+    except Exception:
+        # If formatting fails (e.g. unexpected braces), return raw text
+        return text
     return text
 
 # Essential Templates for the Notification Wizard
