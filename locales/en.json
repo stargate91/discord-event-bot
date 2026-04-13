@@ -141,6 +141,8 @@
   "MSG_GLOBAL_RESETS_SUCCESS": "{SUCCESS} Successfully reset {val} global emoji sets from templates.",
   "MSG_GLOBAL_RESETS_NONE": "{SUCCESS} No global emoji sets were reset (nothing matched).",
   "LBL_GLOBAL_EMOJI_DESC": "{GLOBE} **Global Emoji Management**\nHere you can modify the bot's central default sets. Any changes will affect all servers!",
+  "LBL_PREVIEW": "Preview",
+  "LBL_VARIABLES": "Available variables",
   "LBL_GLOBAL_TITLE": "Global Emojis",
   "MSG_CHANNEL_NOT_FOUND": "{WARNING} Could not find channel with name: `{name}`. Falling back to current channel.",
   "MSG_ADVANCED_SAVED": "{SUCCESS} Advanced settings saved!",

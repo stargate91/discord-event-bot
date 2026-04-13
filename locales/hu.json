@@ -141,6 +141,8 @@
   "MSG_GLOBAL_RESETS_SUCCESS": "{SUCCESS} Sikeresen visszaállítva {val} globális emoji szett a sablonokból.",
   "MSG_GLOBAL_RESETS_NONE": "{SUCCESS} Nem lett visszaállítva emoji szett (nem volt egyezés).",
   "LBL_GLOBAL_EMOJI_DESC": "{GLOBE} **Globális Emoji Kezelés**\nItt a bot központi alapértelmezett szettjeit módosíthatod. Minden szerverre hatással van!",
+  "LBL_PREVIEW": "Előnézet",
+  "LBL_VARIABLES": "Használható változók",
   "LBL_GLOBAL_TITLE": "Global Emojis",
   "MSG_CHANNEL_NOT_FOUND": "{WARNING} Nem található csatorna: `{name}`. Marad a jelenlegi.",
   "MSG_ADVANCED_SAVED": "{SUCCESS} Haladó beállítások elmentve!",

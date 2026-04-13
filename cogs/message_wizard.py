@@ -28,6 +28,9 @@ class MessageWizardView(ui.LayoutView):
         desc = t("MSG_WIZ_DESC", guild_id=self.guild_id)
         
         if new_view.selected_key:
+            friendly_name = t(f"KEY_{new_view.selected_key}", guild_id=self.guild_id)
+            if friendly_name == f"KEY_{new_view.selected_key}": friendly_name = new_view.selected_key
+            
             current_val = t(new_view.selected_key, guild_id=self.guild_id)
             preview = current_val.replace("{user_id}", f"<@{interaction.user.id}>")\
                                  .replace("{title}", "Példa Esemény")\
@@ -35,8 +38,8 @@ class MessageWizardView(ui.LayoutView):
                                  .replace("{emoji}", SHIELD)\
                                  .replace("{status}", "AKTÍV")
             
-            desc += f"\n\n**🔍 Preview ({new_view.selected_key}):**\n> {preview}"
-            desc += "\n\n**💡 Használható változók:**\n`{title}`, `{user_id}`, `{role}`, `{emoji}`, `{status}`"
+            desc += f"\n\n**🔍 {t('LBL_PREVIEW', guild_id=self.guild_id)} ({friendly_name}):**\n> {preview}"
+            desc += f"\n\n**💡 {t('LBL_VARIABLES', guild_id=self.guild_id)}:**\n`{{title}}`, `{{user_id}}`, `{{role}}`, `{{emoji}}`, `{{status}}`"
 
         # Key Select Dropdown (in a container)
         keys = CATEGORIES.get(new_view.selected_category, [])
@@ -121,7 +124,7 @@ class MessageEditModal(ui.Modal):
         self.guild_id = guild_id
         
         self.text_input = ui.TextInput(
-            label=f"{t('LBL_CUSTOM_TEXT', guild_id=guild_id)} ({{{{user_id}}}}, {{{{title}}}}...)",
+            label=f"{t('LBL_CUSTOM_TEXT', guild_id=guild_id)} ({t('LBL_VARIABLES', guild_id=guild_id)}: {{{{user_id}}}}, {{{{title}}}}...)",
             default=current_val,
             style=discord.TextStyle.paragraph,
             required=True
