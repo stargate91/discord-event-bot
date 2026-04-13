@@ -88,19 +88,23 @@ class ServerSetupView(ui.LayoutView):
         self.add_item(container)
 
     async def refresh_message(self, interaction: discord.Interaction):
-        """Instantiate and await a properly prepared view for the refresh cycle."""
-        new_view = ServerSetupView(self.bot, self.guild_id)
-        await new_view.prepare(interaction)
-        
+        """Standard interaction refresh: prepare self and update the message."""
         try:
+            await self.prepare(interaction)
+            
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=new_view)
+                await interaction.edit_original_response(view=self)
+            elif interaction.type == discord.InteractionType.component:
+                await interaction.response.edit_message(view=self)
             else:
-                await interaction.response.edit_message(view=new_view)
+                await interaction.response.send_message(view=self, ephemeral=True)
         except Exception as e:
             log.error(f"[ServerSetupView] refresh error: {e}", exc_info=True)
+            msg = f"{ERROR} {e}"
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=new_view, ephemeral=True)
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
 
 class GeneralSetupView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -180,19 +184,23 @@ class GeneralSetupView(ui.LayoutView):
         self.add_item(container)
 
     async def refresh_message(self, interaction: discord.Interaction):
-        """Instantiate and await a properly prepared view for the refresh cycle."""
-        new_view = GeneralSetupView(self.bot, self.guild_id)
-        await new_view.prepare(interaction)
-        
+        """Standard interaction refresh: prepare self and update the message."""
         try:
+            await self.prepare(interaction)
+            
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=new_view)
+                await interaction.edit_original_response(view=self)
+            elif interaction.type == discord.InteractionType.component:
+                await interaction.response.edit_message(view=self)
             else:
-                await interaction.response.edit_message(view=new_view)
+                await interaction.response.send_message(view=self, ephemeral=True)
         except Exception as e:
             log.error(f"[GeneralSetupView] refresh error: {e}", exc_info=True)
+            msg = f"{ERROR} {e}"
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=new_view, ephemeral=True)
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
 
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
@@ -257,27 +265,22 @@ class ReminderSetupView(ui.LayoutView):
 
         rem_none = ui.Button(
             label=t("SEL_REM_NONE", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_rem == "none" else discord.ButtonStyle.secondary
+            style=discord.ButtonStyle.success if cur_type == "none" else discord.ButtonStyle.secondary
         )
-        rem_none.callback = lambda it: set_rem(it, "none")
-
-        rem_ping = ui.Button(
-            label=t("SEL_REM_PING", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_rem == "ping" else discord.ButtonStyle.secondary
-        )
-        rem_ping.callback = lambda it: set_rem(it, "ping")
-
-        rem_dm = ui.Button(
-            label=t("SEL_REM_DM", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_rem == "dm" else discord.ButtonStyle.secondary
-        )
-        rem_dm.callback = lambda it: set_rem(it, "dm")
-
-        rem_both = ui.Button(
-            label=t("SEL_REM_BOTH", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_rem == "both" else discord.ButtonStyle.secondary
-        )
-        rem_both.callback = lambda it: set_rem(it, "both")
+        async def none_cb(it): await set_rem(it, "none")
+        rem_none.callback = none_cb
+        
+        rem_ping = ui.Button(label=t("SEL_REM_PING", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "ping" else discord.ButtonStyle.secondary)
+        async def ping_cb(it): await set_rem(it, "ping")
+        rem_ping.callback = ping_cb
+        
+        rem_dm = ui.Button(label=t("SEL_REM_DM", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "dm" else discord.ButtonStyle.secondary)
+        async def dm_cb(it): await set_rem(it, "dm")
+        rem_dm.callback = dm_cb
+        
+        rem_both = ui.Button(label=t("SEL_REM_BOTH", guild_id=self.guild_id), style=discord.ButtonStyle.success if cur_type == "both" else discord.ButtonStyle.secondary)
+        async def both_cb(it): await set_rem(it, "both")
+        rem_both.callback = both_cb
 
         back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
@@ -304,19 +307,23 @@ class ReminderSetupView(ui.LayoutView):
         self.add_item(container)
 
     async def refresh_message(self, interaction: discord.Interaction):
-        """Instantiate and await a properly prepared view for the refresh cycle."""
-        new_view = ReminderSetupView(self.bot, self.guild_id)
-        await new_view.prepare(interaction)
-        
+        """Standard interaction refresh: prepare self and update the message."""
         try:
+            await self.prepare(interaction)
+            
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=new_view)
+                await interaction.edit_original_response(view=self)
+            elif interaction.type == discord.InteractionType.component:
+                await interaction.response.edit_message(view=self)
             else:
-                await interaction.response.edit_message(view=new_view)
+                await interaction.response.send_message(view=self, ephemeral=True)
         except Exception as e:
             log.error(f"[ReminderSetupView] refresh error: {e}", exc_info=True)
+            msg = f"{ERROR} {e}"
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=new_view, ephemeral=True)
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
 
 class EventDefaultsView(ui.LayoutView):
     def __init__(self, bot, guild_id):
@@ -453,19 +460,23 @@ class EventDefaultsView(ui.LayoutView):
         self.add_item(container)
 
     async def refresh_message(self, interaction: discord.Interaction):
-        """Instantiate and await a properly prepared view for the refresh cycle."""
-        new_view = EventDefaultsView(self.bot, self.guild_id)
-        await new_view.prepare(interaction)
-        
+        """Standard interaction refresh: prepare self and update the message."""
         try:
+            await self.prepare(interaction)
+            
             if interaction.response.is_done():
-                await interaction.edit_original_response(view=new_view)
+                await interaction.edit_original_response(view=self)
+            elif interaction.type == discord.InteractionType.component:
+                await interaction.response.edit_message(view=self)
             else:
-                await interaction.response.edit_message(view=new_view)
+                await interaction.response.send_message(view=self, ephemeral=True)
         except Exception as e:
             log.error(f"[EventDefaultsView] refresh error: {e}", exc_info=True)
+            msg = f"{ERROR} {e}"
             if not interaction.response.is_done():
-                await interaction.response.send_message(view=new_view, ephemeral=True)
+                await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                await interaction.followup.send(msg, ephemeral=True)
 
 class SimpleConfigModal(ui.Modal):
     def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
