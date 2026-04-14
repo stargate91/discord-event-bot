@@ -101,6 +101,7 @@ async def send_lobby_fill_notifications(bot, db_event, active_set: dict, guild_i
 
     title = db_event.get("title") or "Event"
     rem_text = t("MSG_LOBBY_FILL_DESC", guild_id=guild_id_int, title=title)
+    rem_text = resolve_placeholders(rem_text)
     start_ts = int(db_event.get("start_time") or time.time())
     send_ping = rem_type in ("ping", "both")
     send_dm = rem_type in ("dm", "both")
@@ -187,6 +188,7 @@ async def send_status_notification(bot, event_id, db_event, status_name, guild_i
         msg_body = f"Esemény: ({title}) státusza megváltozott: {status_name}"
 
     if msg_body:
+        msg_body = resolve_placeholders(msg_body)
         content = f"{ping_prefix}{msg_body}"
 
     notify_type = await database.get_guild_setting(guild_id, "status_notification_type", default="none")
@@ -960,6 +962,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 # Send waitlist hint
                 try:
                     hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
+                    hint = resolve_placeholders(hint)
                     await interaction.user.send(hint)
                 except Exception as e:
                     log.debug("waitlist hint DM: %s", e)
@@ -977,6 +980,7 @@ class DynamicEventView(discord.ui.LayoutView):
                     # Send waitlist hint (event-level limit)
                     try:
                         hint = t("MSG_WAITLIST_HINT", guild_id=interaction.guild_id, user_id=interaction.user.id, role=(opt.get('label') or status))
+                        hint = resolve_placeholders(hint)
                         await interaction.user.send(hint)
                     except Exception as e:
                         log.debug("waitlist hint DM (event cap): %s", e)
