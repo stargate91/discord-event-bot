@@ -14,6 +14,7 @@ class AttendanceView(ui.LayoutView):
         self.bot = bot
         self.event_id = event_id
         self.participants = participants  # list of dicts {user_id, status, attendance}
+        self.guild_id = guild_id
         self.event_title = title
         self.page = 0
         self.per_page = 2  # Flattened layout: 2 users fit perfectly in 5 rows
