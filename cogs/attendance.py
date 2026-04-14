@@ -63,25 +63,34 @@ class AttendanceView(ui.LayoutView):
             
             async def create_callback(u_id, current_att):
                 async def callback(interaction: discord.Interaction):
-                    # ABSOLUTE FIRST LINE: Defer to prevent timeouts
-                    try: 
-                        await interaction.response.defer()
-                        import asyncio
-                        await asyncio.sleep(0.08) # Safety margin for gateway propagation
-                    except: pass
-                        
                     try:
+                        # 1. Attempt Deferral loud and clear
+                        try:
+                            await interaction.response.defer()
+                        except Exception as de:
+                            log.debug(f"[Attendance Debug] Deferral skipped/failed: {de}")
+
+                        # 2. Update Database
                         new_att = "present" if current_att == "no_show" else "no_show"
                         await database.update_rsvp_attendance(self.event_id, u_id, new_att)
+                        
+                        # 3. Update State
                         for part in self.participants:
                             if part["user_id"] == u_id:
                                 part["attendance"] = new_att
                                 break
+                        
+                        # 4. Final Refresh
                         await self.refresh(interaction)
+                        
                     except Exception as e:
-                        log.error(f"Attendance toggle error: {e}", exc_info=True)
-                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
-                        except: pass
+                        import traceback
+                        tb = traceback.format_exc()
+                        log.error(f"[Attendance] Callback Fatal Error: {e}\n{tb}")
+                        try:
+                            await interaction.followup.send(f"❌ Hiba történt a művelet közben:\n`{str(e)}`", ephemeral=True)
+                        except:
+                            pass
                 return callback
                 
             toggle_btn.callback = create_callback(uid, att)
