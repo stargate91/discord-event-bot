@@ -122,7 +122,7 @@ _OVERRIDES = {
     "REC_BIWEEKLY_TITLE": "🔄",
     "REC_CUSTOM_TITLE": "⚙️",
     "REC_DAILY_TITLE": "📅",
-    "REC_MONTHLY_TITLE": "<:chartbarduotone:1493657119948538089>",
+    "REC_MONTHLY_TITLE": "📊",
     "REC_RELATIVE_TITLE": "📆",
     "REC_WEEKDAYS_TITLE": "🏢",
     "REC_WEEKENDS_TITLE": "🏖️",
@@ -196,12 +196,12 @@ _OVERRIDES = {
     "WIZARD_SUBTITLE": "✨",
 
     # --- GOMBOK, CÍMKÉK ÉS EGYÉB (Buttons, Labels, Msg) ---
-    "BOT_MSG": "<:robot:1493659538354733206>",
-    "CALENDAR_MSG": "<:calendar:1493659532289904871>",
-    "DRAFT_MSG": "<:notepencil:1493659536861564989>",
-    "GEAR_MSG": "<:gear:1493659534005239920>",
-    "GLOBE_MSG": "<:globe:1493658134764584991>",
-    "SATELLITE_MSG": "<:arrowscounterclockwise:1493659531090202675>",
+    "BOT_MSG": "🤖",
+    "CALENDAR_MSG": "📅",
+    "DRAFT_MSG": "📝",
+    "GEAR_MSG": "⚙️",
+    "GLOBE_MSG": "🌐",
+    "SATELLITE_MSG": "🛰️",
     "SUCCESS_LBL": "✨",
     "SUCCESS_MSG": "🟢",
 }
