@@ -8,7 +8,7 @@ from utils.logger import log
 import time
 import math
 
-class AttendanceView(ui.View):
+class AttendanceView(ui.LayoutView):
     def __init__(self, bot, event_id, participants, guild_id, title="Event"):
         super().__init__(timeout=600)
         self.bot = bot
@@ -50,15 +50,15 @@ class AttendanceView(ui.View):
             is_noshow = (att == "no_show")
             
             # Resolve Member
-            guild = self.bot.get_guild(int(self.guild_id))
-            member = guild.get_member(int(uid)) if guild else None
+            guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
+            member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
             user_name = member.display_name if member else f"User {uid}"
             
             row_idx = i + 1
             
             # Name Button (Disabled, just to show identity)
             name_btn = ui.Button(
-                label=user_name, 
+                label=user_name[:80], # Prevent label overflow
                 style=discord.ButtonStyle.secondary, 
                 disabled=True, 
                 row=row_idx
@@ -120,7 +120,10 @@ class AttendanceView(ui.View):
 
     async def refresh(self, interaction: discord.Interaction):
         await self.build()
-        await interaction.response.edit_message(view=self)
+        if interaction.response.is_done():
+            await interaction.edit_original_response(content=None, embeds=[], view=self)
+        else:
+            await interaction.response.edit_message(content=None, embeds=[], view=self)
 
 class AttendanceCog(commands.Cog):
     def __init__(self, bot):
@@ -134,36 +137,44 @@ class AttendanceCog(commands.Cog):
         await interaction.response.defer(ephemeral=True)
         guild_id = interaction.guild_id
         
-        if not await is_admin(interaction):
-            return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+        try:
+            if not await is_admin(interaction):
+                return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+                
+            # Fetch event
+            db_event = await database.get_active_event(event_id, guild_id)
+            if not db_event:
+                # Check history
+                pool = await database.get_pool()
+                db_event = await pool.fetchrow("SELECT * FROM active_events WHERE event_id = $1 AND guild_id = $2", event_id, str(guild_id))
+                
+            if not db_event:
+                return await interaction.followup.send(t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True)
+                
+            # Get RSVPs
+            rsvps = await database.get_event_attendance_data(event_id)
             
-        # Fetch event
-        db_event = await database.get_active_event(event_id, guild_id)
-        if not db_event:
-            # Check history
-            pool = await database.get_pool()
-            db_event = await pool.fetchrow("SELECT * FROM active_events WHERE event_id = $1 AND guild_id = $2", event_id, str(guild_id))
+            # Filter for positive statuses
+            from cogs.event_ui import get_active_set
+            active_set = get_active_set(db_event["icon_set"])
+            from utils.lobby_utils import positive_status_ids
+            pos_ids = positive_status_ids(active_set)
             
-        if not db_event:
-            return await interaction.followup.send(t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True)
+            eligible = [dict(r) for r in rsvps if r["status"] in pos_ids]
             
-        # Get RSVPs
-        rsvps = await database.get_event_attendance_data(event_id)
-        
-        # Filter for positive statuses
-        from cogs.event_ui import get_active_set
-        active_set = get_active_set(db_event["icon_set"])
-        from utils.lobby_utils import positive_status_ids
-        pos_ids = positive_status_ids(active_set)
-        
-        eligible = [dict(r) for r in rsvps if r["status"] in pos_ids]
-        
-        if not eligible:
-            return await interaction.followup.send("No positive RSVPs found for this event to track attendance.", ephemeral=True)
+            if not eligible:
+                return await interaction.followup.send(t("ERR_NO_MY_EVENTS", guild_id=guild_id) or "No positive RSVPs found for this event.", ephemeral=True)
+                
+            view = AttendanceView(self.bot, event_id, eligible, guild_id, title=db_event.get("title", "Event"))
+            await view.build()
+            await interaction.followup.send(view=view, ephemeral=True)
             
-        view = AttendanceView(self.bot, event_id, eligible, guild_id, title=db_event.get("title", "Event"))
-        await view.build()
-        await interaction.followup.send(view=view, ephemeral=True)
+        except Exception as e:
+            log.error(f"[Attendance] Error in manage_attendance for event {event_id}: {e}", exc_info=True)
+            try:
+                await interaction.followup.send(f"❌ An error occurred: {e}", ephemeral=True)
+            except:
+                pass
 
     @manage_attendance.autocomplete("event_id")
     async def attendance_autocomplete(self, interaction: discord.Interaction, current: str):
