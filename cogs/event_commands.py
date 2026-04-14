@@ -673,6 +673,86 @@ class EventCommands(commands.Cog):
         except Exception as e:
             await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
+class ReliabilityAuditView(ui.LayoutView):
+    def __init__(self, bot, guild, stats, title="Reliability Audit"):
+        super().__init__(timeout=600)
+        self.bot = bot
+        self.guild = guild
+        self.stats = stats # List of {user_id, noshow_count, total_past_rsvps}
+        self.audit_title = title
+        self.page = 0
+        self.per_page = 10 
+
+    async def build(self):
+        self.clear_items()
+        
+        start = self.page * self.per_page
+        end = start + self.per_page
+        page_stats = self.stats[start:end]
+        total_pages = math.ceil(len(self.stats) / self.per_page) if self.stats else 1
+        
+        container_items = [
+            ui.TextDisplay(self.audit_title),
+            ui.TextDisplay(f"-# Total entries: {len(self.stats)} • Page {self.page + 1}/{total_pages}"),
+            ui.Separator()
+        ]
+        
+        for i, s in enumerate(page_stats):
+            idx = (self.page * self.per_page) + i + 1
+            uid = s["user_id"]
+            ns = int(s["noshow_count"] or 0)
+            tot = int(s["total_past_rsvps"] or 0)
+            ratio = ns / tot if tot > 0 else 0
+            
+            # Resolve name
+            member = self.guild.get_member(int(uid))
+            name = member.display_name if member else f"User {uid}"
+            
+            # Accessory Button for stats (side-by-side feel)
+            status_label = f"{ns}/{tot} ({ratio*100:.1f}%)"
+            style = discord.ButtonStyle.secondary
+            if ns > 2: style = discord.ButtonStyle.danger
+            elif ns > 0: style = discord.ButtonStyle.primary
+            
+            stat_btn = ui.Button(label=status_label, style=style, disabled=True)
+            
+            section = ui.Section(f"**{idx}. {name}**", accessory=stat_btn)
+            container_items.append(section)
+
+        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        self.add_item(main_container)
+        
+        # Navigation
+        if total_pages > 1:
+            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0))
+            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
+            
+            async def prev_cb(it):
+                try: await it.response.defer()
+                except: pass
+                self.page -= 1
+                await self.refresh(it)
+            async def next_cb(it):
+                try: await it.response.defer()
+                except: pass
+                self.page += 1
+                await self.refresh(it)
+                
+            prev_btn.callback = prev_cb
+            next_btn.callback = next_cb
+            self.add_item(ui.ActionRow(prev_btn, next_btn))
+
+    async def refresh(self, interaction: discord.Interaction):
+        await self.build()
+        log.info(f"[Audit Debug] REFRESH: Page {self.page}")
+        await interaction.edit_original_response(view=self)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: ui.Item):
+        import traceback
+        log.error(f"[Audit View] Error: {error}\n{traceback.format_exc()}")
+        try: await interaction.followup.send(f"❌ Error: {error}", ephemeral=True)
+        except: pass
+
 class AdminCommands(commands.GroupCog, name="admin"):
     """Cog for server administrators to manage server settings."""
     def __init__(self, bot):
@@ -686,7 +766,11 @@ class AdminCommands(commands.GroupCog, name="admin"):
         all_time="Show a global leaderboard of all users with no-shows in this guild"
     )
     async def admin_check_noshow(self, interaction: discord.Interaction, event_id: str = None, all_time: bool = False):
+        # 1. DEFER (Safety First)
         await interaction.response.defer(ephemeral=True)
+        
+        log.info(f"[Audit Debug] START: event_id={event_id}, all_time={all_time}")
+        
         guild_id = interaction.guild_id
         from utils.i18n import load_guild_translations
         await load_guild_translations(guild_id)
@@ -697,45 +781,34 @@ class AdminCommands(commands.GroupCog, name="admin"):
         if not event_id and not all_time:
             return await interaction.followup.send("💡 Please provide an `event_id` to audit a specific group, or set `all_time=True` for a guild-wide check.", ephemeral=True)
 
-        if event_id:
-            # Mode A: Focus on specific event's participants
-            stats = await database.get_event_reliability_audit(event_id, guild_id)
-            title = f"### 📋 Event Reliability Audit: `{event_id}`"
-            show_all = True  # Show everyone in the raid, even with 0 no-shows
-        else:
-            # Mode B: Global leaderboard
-            stats = await database.get_guild_reliability_stats(guild_id, all_time=True)
-            title = "### 📋 Global Reliability Leaderboard (No-shows)"
-            show_all = False # Only show those with ns > 0 for global view
+        try:
+            if event_id:
+                # Mode A: Focus on specific event's participants
+                stats = await database.get_event_reliability_audit(event_id, guild_id)
+                title = f"### 📋 Event Audit: `{event_id}`"
+                # For specific event, we show everyone to see who attended vs who didn't
+                filtered_stats = stats 
+            else:
+                # Mode B: Global leaderboard
+                stats = await database.get_guild_reliability_stats(guild_id, all_time=True)
+                title = "### 📋 Global No-show Leaderboard"
+                # For global leaderboard, only show those with at least 1 no-show
+                filtered_stats = [s for s in stats if int(s.get("noshow_count") or 0) > 0]
 
-        if not stats:
-            return await interaction.followup.send("✅ No reliability data found for the selection.", ephemeral=True)
-            
-        lines = []
-        for s in stats:
-            uid = s["user_id"]
-            ns = int(s["noshow_count"] or 0)
-            tot = int(s["total_past_rsvps"] or 0)
-            
-            if not show_all and ns == 0:
-                continue
+            if not filtered_stats:
+                return await interaction.followup.send("✅ No reliability data found for the selection.", ephemeral=True)
                 
-            ratio = ns / tot if tot > 0 else 0
+            view = ReliabilityAuditView(self.bot, interaction.guild, filtered_stats, title=title)
+            await view.build()
             
-            # Resolve name
-            member = interaction.guild.get_member(int(uid))
-            name = member.display_name if member else f"User {uid}"
+            log.info(f"[Audit Debug] SUCCESS: Sending View with {len(filtered_stats)} rows")
+            await interaction.followup.send(view=view, ephemeral=True)
             
-            lines.append(f"• **{name}** ({ns}/{tot}) - `{ratio:.3f}`")
-            
-        if not lines:
-            return await interaction.followup.send("✅ All participants have perfect attendance!", ephemeral=True)
-
-        full_text = "\n".join(lines)
-        if len(full_text) > 1900:
-            full_text = full_text[:1900] + "\n*(and more...)*"
-            
-        await interaction.followup.send(f"{title}\n{full_text}", ephemeral=True)
+        except Exception as e:
+            import traceback
+            log.error(f"[Audit] Command Error: {e}\n{traceback.format_exc()}")
+            try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+            except: pass
 
     @admin_check_noshow.autocomplete("event_id")
     async def check_noshow_autocomplete(self, interaction: discord.Interaction, current: str):
