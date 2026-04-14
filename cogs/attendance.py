@@ -17,7 +17,7 @@ class AttendanceView(ui.LayoutView):
         self.guild_id = guild_id
         self.event_title = title
         self.page = 0
-        self.per_page = 2  # Flattened layout: 2 users fit perfectly in 5 rows
+        self.per_page = 5  # Premium Section Layout: 5 users fit comfortably
         self.name_cache = {} # Avoid redundant member lookups
 
     async def build(self):
@@ -28,13 +28,16 @@ class AttendanceView(ui.LayoutView):
         page_users = self.participants[start:end]
         total_pages = math.ceil(len(self.participants) / self.per_page) if self.participants else 1
         
-        # 1. Header Row (Top Level)
+        # 1. Prepare Container Items
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
         stats_text = f"✅ {len(self.participants) - no_shows} | ❌ {no_shows}"
-        header_text = f"### {self.event_title}\n-# {stats_text} • Page {self.page + 1}/{total_pages}"
-        self.add_item(ui.TextDisplay(header_text))
         
-        # 2. Member Rows (Maximum 2 per page for a 5-row paired layout)
+        container_items = [
+            ui.TextDisplay(f"### {self.event_title}"),
+            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}"),
+            ui.Separator()
+        ]
+        
         for i, p in enumerate(page_users):
             idx = (self.page * self.per_page) + i + 1
             uid = p["user_id"]
@@ -49,11 +52,8 @@ class AttendanceView(ui.LayoutView):
                 user_name = member.display_name if member else f"User {uid}"
                 self.name_cache[uid] = user_name
             
-            # Row A: Name
-            self.add_item(ui.TextDisplay(f"**{idx}. {user_name}**"))
-            
-            # Row B: Toggle Button
-            label = f"❌ No-show" if is_noshow else f"✅ Present"
+            # Create Toggle Button as Accessory
+            label = "❌ No-show" if is_noshow else "✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             
             toggle_btn = ui.Button(
@@ -64,48 +64,52 @@ class AttendanceView(ui.LayoutView):
             
             async def create_callback(u_id, current_att, current_idx):
                 async def callback(interaction: discord.Interaction):
-                    # LOUD LOG for debugging
-                    log.info(f"[Attendance Debug] CLICK: User #{current_idx} (UID: {u_id})")
-                    
+                    log.info(f"[Attendance Debug] SECTION CLICK: User #{current_idx} (UID: {u_id})")
                     try:
-                        # Direct logic (responsive first, no defer)
                         new_att = "present" if current_att == "no_show" else "no_show"
                         await database.update_rsvp_attendance(self.event_id, u_id, new_att)
                         for part in self.participants:
                             if part["user_id"] == u_id:
                                 part["attendance"] = new_att
                                 break
-                        
                         await self.refresh(interaction)
                     except Exception as e:
                         import traceback
-                        tb = traceback.format_exc()
-                        log.error(f"[Attendance] Callback failure: {e}\n{tb}")
+                        log.error(f"[Attendance] Section callback failure: {e}\n{traceback.format_exc()}")
                         try: await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
-                        except: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+                        except: pass
                 return callback
                 
             toggle_btn.callback = create_callback(uid, att, idx)
             
-            # Handle row 5 (Last User + Nav)
-            if i == len(page_users) - 1 and total_pages > 1:
-                prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
-                next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
+            # Use ui.Section for the side-by-side layout (Modern V2 style)
+            section = ui.Section(f"**{idx}. {user_name}**", accessory=toggle_btn)
+            container_items.append(section)
+            
+            if i < len(page_users) - 1:
+                container_items.append(ui.Separator(spacing=ui.SeparatorSpacing.small))
+
+        # Add the Container to the View
+        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        self.add_item(main_container)
+        
+        # 3. Navigation Buttons (if needed)
+        if total_pages > 1:
+            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
+            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
+            
+            async def prev_cb(it):
+                log.info(f"[Attendance Debug] NAV: Prev")
+                self.page -= 1
+                await self.refresh(it)
+            async def next_cb(it):
+                log.info(f"[Attendance Debug] NAV: Next")
+                self.page += 1
+                await self.refresh(it)
                 
-                async def prev_cb(it):
-                    log.info(f"[Attendance Debug] NAV: Prev")
-                    self.page -= 1
-                    await self.refresh(it)
-                async def next_cb(it):
-                    log.info(f"[Attendance Debug] NAV: Next")
-                    self.page += 1
-                    await self.refresh(it)
-                    
-                prev_btn.callback = prev_cb
-                next_btn.callback = next_cb
-                self.add_item(ui.ActionRow(toggle_btn, prev_btn, next_btn))
-            else:
-                self.add_item(ui.ActionRow(toggle_btn))
+            prev_btn.callback = prev_cb
+            next_btn.callback = next_cb
+            self.add_item(ui.ActionRow(prev_btn, next_btn))
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: ui.Item):
         import traceback
