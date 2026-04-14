@@ -1,6 +1,11 @@
 {
-  "premium_guild_ids": [1083433370815582240],
-  "master_guild_ids": [1083433370815582240],
+  "premium_guild_ids": [
+    1083433370815582240
+  ],
+  "master_guild_ids": [
+    1083433370815582240,
+    1492977155896774888
+  ],
   "language": "en",
   "command_suffix": "_nexus",
   "command_prefix": "!",
