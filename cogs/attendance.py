@@ -110,7 +110,7 @@ class AttendanceView(ui.LayoutView):
             container_items.append(section)
 
         # Add the Container to the View
-        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
         self.add_item(main_container)
         
         # 3. Navigation Buttons (if needed)

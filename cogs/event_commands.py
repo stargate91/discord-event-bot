@@ -736,7 +736,7 @@ class ReliabilityAuditView(ui.LayoutView):
             section = ui.Section(f"**{idx}. {name}**", accessory=stat_btn)
             container_items.append(section)
 
-        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
         self.add_item(main_container)
         
         # Navigation

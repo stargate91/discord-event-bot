@@ -407,7 +407,7 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     else:
         image_urls = str(raw_images) if raw_images else None
 
-    color = str(data.get("color") or "0x3498db")
+    color = str(data.get("color") or "0x40C4FF")
     max_acc = int(data.get("max_accepted") or 0)
     
     ping_role_raw = str(data.get("ping_role") or "")
@@ -498,7 +498,7 @@ async def update_active_event(event_id, data):
     else:
         image_urls = str(raw_images) if raw_images else None
 
-    color = str(data.get("color") or "0x3498db")
+    color = str(data.get("color") or "0x40C4FF")
     max_acc = int(data.get("max_accepted") or 0)
     
     ping_role_raw = str(data.get("ping_role") or "")

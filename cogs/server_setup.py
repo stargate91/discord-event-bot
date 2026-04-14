@@ -41,15 +41,15 @@ class ServerSetupView(ui.LayoutView):
         reminder_btn.callback = reminder_cb
 
         # 2. Color Dropdown Selection
-        cur_color_raw = await database.get_guild_setting(self.guild_id, "default_color", default="0x00bfff")
+        cur_color_raw = await database.get_guild_setting(self.guild_id, "default_color", default="0x40C4FF")
         cur_color = cur_color_raw.lower().strip().replace("#", "0x")
         if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
         
-        presets = ["0x00bfff", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
+        presets = ["0x40C4FF", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
         is_preset = cur_color in presets
 
         color_opts = [
-            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x00bfff", default=(cur_color=="0x00bfff")),
+            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
             discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
             discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
             discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
@@ -79,7 +79,7 @@ class ServerSetupView(ui.LayoutView):
         # 3. Final Assembly
         header = ui.Container(
             ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(header)
         self.add_item(ui.ActionRow(general_btn, local_btn, reminder_btn, defaults_btn))
@@ -172,7 +172,7 @@ class GeneralSetupView(ui.LayoutView):
         # 3. Final Assembly
         header = ui.Container(
             ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(header)
         self.add_item(ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn))
@@ -285,7 +285,7 @@ class ReminderSetupView(ui.LayoutView):
         # Final Assembly
         header = ui.Container(
             ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(header)
         self.add_item(ui.ActionRow(status_sel))
@@ -441,7 +441,7 @@ class EventDefaultsView(ui.LayoutView):
         # 4. Final Assembly
         header = ui.Container(
             ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(header)
         # Row 1: Primary configuration buttons (Max 4 to leave room for clarity)

@@ -87,7 +87,7 @@ class WizardStartView(ui.LayoutView):
             ui.TextDisplay(desc),
             ui.Separator(),
             row,
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         view.add_item(container)
         
@@ -279,7 +279,7 @@ class Step2Modal(ui.Modal):
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
 
-        self.color_input = ui.TextInput(label=t("LBL_WIZ_COLOR", guild_id=guild_id), default=str(data.get("color") or "0x3498db"), required=False)
+        self.color_input = ui.TextInput(label=t("LBL_WIZ_COLOR", guild_id=guild_id), default=str(data.get("color") or "0x40C4FF"), required=False)
         self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
         self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
         self.start_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("start_str") or ""), required=True)
@@ -917,17 +917,17 @@ class EventWizardView(ui.LayoutView):
         creator_btn.callback = creator_cb
 
         # Color Dropdown for Single Events
-        cur_color_raw = view.data.get("color", "0x3498db")
+        cur_color_raw = view.data.get("color", "0x40C4FF")
         cur_color = cur_color_raw.lower().strip().replace("#", "0x")
         if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
         
         color_opts = [
-            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x00bfff", default=(cur_color=="0x00bfff")),
+            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
             discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
             discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
             discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
             discord.SelectOption(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
-            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(cur_color not in ["0x00bfff","0x5865f2","0xffd700","0x57f287","0xeb459e"]))
+            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(cur_color not in ["0x40C4FF","0x5865f2","0xffd700","0x57f287","0xeb459e"]))
         ]
         color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
         async def color_cb(it):
@@ -1106,7 +1106,7 @@ class EventWizardView(ui.LayoutView):
                 
             container_items.append(ui.ActionRow(sel_icon))
 
-        view.add_item(ui.Container(*container_items, accent_color=0x00bfff))
+        view.add_item(ui.Container(*container_items, accent_color=0x40C4FF))
         
         if send_followup: await interaction.followup.send(view=view, ephemeral=True)
         elif interaction.response.is_done(): await interaction.edit_original_response(view=view)
@@ -1163,7 +1163,7 @@ class EventWizardView(ui.LayoutView):
             except Exception:
                 pass
         if "color" not in self.data:
-            self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x3498db")
+            self.data["color"] = await database.get_guild_setting(self.guild_id, "default_color", default="0x40C4FF")
         self.data["rsvp_allowed_role_ids"] = database.normalize_rsvp_allowed_role_ids_value(
             self.data.get("rsvp_allowed_role_ids")
         )

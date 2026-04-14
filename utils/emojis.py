@@ -84,9 +84,15 @@ for key, emoji in _CORE.items():
 # Ide írhatod azokat az emojikat, amiknél le akarod cserélni az alap _CORE ikont egy specifikus helyen.
 # Például: Ha a SUCCESS_MSG máshogy nézzen ki, mint a SUCCESS_BTN.
 _OVERRIDES = {
+    "REC_MONTHLY_TITLE": "<:chartbarduotone:1493657119948538089>", # Custom Duotone Statisztika ikon
+    "BOT_MSG": "<:robot:1493659538354733206>",
+    "GLOBE_MSG": "<:globe:1493658134764584991>",
+    "DRAFT_MSG": "<:notepencil:1493659536861564989>",
+    "CALENDAR_MSG": "<:calendar:1493659532289904871>",
+    "GEAR_MSG": "<:gear:1493659534005239920>",
+    "SYNC_MSG": "<:arrowscounterclockwise:1493659531090202675>", # Frissítés / Szinkronizáció ikon
     "SUCCESS_MSG": "🟢", # Példa: Sima szövegben egy pötty
     "SUCCESS_LBL": "✨", # Példa: Címkénél egy csillag
-    # Egyéb overrides...
 }
 
 # Felülírjuk az auto-generált alapokat a specifikus overrides-okkal

@@ -45,7 +45,7 @@ class MasterCommands(commands.GroupCog, name="master"):
                 ui.TextDisplay(body_text),
                 ui.Separator(),
                 ui.TextDisplay(f"{t('MASTER_STATS_FOOTER', guild_id=None)}"),
-                accent_color=0x00bfff
+                accent_color=0x40C4FF
             )
             layout.add_item(container)
             
@@ -273,7 +273,7 @@ class MasterPresenceView(ui.LayoutView):
             container_items.append(row_select)
 
         container_items.append(row_buttons)
-        container = ui.Container(*container_items, accent_color=0x00bfff)
+        container = ui.Container(*container_items, accent_color=0x40C4FF)
         self.add_item(container)
             
         if interaction.response.is_done():
@@ -341,7 +341,7 @@ class PresenceEditView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(desc),
             row,
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(container)
         

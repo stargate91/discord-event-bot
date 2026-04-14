@@ -560,7 +560,7 @@ class DynamicEventView(discord.ui.LayoutView):
         elif status_for_color == "lobby_expired":
             accent_hex = "0x95a5a6"
         else:
-            accent_hex = str(event_conf.get("color") or "0x3498db")
+            accent_hex = str(event_conf.get("color") or "0x40C4FF")
             
         accent_color = int(accent_hex.replace("0x", "").replace("#", ""), 16)
         container = discord.ui.Container(*container_items, accent_color=accent_color)

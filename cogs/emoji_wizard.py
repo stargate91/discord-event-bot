@@ -45,7 +45,7 @@ class EmojiHelpView(ui.LayoutView):
             ui.TextDisplay(t("HELP_EMOJI_DESC", guild_id=self.guild_id)),
             ui.Separator(),
             ui.ActionRow(close_btn),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(container)
 
@@ -255,7 +255,7 @@ class EmojiWizardView(ui.LayoutView):
         container_items.append(row_select)
         container_items.append(row_btns)
         
-        container = ui.Container(*container_items, accent_color=0x00bfff)
+        container = ui.Container(*container_items, accent_color=0x40C4FF)
         new_view.add_item(container)
         
         if interaction.response.is_done():
@@ -312,7 +312,7 @@ class TemplateChoiceView(ui.LayoutView):
             ui.TextDisplay(f"### {t('LBL_CHOOSE_TEMPLATE', guild_id=self.wizard_view.guild_id)}"),
             ui.Separator(),
             ui.ActionRow(select_template),
-            accent_color=0x00bfff
+            accent_color=0x40C4FF
         )
         self.add_item(container)
 
