@@ -687,7 +687,7 @@ class DynamicEventView(discord.ui.LayoutView):
             elif isinstance(child, discord.ui.Button):
                 all_buttons.append(child)
 
-        if status in ["cancelled", "postponed", "deleted", "rescheduled", "lobby_expired", "closed"]:
+        if status in ["cancelled", "postponed", "deleted", "lobby_expired", "closed"]:
             for btn in all_buttons:
                 allowed_prefix = ("edit_", "delete_", "calendar_", "resched_")
                 if status == "postponed":
@@ -903,7 +903,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 return await interaction.response.send_message(
                     t("ERR_LOBBY_EXPIRED", guild_id=gid_chk), ephemeral=True
                 )
-        if db_event["status"] != "active":
+        if db_event["status"] not in ["active", "rescheduled"]:
             return await interaction.response.send_message(t("ERR_EV_INACTIVE"), ephemeral=True)
 
         raw_allowed = db_event.get("rsvp_allowed_role_ids")
