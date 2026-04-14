@@ -860,9 +860,12 @@ class DynamicEventView(discord.ui.LayoutView):
         if not self.event_conf:
             self.event_conf = {}
         self.event_conf["status"] = "deleted"
-        await self.prepare()
-        # Disable all buttons
-        for child in self.children:
+        
+        # Fresh view for reliable refresh
+        new_view = DynamicEventView(self.bot, self.event_id, self.event_conf)
+        await new_view.prepare()
+        # Disable all buttons on the new view
+        for child in new_view.children:
             if isinstance(child, discord.ui.Container):
                 for row in child.children:
                     if isinstance(row, discord.ui.ActionRow):
@@ -871,9 +874,9 @@ class DynamicEventView(discord.ui.LayoutView):
                                 item.disabled = True
         
         if interaction.response.is_done():
-            await interaction.edit_original_response(view=self)
+            await interaction.edit_original_response(content=None, embeds=[], view=new_view)
         else:
-            await interaction.response.edit_message(view=self)
+            await interaction.response.edit_message(content=None, embeds=[], view=new_view)
         log.info(f"Event {self.event_id} deleted by {interaction.user}")
 
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):
@@ -1022,18 +1025,19 @@ class DynamicEventView(discord.ui.LayoutView):
         if db_event.get("lobby_mode") and gid_raw:
             await process_lobby_transition(self.bot, self.event_id, self.active_set, int(str(gid_raw)))
 
-        await self.prepare()
-        
-        # Robust UI refresh: try response.edit_message first for faster feedback
+        # Robust UI refresh: Create a FRESH instance to avoid stale state issues (Components V2 pattern)
         try:
+            new_view = DynamicEventView(self.bot, self.event_id, self.event_conf)
+            await new_view.prepare()
+
             if not interaction.response.is_done():
-                await interaction.response.edit_message(view=self)
+                await interaction.response.edit_message(content=None, embeds=[], view=new_view)
             else:
-                await interaction.message.edit(view=self)
+                await interaction.edit_original_response(content=None, embeds=[], view=new_view)
         except Exception as e:
-            log.debug(f"Refresh handling: {e}")
-            # Fallback if both fail for some reason
-            try: await interaction.edit_original_response(view=self)
+            log.debug(f"Refresh handling error: {e}")
+            # Ultra-fallback
+            try: await interaction.followup.edit_message(message_id="@original", view=self)
             except: pass
         log.info(f"User {interaction.user} RSVP'd {status} for event {self.event_id}", guild_id=interaction.guild_id)
 
