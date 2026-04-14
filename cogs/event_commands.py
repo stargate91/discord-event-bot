@@ -13,6 +13,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.auth import is_admin
 from utils.logger import log
+import math
 
 # We load the config for command suffixes
 from utils.config import config

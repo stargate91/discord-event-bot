@@ -1053,6 +1053,7 @@ async def get_event_reliability_audit(event_id, guild_id):
         FROM participants p
         LEFT JOIN rsvps r2 ON p.user_id = r2.user_id
         LEFT JOIN active_events e ON r2.event_id = e.event_id
+        WHERE e.guild_id = $2 AND e.start_time < $3
         GROUP BY p.user_id
         ORDER BY noshow_count DESC
     """, event_id, str(guild_id), now)
