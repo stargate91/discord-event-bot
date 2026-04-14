@@ -1325,7 +1325,10 @@ class EventWizardView(ui.LayoutView):
         else:
             try:
                 local_tz = tz.gettz(str(self.data.get("timezone") or DEFAULT_TIMEZONE))
-                start_dt = parser.parse(str(self.data["start_str"])).replace(tzinfo=local_tz)
+                # provide a default 'now' to ensure 13:00 parses as today, not some default year like 2016
+                base_now = datetime.datetime.now(local_tz)
+                
+                start_dt = parser.parse(str(self.data["start_str"]), default=base_now).replace(tzinfo=local_tz)
                 self.data["start_time"] = start_dt.timestamp()
 
                 if self.data.get("end_str"):

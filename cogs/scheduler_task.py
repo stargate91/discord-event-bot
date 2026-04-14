@@ -101,7 +101,13 @@ class SchedulerTask(commands.Cog):
         if end_ts and now > end_ts:
             should_close = True
         elif now > (float(start_ts) + archive_threshold):
-            should_close = True
+            # Safety: don't auto-archive if the event was created in the last 15 minutes
+            # This handles race conditions or minor parsing errors
+            created_at = db_event.get("created_at") or 0
+            if now > (float(created_at) + 900): # 15 min grace
+                should_close = True
+            else:
+                log.debug(f"[Lifecycle] Skipping auto-archive for recently created event {db_event['event_id']}")
             
         if should_close:
             await database.set_event_status(db_event["event_id"], "closed")

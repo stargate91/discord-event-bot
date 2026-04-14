@@ -284,6 +284,9 @@ class EventCommands(commands.Cog):
         else:
             db_event = await database.get_active_event(event_id)
 
+        if db_event:
+            db_event = dict(db_event)
+
         if not db_event:
             await interaction.followup.send(
                 t("ERR_EV_NOT_FOUND", guild_id=interaction.guild_id), ephemeral=True
@@ -317,14 +320,22 @@ class EventCommands(commands.Cog):
                 single_events.append(ev)
 
         results = []
+        q = current.lower()
+        
         for config_name, evs in series.items():
             title = evs[0].get("title", config_name)
+            if q and q not in title.lower() and q not in config_name.lower():
+                continue
             label = t("LBL_SERIES_AUTOCOMPLETE", guild_id=interaction.guild_id, title=title, count=len(evs))
             results.append(discord.app_commands.Choice(name=label[:100], value=f"series:{config_name}"))
         
         for ev in single_events:
-            label = t("LBL_EVENT_AUTOCOMPLETE", guild_id=interaction.guild_id, title=ev.get('title') or 'Unnamed', id=ev['event_id'])
-            results.append(discord.app_commands.Choice(name=label[:100], value=ev["event_id"]))
+            title = ev.get('title') or 'Unnamed'
+            eid = ev['event_id']
+            if q and q not in title.lower() and q not in eid.lower():
+                continue
+            label = t("LBL_EVENT_AUTOCOMPLETE", guild_id=interaction.guild_id, title=title, id=eid)
+            results.append(discord.app_commands.Choice(name=label[:100], value=eid))
         return results[:25]
 
     @event_group.command(name="list", description="Show all active events")
