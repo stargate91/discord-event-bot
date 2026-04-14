@@ -48,6 +48,10 @@ class AttendanceView(ui.LayoutView):
             if not user_name:
                 guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
                 member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
+                if not member and guild:
+                    try: member = await guild.fetch_member(int(uid))
+                    except: pass
+                
                 user_name = member.display_name if member else f"User {uid}"
                 self.name_cache[uid] = user_name
             

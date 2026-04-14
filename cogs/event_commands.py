@@ -707,6 +707,10 @@ class ReliabilityAuditView(ui.LayoutView):
             
             # Resolve name
             member = self.guild.get_member(int(uid))
+            if not member and self.guild:
+                try: member = await self.guild.fetch_member(int(uid))
+                except: pass
+                
             name = member.display_name if member else f"User {uid}"
             
             # Accessory Button for stats (side-by-side feel)

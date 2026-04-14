@@ -1027,7 +1027,7 @@ async def get_guild_reliability_stats(guild_id, all_time=False):
     query = f"""
         SELECT 
             r.user_id, 
-            COUNT(*) as total_rsvps,
+            COUNT(*) as total_past_rsvps,
             SUM(CASE WHEN r.attendance = 'no_show' THEN 1 ELSE 0 END) as noshow_count
         FROM rsvps r
         JOIN active_events e ON r.event_id = e.event_id
@@ -1052,8 +1052,7 @@ async def get_event_reliability_audit(event_id, guild_id):
             SUM(CASE WHEN r2.attendance = 'no_show' THEN 1 ELSE 0 END) as noshow_count
         FROM participants p
         LEFT JOIN rsvps r2 ON p.user_id = r2.user_id
-        LEFT JOIN active_events e ON r2.event_id = e.event_id
-        WHERE e.guild_id = $2 AND e.start_time < $3
+        LEFT JOIN active_events e ON r2.event_id = e.event_id AND e.guild_id = $2 AND e.start_time < $3
         GROUP BY p.user_id
         ORDER BY noshow_count DESC
     """, event_id, str(guild_id), now)
