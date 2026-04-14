@@ -61,7 +61,7 @@ class AttendanceView(ui.LayoutView):
                 custom_id=f"att_tg_{uid}_{self.page}"
             )
             
-            async def create_callback(u_id, current_att, current_idx):
+            def create_callback(u_id, current_att, current_idx):
                 async def callback(interaction: discord.Interaction):
                     # Safety First: Defer
                     try: await interaction.response.defer()
