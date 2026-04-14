@@ -78,13 +78,14 @@ for key, emoji in _CORE.items():
     globals()[f"{key}_BTN"] = emoji
     globals()[f"{key}_TITLE"] = emoji
     globals()[f"{key}_MSG"] = emoji
+    globals()[f"{key}_SUBTITLE"] = emoji
     globals()[f"{key}_LBL"] = emoji
 
 # --- Context-Specific Overrides ---
 # Ide írhatod azokat az emojikat, amiknél le akarod cserélni az alap _CORE ikont egy specifikus helyen.
 # Például: Ha a SUCCESS_MSG máshogy nézzen ki, mint a SUCCESS_BTN.
 _OVERRIDES = {
-    # --- TITLES (Főcímek és Alcímek) ---
+    # --- FŐCÍMEK (Main Titles, Embed Headers) ---
     "ADD_TITLE": "➕",
     "BACK_TITLE": "◀️",
     "BELL_TITLE": "🔔",
@@ -139,7 +140,62 @@ _OVERRIDES = {
     "WARNING_TITLE": "⚠️",
     "WIZARD_TITLE": "✨",
 
-    # --- EGYÉB (Gombok, Üzenetek, Címkék) ---
+    # --- ALCÍMEK (Subtitles, Embed Fields) ---
+    "ADD_SUBTITLE": "➕",
+    "BACK_SUBTITLE": "◀️",
+    "BELL_SUBTITLE": "🔔",
+    "BOT_SUBTITLE": "🤖",
+    "CALENDAR_SUBTITLE": "📅",
+    "CLOCK_SUBTITLE": "⏰",
+    "CLONE_SUBTITLE": "👯",
+    "CROSS_SUBTITLE": "✖️",
+    "CRYSTAL_SUBTITLE": "🔮",
+    "DELETE_SUBTITLE": "🗑️",
+    "DRAFT_SUBTITLE": "📝",
+    "EDIT_SUBTITLE": "✏️",
+    "ERROR_SUBTITLE": "❌",
+    "EYES_SUBTITLE": "👀",
+    "FLOWER_SUBTITLE": "🌸",
+    "FORWARD_SUBTITLE": "▶️",
+    "GEAR_SUBTITLE": "⚙️",
+    "GEM_SUBTITLE": "💎",
+    "GLOBE_SUBTITLE": "🌐",
+    "HEADPHONES_SUBTITLE": "🎧",
+    "HELP_SUBTITLE": "❓",
+    "HERB_SUBTITLE": "🌿",
+    "INFO_SUBTITLE": "💡",
+    "LIST_SUBTITLE": "📋",
+    "NAVPAGE_SUBTITLE": "📄",
+    "NOSHOW_SUBTITLE": "❌",
+    "PACKAGE_SUBTITLE": "📦",
+    "PALETTE_SUBTITLE": "🎨",
+    "PEOPLE_SUBTITLE": "👥",
+    "PING_SUBTITLE": "📢",
+    "PIN_SUBTITLE": "📌",
+    "PRESENCE_SUBTITLE": "🎮",
+    "PRESENT_SUBTITLE": "✅",
+    "REC_BIWEEKLY_SUBTITLE": "🔄",
+    "REC_CUSTOM_SUBTITLE": "⚙️",
+    "REC_DAILY_SUBTITLE": "📅",
+    "REC_MONTHLY_SUBTITLE": "📊",
+    "REC_RELATIVE_SUBTITLE": "📆",
+    "REC_WEEKDAYS_SUBTITLE": "🏢",
+    "REC_WEEKENDS_SUBTITLE": "🏖️",
+    "REC_WEEKLY_SUBTITLE": "🗓️",
+    "SATELLITE_SUBTITLE": "🛰️",
+    "SHIELD_SUBTITLE": "🛡️",
+    "STAR_SUBTITLE": "⭐",
+    "SUCCESS_SUBTITLE": "✅",
+    "SYNC_SUBTITLE": "🔄",
+    "TIME_SUBTITLE": "🕒",
+    "TOOLS_SUBTITLE": "🛠️",
+    "TROPHY_SUBTITLE": "🏆",
+    "TV_SUBTITLE": "📺",
+    "WAIT_SUBTITLE": "⏳",
+    "WARNING_SUBTITLE": "⚠️",
+    "WIZARD_SUBTITLE": "✨",
+
+    # --- GOMBOK, CÍMKÉK ÉS EGYÉB (Buttons, Labels, Msg) ---
     "BOT_MSG": "<:robot:1493659538354733206>",
     "CALENDAR_MSG": "<:calendar:1493659532289904871>",
     "DRAFT_MSG": "<:notepencil:1493659536861564989>",
