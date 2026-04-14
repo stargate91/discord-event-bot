@@ -1,11 +1,28 @@
 # utils/emojis.py
 """Centralized Emoji Registry for the Nexus Event Bot with context decoupling."""
 
-# --- Specialized / Static Icons ---
+# --- Core Status Icons ---
+SUCCESS = "✅"
+ERROR = "❌"
+WARNING = "⚠️"
+INFO = "💡"
+PING = "🔔"
+
+# --- UI / Navigation ---
 DROPDOWN_OPEN = "🔽"
 DROPDOWN_CLOSED = "◀️"
 LANG_HU = "🇭🇺"
 LANG_EN = "🇺🇸"
+
+# --- Recurrence Icons ---
+REC_DAILY = "📅"
+REC_WEEKLY = "🗓️"
+REC_MONTHLY = "📊"
+REC_BIWEEKLY = "⏳"
+REC_WEEKDAYS = "💼"
+REC_WEEKENDS = "🎉"
+REC_CUSTOM = "⚙️"
+REC_RELATIVE = "🕒"
 
 # --- Template-Specific RSVP Icons ---
 TEMP_STD_YES = "✅"
