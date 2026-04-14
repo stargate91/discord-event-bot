@@ -34,8 +34,7 @@ class AttendanceView(ui.LayoutView):
         
         container_items = [
             ui.TextDisplay(f"### {self.event_title}"),
-            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}"),
-            ui.Separator()
+            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}")
         ]
         
         for i, p in enumerate(page_users):
@@ -64,6 +63,10 @@ class AttendanceView(ui.LayoutView):
             
             async def create_callback(u_id, current_att, current_idx):
                 async def callback(interaction: discord.Interaction):
+                    # Safety First: Defer
+                    try: await interaction.response.defer()
+                    except: pass
+                    
                     log.info(f"[Attendance Debug] SECTION CLICK: User #{current_idx} (UID: {u_id})")
                     try:
                         new_att = "present" if current_att == "no_show" else "no_show"
@@ -76,7 +79,7 @@ class AttendanceView(ui.LayoutView):
                     except Exception as e:
                         import traceback
                         log.error(f"[Attendance] Section callback failure: {e}\n{traceback.format_exc()}")
-                        try: await interaction.response.send_message(f"❌ Error: {e}", ephemeral=True)
+                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
                         except: pass
                 return callback
                 
@@ -85,9 +88,6 @@ class AttendanceView(ui.LayoutView):
             # Use ui.Section for the side-by-side layout (Modern V2 style)
             section = ui.Section(f"**{idx}. {user_name}**", accessory=toggle_btn)
             container_items.append(section)
-            
-            if i < len(page_users) - 1:
-                container_items.append(ui.Separator(spacing=ui.SeparatorSpacing.small))
 
         # Add the Container to the View
         main_container = ui.Container(*container_items, accent_color=0x3498db)
@@ -99,10 +99,14 @@ class AttendanceView(ui.LayoutView):
             next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
             
             async def prev_cb(it):
+                try: await it.response.defer()
+                except: pass
                 log.info(f"[Attendance Debug] NAV: Prev")
                 self.page -= 1
                 await self.refresh(it)
             async def next_cb(it):
+                try: await it.response.defer()
+                except: pass
                 log.info(f"[Attendance Debug] NAV: Next")
                 self.page += 1
                 await self.refresh(it)
@@ -114,40 +118,41 @@ class AttendanceView(ui.LayoutView):
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: ui.Item):
         import traceback
         log.error(f"[Attendance] View Error on {item}: {error}\n{traceback.format_exc()}")
-        try: await interaction.response.send_message(f"❌ View Error: {error}", ephemeral=True)
+        try: 
+            if not interaction.response.is_done():
+                await interaction.response.send_message(f"❌ View Error: {error}", ephemeral=True)
+            else:
+                await interaction.followup.send(f"❌ View Error: {error}", ephemeral=True)
         except: pass
 
     async def refresh(self, interaction: discord.Interaction):
-        # Fresh Instance Pattern (Ensures stable V2 state)
+        # Fresh Instance Pattern 
         new_view = AttendanceView(self.bot, self.event_id, self.participants, self.guild_id, self.event_title)
         new_view.page = self.page
         new_view.name_cache = self.name_cache
         await new_view.build()
         
-        # Responsive edit (direct)
-        if not interaction.response.is_done():
-            await interaction.response.edit_message(content=None, embeds=[], view=new_view)
-        else:
+        log.info(f"[Attendance Debug] REFRESH: Updating message with new view state")
+        if interaction.response.is_done():
             await interaction.edit_original_response(content=None, embeds=[], view=new_view)
+        else:
+            await interaction.response.edit_message(content=None, embeds=[], view=new_view)
 
-class AttendanceCog(commands.Cog):
-    def __init__(self, bot):
-        self.bot = bot
-        
-    attendance_group = app_commands.Group(name="attendance", description="Manage event attendance")
-    
     @attendance_group.command(name="manage", description="Track who showed up for a recent event")
     @app_commands.describe(event_id="The ID of the event to manage")
     async def manage_attendance(self, interaction: discord.Interaction, event_id: str):
-        # LOUD LOG: Command start
-        log.info(f"[Attendance Debug] EXEC: /attendance manage for Event {event_id}")
+        # 1. DEFER IMMEDIATELY (Safety First)
+        await interaction.response.defer(ephemeral=True)
+        
+        # 2. LOUD LOG: Command start
+        log.info(f"[Attendance Debug] COMMAND START: Event {event_id}")
         
         guild_id = interaction.guild_id
         
         try:
             from utils.auth import is_admin
             if not await is_admin(interaction):
-                await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
+                await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
                 return
                 
             # Fetch event
@@ -158,7 +163,7 @@ class AttendanceCog(commands.Cog):
                 db_event = await pool.fetchrow("SELECT * FROM active_events WHERE event_id = $1 AND guild_id = $2", event_id, str(guild_id))
                 
             if not db_event:
-                await interaction.response.send_message(t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True)
+                await interaction.followup.send(t("ERR_EV_NOT_FOUND", guild_id=guild_id), ephemeral=True)
                 return
                 
             # Get RSVPs
@@ -173,23 +178,21 @@ class AttendanceCog(commands.Cog):
             eligible = [dict(r) for r in rsvps if r["status"] in pos_ids]
             
             if not eligible:
-                await interaction.response.send_message(t("ERR_NO_MY_EVENTS", guild_id=guild_id) or "No positive RSVPs found for this event.", ephemeral=True)
+                await interaction.followup.send(t("ERR_NO_MY_EVENTS", guild_id=guild_id) or "No positive RSVPs found for this event.", ephemeral=True)
                 return
                 
             view = AttendanceView(self.bot, event_id, eligible, guild_id, title=db_event.get("title", "Event"))
             await view.build()
             
-            # Responsive First (no defer)
-            await interaction.response.send_message(view=view, ephemeral=True)
+            # Send using followup (since we deferred)
+            log.info(f"[Attendance Debug] COMMAND SUCCESS: Sending View")
+            await interaction.followup.send(view=view, ephemeral=True)
             
         except Exception as e:
             import traceback
-            log.error(f"[Attendance] Error in manage_attendance for event {event_id}: {e}\n{traceback.format_exc()}")
+            log.error(f"[Attendance] Command Error: {e}\n{traceback.format_exc()}")
             try:
-                if not interaction.response.is_done():
-                    await interaction.response.send_message(f"❌ Hiba történt: {e}", ephemeral=True)
-                else:
-                    await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
+                await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
             except:
                 pass
 
