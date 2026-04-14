@@ -72,6 +72,7 @@
   "ERR_RSVP_NEED_SERVER": "{ERROR} A jelentkezést a szerveren kell használni (DM-ből nem).",
   "ERR_RSVP_ROLE_REQUIRED": "{ERROR} Ehhez az eseményhez legalább egy engedélyezett rang szükséges.",
   "ERR_RSVP_COOLDOWN": "⏳ Kérlek várj még {seconds} másodpercet, mielőtt újra megváltoztatod a státuszod.",
+  "ERR_WAITLIST_NO_CAP": "⚠️ A várólistához először be kell állítanod egy kapacitáskorlátot (globálisan vagy szerepkör szintjén).",
   "ERR_RESET_FAILED": "{ERROR} Hiba a visszaállítás során: {e}",
   "ERR_SELECT_KEY_FIRST": "Válassz ki egy kulcsot a szerkesztéshez!",
   "ERR_SELECT_KEY_RESET": "Válassz ki egy kulcsot a visszaállításhoz!",

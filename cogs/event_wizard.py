@@ -677,6 +677,27 @@ class EventWizardView(ui.LayoutView):
         rsvp_roles_btn.callback = rsvp_roles_cb
 
         async def wait_cb(it):
+            # Guard: waiting list requires at least one capacity limit
+            has_global_cap = int(view.data.get("max_accepted") or 0) > 0
+            has_role_cap = False
+            extra = view.data.get("extra_data")
+            if extra:
+                try:
+                    d = json.loads(extra) if isinstance(extra, str) else extra
+                    rl = d.get("role_limits", {})
+                    if any(int(v) > 0 for v in rl.values()):
+                        has_role_cap = True
+                except Exception:
+                    pass
+            
+            if not has_global_cap and not has_role_cap:
+                # Trying to enable without any capacity set
+                if not view.data.get("use_waiting_list", False):
+                    return await it.response.send_message(
+                        t("ERR_WAITLIST_NO_CAP", guild_id=self.guild_id),
+                        ephemeral=True,
+                    )
+            
             view.data["use_waiting_list"] = not view.data.get("use_waiting_list", False)
             await view.save_to_draft()
             await view.refresh_message(it)
