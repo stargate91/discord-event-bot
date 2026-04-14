@@ -14,10 +14,9 @@ class AttendanceView(ui.LayoutView):
         self.bot = bot
         self.event_id = event_id
         self.participants = participants  # list of dicts {user_id, status, attendance}
-        self.guild_id = guild_id
         self.event_title = title
         self.page = 0
-        self.per_page = 3  # Compact layout for premium Container look
+        self.per_page = 2  # Flattened layout: 2 users fit perfectly in 5 rows
         self.name_cache = {} # Avoid redundant member lookups
 
     async def build(self):
@@ -28,17 +27,13 @@ class AttendanceView(ui.LayoutView):
         page_users = self.participants[start:end]
         total_pages = math.ceil(len(self.participants) / self.per_page) if self.participants else 1
         
-        # 1. Header Info
+        # 1. Header Row (Top Level)
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
         stats_text = f"✅ {len(self.participants) - no_shows} | ❌ {no_shows}"
+        header_text = f"### {self.event_title}\n-# {stats_text} • Page {self.page + 1}/{total_pages}"
+        self.add_item(ui.TextDisplay(header_text))
         
-        container_items = [
-            ui.TextDisplay(f"### {self.event_title}"),
-            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}"),
-            ui.Separator()
-        ]
-        
-        # 2. Member Rows (Vertical Stack Pattern)
+        # 2. Member Rows (Flattened Vertical Stack)
         for i, p in enumerate(page_users):
             idx = (self.page * self.per_page) + i + 1
             uid = p["user_id"]
@@ -53,80 +48,71 @@ class AttendanceView(ui.LayoutView):
                 user_name = member.display_name if member else f"User {uid}"
                 self.name_cache[uid] = user_name
             
-            # Name as prominent text
-            container_items.append(ui.TextDisplay(f"**{idx}. {user_name}**"))
+            # Row A: Name (TextDisplay)
+            self.add_item(ui.TextDisplay(f"**{idx}. {user_name}**"))
             
-            # Button for the Toggle
+            # Row B: Toggle Button (ActionRow)
             label = "❌ No-show" if is_noshow else "✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
-            toggle_btn = ui.Button(label=label, style=style)
+            
+            # Stability: Use unique custom_id to avoid interaction conflicts during refreshes
+            toggle_btn = ui.Button(
+                label=label, 
+                style=style, 
+                custom_id=f"att_tg_{uid}_{self.page}_{'ns' if is_noshow else 'ps'}"
+            )
             
             async def create_callback(u_id, current_att):
                 async def callback(interaction: discord.Interaction):
                     try:
-                        # 1. Attempt Deferral loud and clear
-                        try:
-                            await interaction.response.defer()
-                        except Exception as de:
-                            log.debug(f"[Attendance Debug] Deferral skipped/failed: {de}")
-
-                        # 2. Update Database
+                        # 1. Immediate Deferral
+                        try: await interaction.response.defer()
+                        except: pass
+                        
+                        # 2. DB Logic
                         new_att = "present" if current_att == "no_show" else "no_show"
                         await database.update_rsvp_attendance(self.event_id, u_id, new_att)
-                        
-                        # 3. Update State
                         for part in self.participants:
                             if part["user_id"] == u_id:
                                 part["attendance"] = new_att
                                 break
                         
-                        # 4. Final Refresh
+                        # 3. Refresh
                         await self.refresh(interaction)
-                        
                     except Exception as e:
                         import traceback
-                        tb = traceback.format_exc()
-                        log.error(f"[Attendance] Callback Fatal Error: {e}\n{tb}")
-                        try:
-                            await interaction.followup.send(f"❌ Hiba történt a művelet közben:\n`{str(e)}`", ephemeral=True)
-                        except:
-                            pass
+                        log.error(f"[Attendance] Fatal: {e}\n{traceback.format_exc()}")
+                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+                        except: pass
                 return callback
                 
             toggle_btn.callback = create_callback(uid, att)
             
-            container_items.append(ui.ActionRow(toggle_btn))
-            container_items.append(ui.Separator())
-
-        # 3. Navigation Controls
-        if total_pages > 1:
-            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0))
-            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
-            
-            async def prev_cb(it):
-                try: 
-                    await it.response.defer()
-                    import asyncio
-                    await asyncio.sleep(0.05)
-                except: pass
-                self.page -= 1
-                await self.refresh(it)
-            async def next_cb(it):
-                try: 
-                    await it.response.defer()
-                    import asyncio
-                    await asyncio.sleep(0.05)
-                except: pass
-                self.page += 1
-                await self.refresh(it)
+            # If it's the last user on the page, we'll combine the toggle with navigation to conserve rows
+            if i == len(page_users) - 1 and total_pages > 1:
+                # Add Navigation to the same ActionRow as the last toggle
+                prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_prev_{self.page}")
+                next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_next_{self.page}")
                 
-            prev_btn.callback = prev_cb
-            next_btn.callback = next_cb
-            container_items.append(ui.ActionRow(prev_btn, next_btn))
-        
-        # 4. Assembly
-        main_container = ui.Container(*container_items, accent_color=0x3498db)
-        self.add_item(main_container)
+                async def prev_cb(it):
+                    try: await it.response.defer()
+                    except: pass
+                    self.page -= 1
+                    await self.refresh(it)
+                async def next_cb(it):
+                    try: await it.response.defer()
+                    except: pass
+                    self.page += 1
+                    await self.refresh(it)
+                    
+                prev_btn.callback = prev_cb
+                next_btn.callback = next_cb
+                
+                nav_row = ui.ActionRow(toggle_btn, prev_btn, next_btn)
+                self.add_item(nav_row)
+            else:
+                # Just the toggle button
+                self.add_item(ui.ActionRow(toggle_btn))
 
     async def refresh(self, interaction: discord.Interaction):
         # Create a FRESH instance to avoid stale interaction/state issues (proven stability pattern)
