@@ -867,7 +867,11 @@ class DynamicEventView(discord.ui.LayoutView):
                         for item in row.children:
                             if isinstance(item, discord.ui.Button):
                                 item.disabled = True
-        await interaction.message.edit(view=self)
+        
+        if interaction.response.is_done():
+            await interaction.edit_original_response(view=self)
+        else:
+            await interaction.response.edit_message(view=self)
         log.info(f"Event {self.event_id} deleted by {interaction.user}")
 
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):
@@ -1015,7 +1019,18 @@ class DynamicEventView(discord.ui.LayoutView):
             await process_lobby_transition(self.bot, self.event_id, self.active_set, int(str(gid_raw)))
 
         await self.prepare()
-        await interaction.message.edit(view=self)
+        
+        # Robust UI refresh: try response.edit_message first for faster feedback
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.edit_message(view=self)
+            else:
+                await interaction.message.edit(view=self)
+        except Exception as e:
+            log.debug(f"Refresh handling: {e}")
+            # Fallback if both fail for some reason
+            try: await interaction.edit_original_response(view=self)
+            except: pass
         log.info(f"User {interaction.user} RSVP'd {status} for event {self.event_id}", guild_id=interaction.guild_id)
 
     async def notify_promotion(self, interaction, user_id, opt):
@@ -1039,6 +1054,9 @@ class DynamicEventView(discord.ui.LayoutView):
             msg = custom_msg.format(user_id=user_id, role=role_name, emoji=opt.get("emoji", ""), title=self.event_conf.get("title", ""))
         else: 
             msg = t("MSG_PROMOTED_DEFAULT", guild_id=interaction.guild_id, user_id=user_id, role=role_name, emoji=opt.get("emoji", ""))
+        
+        # Resolve placeholders (!IMPORTANT: fix for {TEMP_STD_YES} appearing in text)
+        msg = resolve_placeholders(msg)
             
         # Add jump link for better UX
         jump_link = f"https://discord.com/channels/{interaction.guild_id}/{db_event['channel_id']}/{db_event['message_id']}"
