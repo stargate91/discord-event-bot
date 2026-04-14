@@ -158,6 +158,8 @@ class SingleEventModal(ui.Modal):
                 self.wizard_view.data["max_accepted"] = (
                     int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
                 )
+                if self.wizard_view.data["max_accepted"] == 0:
+                    self.wizard_view.data["use_waiting_list"] = False
             else:
                 time_val = str(self.time_input.value).strip()
                 if "," in time_val:
@@ -230,6 +232,8 @@ class SingleEventSupplementaryModal(ui.Modal):
             self.wizard_view.data["max_accepted"] = (
                 int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
             )
+            if self.wizard_view.data["max_accepted"] == 0:
+                self.wizard_view.data["use_waiting_list"] = False
 
         self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
@@ -290,6 +294,8 @@ class Step2Modal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["color"] = str(self.color_input.value)
         self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
+        if self.wizard_view.data["max_accepted"] == 0:
+            self.wizard_view.data["use_waiting_list"] = False
         self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
         
         start_val = str(self.start_input.value).strip()
