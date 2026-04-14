@@ -138,6 +138,12 @@ class AttendanceView(ui.LayoutView):
         else:
             await interaction.response.edit_message(content=None, embeds=[], view=new_view)
 
+class AttendanceCog(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        
+    attendance_group = app_commands.Group(name="attendance", description="Manage event attendance")
+    
     @attendance_group.command(name="manage", description="Track who showed up for a recent event")
     @app_commands.describe(event_id="The ID of the event to manage")
     async def manage_attendance(self, interaction: discord.Interaction, event_id: str):
