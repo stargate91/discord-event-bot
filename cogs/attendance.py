@@ -38,8 +38,9 @@ class AttendanceView(ui.LayoutView):
             ui.Separator()
         ]
         
-        # 2. Member Rows
-        for p in page_users:
+        # 2. Member Rows (Vertical Stack Pattern)
+        for i, p in enumerate(page_users):
+            idx = (self.page * self.per_page) + i + 1
             uid = p["user_id"]
             att = p.get("attendance", "present")
             is_noshow = (att == "no_show")
@@ -52,10 +53,10 @@ class AttendanceView(ui.LayoutView):
                 user_name = member.display_name if member else f"User {uid}"
                 self.name_cache[uid] = user_name
             
-            # Add Name as Text
-            container_items.append(ui.TextDisplay(f"**{user_name}**"))
+            # Name as prominent text
+            container_items.append(ui.TextDisplay(f"**{idx}. {user_name}**"))
             
-            # ActionRow for the Toggle Button
+            # Button for the Toggle
             label = "❌ No-show" if is_noshow else "✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             toggle_btn = ui.Button(label=label, style=style)
@@ -63,10 +64,11 @@ class AttendanceView(ui.LayoutView):
             async def create_callback(u_id, current_att):
                 async def callback(interaction: discord.Interaction):
                     # ABSOLUTE FIRST LINE: Defer to prevent timeouts
-                    try:
+                    try: 
                         await interaction.response.defer()
-                    except:
-                        pass
+                        import asyncio
+                        await asyncio.sleep(0.08) # Safety margin for gateway propagation
+                    except: pass
                         
                     try:
                         new_att = "present" if current_att == "no_show" else "no_show"
@@ -77,7 +79,7 @@ class AttendanceView(ui.LayoutView):
                                 break
                         await self.refresh(interaction)
                     except Exception as e:
-                        log.error(f"Attendance callback error: {e}", exc_info=True)
+                        log.error(f"Attendance toggle error: {e}", exc_info=True)
                         try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
                         except: pass
                 return callback
@@ -93,11 +95,19 @@ class AttendanceView(ui.LayoutView):
             next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
             
             async def prev_cb(it):
-                await it.response.defer()
+                try: 
+                    await it.response.defer()
+                    import asyncio
+                    await asyncio.sleep(0.05)
+                except: pass
                 self.page -= 1
                 await self.refresh(it)
             async def next_cb(it):
-                await it.response.defer()
+                try: 
+                    await it.response.defer()
+                    import asyncio
+                    await asyncio.sleep(0.05)
+                except: pass
                 self.page += 1
                 await self.refresh(it)
                 
@@ -105,17 +115,21 @@ class AttendanceView(ui.LayoutView):
             next_btn.callback = next_cb
             container_items.append(ui.ActionRow(prev_btn, next_btn))
         
-        # 4. Final Container Assembly
-        # Use an accent color to make it pop (light blue)
+        # 4. Assembly
         main_container = ui.Container(*container_items, accent_color=0x3498db)
         self.add_item(main_container)
 
     async def refresh(self, interaction: discord.Interaction):
-        await self.build()
+        # Create a FRESH instance to avoid stale interaction/state issues (proven stability pattern)
+        new_view = AttendanceView(self.bot, self.event_id, self.participants, self.guild_id, self.event_title)
+        new_view.page = self.page
+        new_view.name_cache = self.name_cache
+        await new_view.build()
+        
         if interaction.response.is_done():
-            await interaction.edit_original_response(content=None, embeds=[], view=self)
+            await interaction.edit_original_response(content=None, embeds=[], view=new_view)
         else:
-            await interaction.response.edit_message(content=None, embeds=[], view=self)
+            await interaction.response.edit_message(content=None, embeds=[], view=new_view)
 
 class AttendanceCog(commands.Cog):
     def __init__(self, bot):
