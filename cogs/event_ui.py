@@ -945,8 +945,11 @@ class DynamicEventView(discord.ui.LayoutView):
                     except Exception as e:
                         log.debug("handle_rsvp extra_data: %s", e)
         
-        rsvps_list = await database.get_rsvps(self.event_id)
-        old_status = next((s for uid, s in rsvps_list if uid == interaction.user.id), None)
+        # Use with_time to ensure we have timestamps for promotion logic consistency
+        rsvps_raw = await database.get_rsvps_with_time(self.event_id)
+        rsvps_list = [dict(r) for r in rsvps_raw]
+
+        old_status = next((s["status"] for s in rsvps_list if s["user_id"] == interaction.user.id), None)
         target_status, opt = status, next((o for o in self.active_set["options"] if o["id"] == status), None)
         
         ex = db_event.get("extra_data")
@@ -959,7 +962,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 log.debug("handle_rsvp role_limits: %s", e)
             
         role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
-        if role_limit and sum(1 for _, s in rsvps_list if s == status) >= role_limit and old_status != status:
+        if role_limit and sum(1 for s in rsvps_list if s["status"] == status) >= role_limit and old_status != status:
             if self.event_conf.get("use_waiting_list", True): 
                 target_status = f"wait_{status}"
                 # Send waitlist hint
@@ -977,7 +980,7 @@ class DynamicEventView(discord.ui.LayoutView):
 
         if target_status in positive_statuses:
             max_acc = self.event_conf.get('max_accepted', 0)
-            if max_acc > 0 and sum(1 for _, s in rsvps_list if s in positive_statuses) >= max_acc and old_status not in positive_statuses:
+            if max_acc > 0 and sum(1 for s in rsvps_list if s["status"] in positive_statuses) >= max_acc and old_status not in positive_statuses:
                 if not target_status.startswith("wait_"): 
                     target_status = f"wait_{status}"
                     # Send waitlist hint (event-level limit)
@@ -990,6 +993,17 @@ class DynamicEventView(discord.ui.LayoutView):
 
         await interaction.response.defer()
         await database.update_rsvp(self.event_id, interaction.user.id, target_status)
+        
+        # Update local state IMMEDIATELY to avoid race conditions in subsequent logic
+        found = False
+        for r in rsvps_list:
+            if r["user_id"] == interaction.user.id:
+                r["status"] = target_status
+                r["joined_at"] = time.time() # Update time for rank priority
+                found = True
+                break
+        if not found:
+            rsvps_list.append({"user_id": interaction.user.id, "status": target_status, "joined_at": time.time()})
 
         # Temp Role Management
         temp_role_id = db_event.get("temp_role_id")
@@ -1014,17 +1028,23 @@ class DynamicEventView(discord.ui.LayoutView):
         # Check for promotions if a slot was vacated
         was_positive = old_status in positive_statuses
         still_positive = target_status in positive_statuses
+        # Promotion logic (centralized)
         if was_positive and not still_positive:
-            await self.try_promote_waiting(interaction, db_event, role_limits)
+            # User left a positive slot. Check for promotion.
+            await self.try_promote_waiting(interaction, db_event, role_limits, rsvps=rsvps_list)
         elif was_positive and still_positive and old_status != target_status:
             # Swapped roles: Role A vacated, Role B filled.
             # Role A might have a waitlist that can now be filled.
-            await self.try_promote_waiting(interaction, db_event, role_limits)
+            await self.try_promote_waiting(interaction, db_event, role_limits, rsvps=rsvps_list)
 
         gid_raw = interaction.guild_id or db_event.get("guild_id")
         if db_event.get("lobby_mode") and gid_raw:
             await process_lobby_transition(self.bot, self.event_id, self.active_set, int(str(gid_raw)))
 
+        # Small safety sleep to ensure DB writes are propagated before final read in prepare()
+        import asyncio
+        await asyncio.sleep(0.12)
+        
         # Robust UI refresh: Create a FRESH instance to avoid stale state issues (Components V2 pattern)
         try:
             new_view = DynamicEventView(self.bot, self.event_id, self.event_conf)
@@ -1094,9 +1114,12 @@ class DynamicEventView(discord.ui.LayoutView):
                         except Exception as e:
                             log.error(f"[Promotion] Role management error: {e}")
 
-    async def try_promote_waiting(self, interaction, db_event, role_limits):
+    async def try_promote_waiting(self, interaction, db_event, role_limits, rsvps=None):
         """Attempts to promote the earliest waiting user across all eligible roles."""
-        rsvps = await database.get_rsvps_with_time(self.event_id)
+        # If rsvps not provided, fetch fresh from DB
+        if rsvps is None:
+            rsvps_raw = await database.get_rsvps_with_time(self.event_id)
+            rsvps = [dict(r) for r in rsvps_raw]
         
         positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
         if not positive_statuses and "positive_count" in self.active_set:
