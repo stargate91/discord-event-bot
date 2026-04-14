@@ -1000,13 +1000,15 @@ class DynamicEventView(discord.ui.LayoutView):
                     except Exception as e:
                         log.error(f"[RSVP] Role management error: {e}")
 
-        if old_status and old_status != target_status:
-            old_role_limit = role_limits.get(old_status, next((o.get("max_slots") for o in self.active_set["options"] if o["id"] == old_status), None))
-            if old_role_limit:
-                max_acc, current_acc = self.event_conf.get('max_accepted', 0), sum(1 for _, s in rsvps_list if s in positive_statuses)
-                if max_acc == 0 or current_acc < max_acc:
-                    promoted_uid = await database.promote_next_waiting(self.event_id, f"wait_{old_status}", old_status)
-                    if promoted_uid: await self.notify_promotion(interaction, promoted_uid, next(o for o in self.active_set["options"] if o["id"] == old_status))
+        # Check for promotions if a slot was vacated
+        was_positive = old_status in positive_statuses
+        still_positive = target_status in positive_statuses
+        if was_positive and not still_positive:
+            await self.try_promote_waiting(interaction, db_event, role_limits)
+        elif was_positive and still_positive and old_status != target_status:
+            # Swapped roles: Role A vacated, Role B filled.
+            # Role A might have a waitlist that can now be filled.
+            await self.try_promote_waiting(interaction, db_event, role_limits)
 
         gid_raw = interaction.guild_id or db_event.get("guild_id")
         if db_event.get("lobby_mode") and gid_raw:
@@ -1065,6 +1067,56 @@ class DynamicEventView(discord.ui.LayoutView):
                             log.info(f"[Promotion] Added role {db_event['temp_role_id']} to {user_id} for event {self.event_id}")
                         except Exception as e:
                             log.error(f"[Promotion] Role management error: {e}")
+
+    async def try_promote_waiting(self, interaction, db_event, role_limits):
+        """Attempts to promote the earliest waiting user across all eligible roles."""
+        rsvps = await database.get_rsvps_with_time(self.event_id)
+        
+        positive_statuses = [o["id"] for o in self.active_set["options"] if o.get("positive")]
+        if not positive_statuses and "positive_count" in self.active_set:
+            cnt = self.active_set["positive_count"]
+            positive_statuses = [o["id"] for o in self.active_set["options"][:cnt]]
+            
+        max_acc = self.event_conf.get('max_accepted', 0)
+        
+        # Sort by joined_at to ensure fairness (earliest first)
+        waiting = sorted([r for r in rsvps if str(r["status"]).startswith("wait_")], key=lambda x: x["joined_at"])
+        if not waiting:
+            return
+
+        for w in waiting:
+            # Re-fetch counts as they might change if we promote multiple people
+            current_acc = sum(1 for r in rsvps if r["status"] in positive_statuses)
+            if max_acc > 0 and current_acc >= max_acc:
+                break # Event level limit still reached, nobody else can be promoted
+                
+            wait_status = str(w["status"])
+            target_status = wait_status.replace("wait_", "")
+            
+            # Check role-specific limit
+            role_limit = role_limits.get(target_status)
+            if role_limit is None:
+                opt = next((o for o in self.active_set.get("options", []) if o["id"] == target_status), None)
+                if opt: role_limit = opt.get("max_slots")
+            
+            if role_limit and sum(1 for r in rsvps if r["status"] == target_status) >= role_limit:
+                continue # This role is still full, check next waiting person
+                
+            # PROMOTION FOUND!
+            user_id = w["user_id"]
+            await database.update_rsvp(self.event_id, user_id, target_status)
+            
+            opt = next((o for o in self.active_set["options"] if o["id"] == target_status), None)
+            if opt:
+                await self.notify_promotion(interaction, user_id, opt)
+                
+            log.info(f"[Promotion] User {user_id} promoted to {target_status} for event {self.event_id}")
+            
+            # Update local list state so we can potentially promote more in the same pass (if event had multiple slots open)
+            for r in rsvps:
+                if r["user_id"] == user_id:
+                    r["status"] = target_status
+                    break
 
 class PostponeModal(discord.ui.Modal):
     def __init__(self, bot, event_id, parent_view, guild_id):
