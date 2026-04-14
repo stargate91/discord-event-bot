@@ -7,8 +7,9 @@ import database
 import json
 from utils.logger import log
 from utils.i18n import t
-from utils.auth import is_admin
+from utils.auth import is_admin, is_master
 
+@app_commands.check(is_master)
 class MasterCommands(commands.GroupCog, name="master"):
     """Global Bot Management commands. Only visible in the Master Guild."""
     def __init__(self, bot):

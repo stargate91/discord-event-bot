@@ -74,3 +74,35 @@ async def is_admin(ctx_or_int):
 
 
     return False
+
+async def is_master(ctx_or_int):
+    """
+    Strictest check: Only allows access if the guild is in config.master_guild_ids
+    OR if the user is the Bot Owner.
+    """
+    if isinstance(ctx_or_int, discord.Interaction):
+        user = ctx_or_int.user
+        guild_id = ctx_or_int.guild_id
+        bot = ctx_or_int.client
+    elif isinstance(ctx_or_int, commands.Context):
+        user = ctx_or_int.author
+        guild_id = ctx_or_int.guild.id if ctx_or_int.guild else None
+        bot = ctx_or_int.bot
+    else:
+        return False
+
+    # 0. Bot Owner always has access
+    if await bot.is_owner(user):
+        return True
+
+    if not guild_id:
+        return False
+
+    # 1. Check if guild is a designated Master Hub
+    from utils.config import config
+    master_ids = config.master_guild_ids
+    if master_ids and int(guild_id) in master_ids:
+        # User must still be an admin/authorized in that master guild
+        return await is_admin(ctx_or_int)
+
+    return False

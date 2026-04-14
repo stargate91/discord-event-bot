@@ -105,15 +105,18 @@ class EventBot(commands.Bot):
             # 3. Handle Special Synchronization Logic
             if self.master_guild_ids:
                 # We specifically find the 'master' command group and bind it to our master guilds
-                # This ensures it's NOT in the global tree and only shows up in the master guilds
+                # In discord.py 2.x, GroupCog automatically registers to global tree. 
+                # We MUST remove it from global to prevent 'copy_global_to' leakage.
                 master_cog = self.get_cog("MasterCommands")
                 if master_cog:
-                    # In discord.py 2.x, GroupCog automatically registers to global tree
-                    # We move it to the guild tree for isolation
+                    # Remove from global tree
+                    self.tree.remove_command("master")
+                    
+                    # Add to specific guild trees
                     for gid in self.master_guild_ids:
                         master_guild = discord.Object(id=gid)
                         self.tree.add_command(master_cog, guild=master_guild)
-                    log.info(f"Master Hub isolated to guilds: {self.master_guild_ids}")
+                    log.info(f"Master Hub isolated to guilds: {self.master_guild_ids} (Removed from Global)")
 
             # Load custom emoji sets into cache before persistent views
             await load_custom_sets()

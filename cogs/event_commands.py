@@ -11,7 +11,7 @@ import json
 from utils.i18n import t
 from dateutil import parser
 from dateutil import tz
-from utils.auth import is_admin
+from utils.auth import is_admin, is_master
 from utils.logger import log
 from utils import emojis
 import math
@@ -652,7 +652,7 @@ class EventCommands(commands.Cog):
     @commands.command(name="sync", aliases=["sync_nexus"])
     @commands.guild_only()
     async def sync_prefix(self, ctx: commands.Context, spec: str | None = None):
-        if not await is_admin(ctx):
+        if not await is_master(ctx):
             return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
         
         await ctx.send(t("SYNC_START", guild_id=ctx.guild.id))
@@ -673,7 +673,7 @@ class EventCommands(commands.Cog):
     @commands.command(name="clear_commands", aliases=["clear_commands_nexus"])
     @commands.guild_only()
     async def clear_commands_prefix(self, ctx: commands.Context):
-        if not await is_admin(ctx):
+        if not await is_master(ctx):
             return await ctx.send(t("ERR_ADMIN_ONLY", guild_id=ctx.guild.id))
         
         await ctx.send(t("SYNC_CLEAR_START", guild_id=ctx.guild.id))
