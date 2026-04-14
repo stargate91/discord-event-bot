@@ -145,7 +145,7 @@ class AttendanceCog(commands.Cog):
         guild_id = interaction.guild_id
         
         try:
-            from utils.lobby_utils import is_admin
+            from utils.auth import is_admin
             if not await is_admin(interaction):
                 await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
                 return
