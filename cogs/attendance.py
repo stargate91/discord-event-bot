@@ -17,7 +17,7 @@ class AttendanceView(ui.LayoutView):
         self.guild_id = guild_id
         self.event_title = title
         self.page = 0
-        self.per_page = 4  # 4 users per page to fit Container + Nav in 5 rows
+        self.per_page = 3  # Compact layout for premium Container look
 
     async def build(self):
         self.clear_items()
@@ -27,97 +27,80 @@ class AttendanceView(ui.LayoutView):
         page_users = self.participants[start:end]
         total_pages = math.ceil(len(self.participants) / self.per_page) if self.participants else 1
         
-        # 1. Header (Components V2 Container)
-        # We use Container for the title and stats summary
+        # 1. Header Info
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
         stats_text = f"✅ {len(self.participants) - no_shows} | ❌ {no_shows}"
         
-        header = ui.Container(
-            ui.TextDisplay(f"**{self.event_title}** (`{self.event_id}`)"),
+        container_items = [
+            ui.TextDisplay(f"### {self.event_title}"),
             ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}"),
-            accent_color=0x3498db
-        )
-        # In V2, Containers often take row 0 or are added first
-        self.add_item(header)
+            ui.Separator()
+        ]
         
-        # 2. User Rows (Toggle Buttons)
-        # Every user gets an ActionRow with a Name and a Toggle
-        # Rows 1, 2, 3, 4 are for users
-        for i, p in enumerate(page_users):
+        # 2. Member Rows
+        for p in page_users:
             uid = p["user_id"]
-            status = p["status"]
             att = p.get("attendance", "present")
             is_noshow = (att == "no_show")
             
-            # Resolve Member
+            # Resolve Member Identity
             guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
             member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
             user_name = member.display_name if member else f"User {uid}"
             
-            row_idx = i + 1
-            
-            # Name Button (Disabled, just to show identity)
+            # ActionRow for the member (Name + Toggle)
             name_btn = ui.Button(
-                label=user_name[:80], # Prevent label overflow
+                label=user_name[:80],
                 style=discord.ButtonStyle.secondary, 
-                disabled=True, 
-                row=row_idx
+                disabled=True
             )
             
-            # Toggle Button
             label = "❌ No-show" if is_noshow else "✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
-            
-            toggle_btn = ui.Button(
-                label=label,
-                style=style,
-                row=row_idx
-            )
+            toggle_btn = ui.Button(label=label, style=style)
             
             async def create_callback(u_id, current_att):
                 async def callback(interaction: discord.Interaction):
-                    new_att = "present" if current_att == "no_show" else "no_show"
-                    await database.update_rsvp_attendance(self.event_id, u_id, new_att)
-                    # Update local state to avoid re-fetching
-                    for part in self.participants:
-                        if part["user_id"] == u_id:
-                            part["attendance"] = new_att
-                            break
-                    await self.refresh(interaction)
+                    try:
+                        await interaction.response.defer() # Immediate defer to prevent timeouts
+                        new_att = "present" if current_att == "no_show" else "no_show"
+                        await database.update_rsvp_attendance(self.event_id, u_id, new_att)
+                        for part in self.participants:
+                            if part["user_id"] == u_id:
+                                part["attendance"] = new_att
+                                break
+                        await self.refresh(interaction)
+                    except Exception as e:
+                        log.error(f"Attendance callback error: {e}")
                 return callback
                 
             toggle_btn.callback = create_callback(uid, att)
             
-            user_row = ui.ActionRow(name_btn, toggle_btn)
-            self.add_item(user_row)
-            
-        # 3. Navigation (Row 5 - Last row)
+            container_items.append(ui.ActionRow(name_btn, toggle_btn))
+            container_items.append(ui.Separator())
+
+        # 3. Navigation Controls
         if total_pages > 1:
-            prev_btn = ui.Button(
-                label="⬅️", 
-                style=discord.ButtonStyle.gray, 
-                row=4, 
-                disabled=(self.page == 0)
-            )
-            next_btn = ui.Button(
-                label="➡️", 
-                style=discord.ButtonStyle.gray, 
-                row=4, 
-                disabled=(self.page >= total_pages - 1)
-            )
+            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0))
+            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
             
             async def prev_cb(it):
+                await it.response.defer()
                 self.page -= 1
                 await self.refresh(it)
             async def next_cb(it):
+                await it.response.defer()
                 self.page += 1
                 await self.refresh(it)
                 
             prev_btn.callback = prev_cb
             next_btn.callback = next_cb
-            
-            nav_row = ui.ActionRow(prev_btn, next_btn)
-            self.add_item(nav_row)
+            container_items.append(ui.ActionRow(prev_btn, next_btn))
+        
+        # 4. Final Container Assembly
+        # Use an accent color to make it pop (light blue)
+        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        self.add_item(main_container)
 
     async def refresh(self, interaction: discord.Interaction):
         await self.build()
