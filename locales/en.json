@@ -71,6 +71,7 @@
   "ERR_POS_FULL": "Sorry, the {name} position is full!",
   "ERR_RSVP_NEED_SERVER": "{ERROR} You must use RSVP in the server (not from DMs).",
   "ERR_RSVP_ROLE_REQUIRED": "{ERROR} You need at least one of the allowed roles to sign up for this event.",
+  "ERR_RSVP_COOLDOWN": "⏳ Please wait {seconds} more seconds before changing your status again.",
   "ERR_RESET_FAILED": "{ERROR} Error during reset: {e}",
   "ERR_SELECT_KEY_FIRST": "Select a key to edit first!",
   "ERR_SELECT_KEY_RESET": "Select a key to reset first!",

@@ -149,6 +149,11 @@ async def send_lobby_fill_notifications(bot, db_event, active_set: dict, guild_i
 
 import time
 
+# Cooldown cache for RSVP button presses (only enforced when waiting list is active)
+# Key: (event_id, user_id) -> timestamp of last RSVP change
+_rsvp_cooldowns: dict[tuple, float] = {}
+RSVP_COOLDOWN_SECONDS = 60
+
 async def send_status_notification(bot, event_id, db_event, status_name, guild_id):
     """Sends a ping broadcast in the channel and DMs participants about status changes."""
     rsvps = await database.get_rsvps(event_id)
@@ -868,6 +873,21 @@ class DynamicEventView(discord.ui.LayoutView):
     async def handle_rsvp(self, interaction: discord.Interaction, status: str):
         db_event = await database.get_active_event(self.event_id)
         if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
+
+        # Cooldown check: only enforce when waiting list is possible
+        has_waitlist = (db_event.get("max_accepted") or 0) > 0
+        if has_waitlist:
+            cd_key = (self.event_id, interaction.user.id)
+            last_press = _rsvp_cooldowns.get(cd_key, 0)
+            elapsed = time.time() - last_press
+            if elapsed < RSVP_COOLDOWN_SECONDS:
+                remaining = int(RSVP_COOLDOWN_SECONDS - elapsed)
+                return await interaction.response.send_message(
+                    t("ERR_RSVP_COOLDOWN", guild_id=interaction.guild_id, seconds=remaining),
+                    ephemeral=True,
+                )
+            _rsvp_cooldowns[cd_key] = time.time()
+
         gid_chk = interaction.guild_id or db_event.get("guild_id")
         if db_event.get("status") == "lobby_expired":
             return await interaction.response.send_message(
