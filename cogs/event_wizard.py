@@ -631,10 +631,10 @@ class EventWizardView(ui.LayoutView):
         async def s1_cb(it):
             try:
                 log.info(f"[Wizard] s1_cb called. wizard_type={view.wizard_type}, guild_id={view.guild_id}")
-                modal = SingleEventModal(view)
-                log.info(f"[Wizard] Modal created. title='{modal.title}' ({len(modal.title)} chars), items={len(modal._children)}")
-                for idx, item in enumerate(modal._children):
-                    log.info(f"[Wizard] Field {idx}: label='{item.label}' ({len(item.label)} chars), default='{str(item.default)[:30]}' placeholder='{str(item.placeholder)[:30] if item.placeholder else ''}'")
+                if view.wizard_type == "series":
+                    modal = Step1Modal(view)
+                else:
+                    modal = SingleEventModal(view)
                 await it.response.send_modal(modal)
                 log.info(f"[Wizard] Modal sent successfully")
             except Exception as e:
@@ -649,7 +649,7 @@ class EventWizardView(ui.LayoutView):
             if view.wizard_type in ("single", "lobby"):
                 await it.response.send_modal(SingleEventSupplementaryModal(view))
             else:
-                await it.response.send_modal(RecurrenceSettingsModal(view))
+                await it.response.send_modal(Step2Modal(view))
 
         if view.wizard_type == "lobby":
             s2_label = t("BTN_STEP_2_LOBBY", guild_id=self.guild_id)
@@ -661,7 +661,11 @@ class EventWizardView(ui.LayoutView):
         step2.callback = s2_cb
 
         # Step 3: Series only — timezone, max participants, channel (multi-reminder: use Reminder toggle)
-        async def s3_cb(it): await it.response.send_modal(SingleEventSupplementaryModal(view))
+        async def s3_cb(it):
+            if view.wizard_type == "series":
+                await it.response.send_modal(Step3Modal(view))
+            else:
+                await it.response.send_modal(SingleEventSupplementaryModal(view))
         step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
 
