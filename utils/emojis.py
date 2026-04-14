@@ -90,7 +90,7 @@ _OVERRIDES = {
     "DRAFT_MSG": "<:notepencil:1493659536861564989>",
     "CALENDAR_MSG": "<:calendar:1493659532289904871>",
     "GEAR_MSG": "<:gear:1493659534005239920>",
-    "SYNC_MSG": "<:arrowscounterclockwise:1493659531090202675>", # Frissítés / Szinkronizáció ikon
+    "SATELLITE_MSG": "<:arrowscounterclockwise:1493659531090202675>", # Latency ikon
     "SUCCESS_MSG": "🟢", # Példa: Sima szövegben egy pötty
     "SUCCESS_LBL": "✨", # Példa: Címkénél egy csillag
 }
