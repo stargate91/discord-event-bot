@@ -22,16 +22,17 @@ class MasterCommands(commands.GroupCog, name="master"):
         await interaction.response.defer(ephemeral=True)
         
         try:
-            stats = await database.get_global_stats()
+            db_stats = await database.get_global_stats()
+            live_guilds = len(self.bot.guilds)
             
             from utils.config import config
             bot_version = config.version
 
 
             body_text = (
-                f"{t('MASTER_STATS_GUILDS', guild_id=None, val=stats['guilds'])}\n"
-                f"{t('MASTER_STATS_EVENTS', guild_id=None, val=stats['events'])}\n"
-                f"{t('MASTER_STATS_RSVPS', guild_id=None, val=stats['rsvps'])}\n\n"
+                f"{t('MASTER_STATS_GUILDS', guild_id=None, val=live_guilds)}\n"
+                f"{t('MASTER_STATS_EVENTS', guild_id=None, val=db_stats['events'])}\n"
+                f"{t('MASTER_STATS_RSVPS', guild_id=None, val=db_stats['rsvps'])}\n\n"
                 f"{t('MASTER_STATS_VERSION', guild_id=None, val=bot_version)}\n"
                 f"{t('MASTER_STATS_PYTHON', guild_id=None, val=platform.python_version())}\n"
                 f"{t('MASTER_STATS_LATENCY', guild_id=None, val=f'{round(self.bot.latency * 1000)}ms')}"

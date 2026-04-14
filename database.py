@@ -936,7 +936,8 @@ async def reset_guild_data(guild_id):
 async def get_global_stats():
     """Returns bot-wide statistics for the Master Hub."""
     pool = await get_pool()
-    guild_count = await pool.fetchval("SELECT COUNT(DISTINCT guild_id) FROM active_events")
+    # Count from guild_settings as every guild has at least some settings saved
+    guild_count = await pool.fetchval("SELECT COUNT(DISTINCT guild_id) FROM guild_settings")
     event_count = await pool.fetchval("SELECT COUNT(*) FROM active_events")
     rsvp_count = await pool.fetchval("SELECT COUNT(*) FROM rsvps")
     
