@@ -12,6 +12,6 @@
   "globals": {
     "logging_level": "INFO",
     "wizard_timeout": 600,
-    "version": "v2.1.0"
+    "version": "v2.2.0"
   }
 }
