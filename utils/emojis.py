@@ -1,92 +1,123 @@
 # utils/emojis.py
-"""Centralized Emoji Registry for the Nexus Event Bot."""
+"""Centralized Emoji Registry for the Nexus Event Bot with context decoupling."""
 
-# Common Status Indicators
-SUCCESS = "✅"
-ERROR = "❌"
-INFO = "💡"
-WARNING = "⚠️"
+# --- Helper for mass defining variations ---
+def _expand(emoji):
+    return {
+        "base": emoji,
+        "btn": emoji,
+        "title": emoji,
+        "msg": emoji,
+        "lbl": emoji
+    }
 
-# UI Elements & Navigation
+# --- Core Icons ---
+# Format: CONCEPT_ROOT = "emoji"
+# These are then expanded into specialized variants for context decoupling.
+
+_CORE = {
+    "SUCCESS": "✅",
+    "ERROR": "❌",
+    "INFO": "💡",
+    "WARNING": "⚠️",
+    "GEAR": "⚙️",
+    "GLOBE": "🌐",
+    "PEOPLE": "👥",
+    "CLONE": "👯",
+    "ADD": "➕",
+    "CLOCK": "⏰",
+    "TIME": "🕒",
+    "LIST": "📋",
+    "WIZARD": "✨",
+    "DRAFT": "📝",
+    "SHIELD": "🛡️",
+    "BELL": "🔔",
+    "PING": "📢",
+    "SYNC": "🔄",
+    "CROSS": "✖️",
+    "HELP": "❓",
+    "TOOLS": "🛠️",
+    "PRESENCE": "🎮",
+    "PIN": "📌",
+    "WAIT": "⏳",
+    "CALENDAR": "📅",
+    "GEM": "💎",
+    "CRYSTAL": "🔮",
+    "STAR": "⭐",
+    "HERB": "🌿",
+    "FLOWER": "🌸",
+    "PALETTE": "🎨",
+    "TROPHY": "🏆",
+    "HEADPHONES": "🎧",
+    "EYES": "👀",
+    "BOT": "🤖",
+    "SATELLITE": "🛰️",
+    "EDIT": "✏️",
+    "DELETE": "🗑️",
+    "BACK": "◀️",
+    "FORWARD": "▶️",
+    "PRESENT": "✅",
+    "NOSHOW": "❌",
+    "NAVPAGE": "📄",
+    "PACKAGE": "📦",
+    "TV": "📺",
+    "REC_DAILY": "📅",
+    "REC_WEEKLY": "🗓️",
+    "REC_MONTHLY": "📊",
+    "REC_BIWEEKLY": "🔄",
+    "REC_WEEKDAYS": "🏢",
+    "REC_WEEKENDS": "🏖️",
+    "REC_CUSTOM": "⚙️",
+    "REC_RELATIVE": "📆"
+}
+
+# Inject variations into the global namespace
+# Pattern: CONCEPT (base), CONCEPT_BTN, CONCEPT_TITLE, CONCEPT_MSG, CONCEPT_LBL
+for key, emoji in _CORE.items():
+    globals()[key] = emoji
+    globals()[f"{key}_BTN"] = emoji
+    globals()[f"{key}_TITLE"] = emoji
+    globals()[f"{key}_MSG"] = emoji
+    globals()[f"{key}_LBL"] = emoji
+
+# --- Context-Specific Overrides ---
+# Ide írhatod azokat az emojikat, amiknél le akarod cserélni az alap _CORE ikont egy specifikus helyen.
+# Például: Ha a SUCCESS_MSG máshogy nézzen ki, mint a SUCCESS_BTN.
+_OVERRIDES = {
+    "SUCCESS_MSG": "🟢", # Példa: Sima szövegben egy pötty
+    "SUCCESS_LBL": "✨", # Példa: Címkénél egy csillag
+    # Egyéb overrides...
+}
+
+# Felülírjuk az auto-generált alapokat a specifikus overrides-okkal
+for key, emoji in _OVERRIDES.items():
+    globals()[key] = emoji
+
+# --- Specialized / Static Icons (No variations needed yet) ---
 DROPDOWN_OPEN = "🔽"
 DROPDOWN_CLOSED = "◀️"
-GEAR = "⚙️"
-GLOBE = "🌐"
-PEOPLE = "👥"
-CLONE = "👯"
-ADD = "➕"
-CLOCK = "⏰"
-TIME = "🕒"
-LIST = "📋"
-WIZARD = "✨"
-DRAFT = "📝"
-SHIELD = "🛡️"
-BELL = "🔔"
-PING = "📢"
-SYNC = "🔄"
-CROSS = "✖️"
-HELP = "❓"
-TOOLS = "🛠️"
-PRESENCE = "🎮"
-PIN = "📌"
-WAIT = "⏳"
-CALENDAR = "📅"
-GEM = "💎"
-CRYSTAL = "🔮"
-STAR = "⭐"
-HERB = "🌿"
-FLOWER = "🌸"
-PALETTE = "🎨"
-TROPHY = "🏆"
-HEADPHONES = "🎧"
-EYES = "👀"
-BOT = "🤖"
-SATELLITE = "🛰️"
-EDIT = "✏️"
-DELETE = "🗑️"
-BACK = "◀️"
-FORWARD = "▶️"
-PRESENT = "✅"
-NOSHOW = "❌"
-NAVPAGE = "📄"
 LANG_HU = "🇭🇺"
 LANG_EN = "🇺🇸"
-PACKAGE = "📦"
-TV = "📺"
 
-# Template-Specific RSVP Icons
-# Standard
+# --- Template-Specific RSVP Icons ---
 TEMP_STD_YES = "✅"
 TEMP_STD_MAYBE = "❓"
 TEMP_STD_NO = "❌"
 
-# MMO
 TEMP_MMO_TANK = "🛡️"
 TEMP_MMO_HEAL = "🏥"
 TEMP_MMO_DPS = "🗡️"
 TEMP_MMO_MAYBE = "❓"
 TEMP_MMO_NO = "❌"
 
-# Survey
 TEMP_SURVEY_LIKE = "👍"
 TEMP_SURVEY_DISLIKE = "👎"
 
-# Teams
 TEMP_TEAM_A = "🅰️"
 TEMP_TEAM_B = "🅱️"
 TEMP_TEAM_SPECTATE = "👀"
 TEMP_TEAM_MAYBE = "❓"
 TEMP_TEAM_NO = "❌"
-
-# Recurrence Types
-REC_DAILY = "📅"
-REC_WEEKLY = "🗓️"
-REC_MONTHLY = "📊"
-REC_BIWEEKLY = "🔄"
-REC_WEEKDAYS = "🏢"
-REC_WEEKENDS = "🏖️"
-REC_CUSTOM = "⚙️"
-REC_RELATIVE = "📆"
 
 def get_all_emojis():
     """Returns a dictionary of all uppercase constants defined in this module."""
