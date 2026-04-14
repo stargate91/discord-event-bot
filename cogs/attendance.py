@@ -88,8 +88,8 @@ class AttendanceView(ui.LayoutView):
                 
             toggle_btn.callback = create_callback(uid, att)
             
-            self.add_item(name_btn)
-            self.add_item(toggle_btn)
+            user_row = ui.ActionRow(name_btn, toggle_btn)
+            self.add_item(user_row)
             
         # 3. Navigation (Row 5 - Last row)
         if total_pages > 1:
@@ -115,8 +115,9 @@ class AttendanceView(ui.LayoutView):
                 
             prev_btn.callback = prev_cb
             next_btn.callback = next_cb
-            self.add_item(prev_btn)
-            self.add_item(next_btn)
+            
+            nav_row = ui.ActionRow(prev_btn, next_btn)
+            self.add_item(nav_row)
 
     async def refresh(self, interaction: discord.Interaction):
         await self.build()
