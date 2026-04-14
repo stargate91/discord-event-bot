@@ -388,5 +388,21 @@
   "TITLE_REMINDER_MESSAGES": "Egyedi emlékeztető üzenetek",
   "LBL_REMINDER_MSG_N": "Üzenet #{n} ({offset})",
   "LBL_REMINDER_MSG_EMPTY": "Üzenet #{n} (Nincs beállított időpont)",
-  "ERR_INVALID_OFFSET_FORMAT": "{ERROR} Helytelen formátum! Használj m, h vagy d betűket (pl. 15m, 1h,dm)."
+  "ERR_INVALID_OFFSET_FORMAT": "{ERROR} Helytelen formátum! Használj m, h vagy d betűket (pl. 15m, 1h,dm).",
+  "COG_ATTENDANCE_DESC": "Események jelenléti ívének kezelése",
+  "CMD_ATT_MANAGE_DESC": "Ki érkezett meg a legutóbbi eseményekre",
+  "MSG_ATT_STATS": "{PRESENT} {attended} | {NOSHOW} {noshows}",
+  "LBL_ATT_PRESENT": "{PRESENT} Megjelent",
+  "LBL_ATT_NOSHOW": "{NOSHOW} Hiányzott",
+  "ERR_ATT_NO_RSVPS": "Nincsenek jelentkezők ehhez az eseményhez.",
+  "CMD_AUDIT_NOSHOW_DESC": "Felhasználói megbízhatóság ellenőrzése (hiányzások)",
+  "CMD_AUDIT_EVENT_DESC": "Ellenőrizd egy adott esemény résztvevőinek megbízhatóságát",
+  "CMD_AUDIT_ALLTIME_DESC": "Globális hiányzási dicsőséglista a szerveren",
+  "LBL_AUDIT_TITLE_EVENT": "### {LIST} Esemény Audit: `{event_id}`",
+  "LBL_AUDIT_TITLE_GLOBAL": "### {LIST} Globális Hiányzási Dicsőséglista",
+  "ERR_AUDIT_NO_DATA": "{SUCCESS} Nincs megbízhatósági adat a megadott feltételekkel.",
+  "LBL_AUDIT_ENTRIES": "Összes bejegyzés: {count}",
+  "MSG_AUDIT_HINT": "{INFO} Adj meg egy `event_id`-t a szűréshez, vagy válaszd az `all_time=True` opciót a teljes szerverre.",
+  "LBL_PAGE": "Oldal",
+  "LBL_USER_DEFAULT": "Felhasználó {uid}"
 }

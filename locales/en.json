@@ -388,5 +388,21 @@
   "TITLE_REMINDER_MESSAGES": "Custom Reminder Messages",
   "LBL_REMINDER_MSG_N": "Message #{n} ({offset})",
   "LBL_REMINDER_MSG_EMPTY": "Message #{n} (No offset configured)",
-  "ERR_INVALID_OFFSET_FORMAT": "{ERROR} Invalid format! Use m, h, or d (e.g., 15m, 1h,dm)."
+  "ERR_INVALID_OFFSET_FORMAT": "{ERROR} Invalid format! Use m, h, or d (e.g., 15m, 1h,dm).",
+  "COG_ATTENDANCE_DESC": "Manage event attendance",
+  "CMD_ATT_MANAGE_DESC": "Track who showed up for a recent event",
+  "MSG_ATT_STATS": "{PRESENT} {attended} | {NOSHOW} {noshows}",
+  "LBL_ATT_PRESENT": "{PRESENT} Present",
+  "LBL_ATT_NOSHOW": "{NOSHOW} No-show",
+  "ERR_ATT_NO_RSVPS": "No positive RSVPs found for this event.",
+  "CMD_AUDIT_NOSHOW_DESC": "Check member reliability scores (no-shows)",
+  "CMD_AUDIT_EVENT_DESC": "Check the reliability of all participants in a specific event",
+  "CMD_AUDIT_ALLTIME_DESC": "Show a global leaderboard of all users with no-shows in this guild",
+  "LBL_AUDIT_TITLE_EVENT": "### {LIST} Event Audit: `{event_id}`",
+  "LBL_AUDIT_TITLE_GLOBAL": "### {LIST} Global No-show Leaderboard",
+  "ERR_AUDIT_NO_DATA": "{SUCCESS} No reliability data found for the selection.",
+  "LBL_AUDIT_ENTRIES": "Total entries: {count}",
+  "MSG_AUDIT_HINT": "{INFO} Please provide an `event_id` to audit a specific group, or set `all_time=True` for a guild-wide check.",
+  "LBL_PAGE": "Page",
+  "LBL_USER_DEFAULT": "User {uid}"
 }

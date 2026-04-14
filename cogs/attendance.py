@@ -5,6 +5,7 @@ import database
 from utils.i18n import t
 from utils.auth import is_admin
 from utils.logger import log
+from utils import emojis
 import time
 import math
 
@@ -30,11 +31,17 @@ class AttendanceView(ui.LayoutView):
         
         # 1. Prepare Container Items
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
-        stats_text = f"✅ {len(self.participants) - no_shows} | ❌ {no_shows}"
+        
+        # Localized Stats
+        stats_text = t("MSG_ATT_STATS", guild_id=self.guild_id)
+        stats_text = stats_text.replace("{attended}", str(len(self.participants) - no_shows))
+        stats_text = stats_text.replace("{noshows}", str(no_shows))
+        
+        page_label = f"{t('LBL_PAGE', guild_id=self.guild_id)} {self.page + 1}/{total_pages}"
         
         container_items = [
             ui.TextDisplay(f"### {self.event_title}"),
-            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}")
+            ui.TextDisplay(f"-# {stats_text} • {page_label}")
         ]
         
         for i, p in enumerate(page_users):
@@ -52,11 +59,11 @@ class AttendanceView(ui.LayoutView):
                     try: member = await guild.fetch_member(int(uid))
                     except: pass
                 
-                user_name = member.display_name if member else f"User {uid}"
+                user_name = member.display_name if member else t("LBL_USER_DEFAULT", guild_id=self.guild_id).replace("{uid}", str(uid))
                 self.name_cache[uid] = user_name
             
             # Create Toggle Button as Accessory
-            label = "❌ No-show" if is_noshow else "✅ Present"
+            label = t("LBL_ATT_NOSHOW", guild_id=self.guild_id) if is_noshow else t("LBL_ATT_PRESENT", guild_id=self.guild_id)
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             
             toggle_btn = ui.Button(
@@ -83,7 +90,7 @@ class AttendanceView(ui.LayoutView):
                     except Exception as e:
                         import traceback
                         log.error(f"[Attendance] Section callback failure: {e}\n{traceback.format_exc()}")
-                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+                        try: await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(e))}", ephemeral=True)
                         except: pass
                 return callback
                 
@@ -99,8 +106,8 @@ class AttendanceView(ui.LayoutView):
         
         # 3. Navigation Buttons (if needed)
         if total_pages > 1:
-            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
-            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
+            prev_btn = ui.Button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
+            next_btn = ui.Button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
             
             async def prev_cb(it):
                 try: await it.response.defer()
@@ -123,10 +130,11 @@ class AttendanceView(ui.LayoutView):
         import traceback
         log.error(f"[Attendance] View Error on {item}: {error}\n{traceback.format_exc()}")
         try: 
+            msg = f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(error))}"
             if not interaction.response.is_done():
-                await interaction.response.send_message(f"❌ View Error: {error}", ephemeral=True)
+                await interaction.response.send_message(msg, ephemeral=True)
             else:
-                await interaction.followup.send(f"❌ View Error: {error}", ephemeral=True)
+                await interaction.followup.send(msg, ephemeral=True)
         except: pass
 
     async def refresh(self, interaction: discord.Interaction):
@@ -188,10 +196,10 @@ class AttendanceCog(commands.Cog):
             eligible = [dict(r) for r in rsvps if r["status"] in pos_ids]
             
             if not eligible:
-                await interaction.followup.send(t("ERR_NO_MY_EVENTS", guild_id=guild_id) or "No positive RSVPs found for this event.", ephemeral=True)
+                await interaction.followup.send(t("ERR_ATT_NO_RSVPS", guild_id=guild_id), ephemeral=True)
                 return
                 
-            view = AttendanceView(self.bot, event_id, eligible, guild_id, title=db_event.get("title", "Event"))
+            view = AttendanceView(self.bot, event_id, eligible, guild_id, title=db_event.get("title", t("LBL_EVENT", guild_id=guild_id)))
             await view.build()
             
             # Send using followup (since we deferred)
@@ -202,7 +210,7 @@ class AttendanceCog(commands.Cog):
             import traceback
             log.error(f"[Attendance] Command Error: {e}\n{traceback.format_exc()}")
             try:
-                await interaction.followup.send(f"❌ Hiba történt: {e}", ephemeral=True)
+                await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e))}", ephemeral=True)
             except:
                 pass
 

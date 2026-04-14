@@ -13,6 +13,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.auth import is_admin
 from utils.logger import log
+from utils import emojis
 import math
 
 # We load the config for command suffixes
@@ -705,7 +706,7 @@ class ReliabilityAuditView(ui.LayoutView):
         
         container_items = [
             ui.TextDisplay(self.audit_title),
-            ui.TextDisplay(f"-# Total entries: {len(self.stats)} • Page {self.page + 1}/{total_pages}"),
+            ui.TextDisplay(f"-# {t('LBL_AUDIT_ENTRIES', guild_id=self.guild.id).replace('{count}', str(len(self.stats)))} • {t('LBL_PAGE', guild_id=self.guild.id)} {self.page + 1}/{total_pages}"),
             ui.Separator()
         ]
         
@@ -722,7 +723,7 @@ class ReliabilityAuditView(ui.LayoutView):
                 try: member = await self.guild.fetch_member(int(uid))
                 except: pass
                 
-            name = member.display_name if member else f"User {uid}"
+            name = member.display_name if member else t("LBL_USER_DEFAULT", guild_id=self.guild.id).replace("{uid}", str(uid))
             
             # Accessory Button for stats (side-by-side feel)
             status_label = f"{ns}/{tot} ({ratio*100:.1f}%)"
@@ -740,8 +741,8 @@ class ReliabilityAuditView(ui.LayoutView):
         
         # Navigation
         if total_pages > 1:
-            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0))
-            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
+            prev_btn = ui.Button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0))
+            next_btn = ui.Button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
             
             async def prev_cb(it):
                 try: await it.response.defer()
@@ -766,7 +767,9 @@ class ReliabilityAuditView(ui.LayoutView):
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: ui.Item):
         import traceback
         log.error(f"[Audit View] Error: {error}\n{traceback.format_exc()}")
-        try: await interaction.followup.send(f"❌ Error: {error}", ephemeral=True)
+        try: 
+            msg = f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild.id).replace('{e}', str(error))}"
+            await interaction.followup.send(msg, ephemeral=True)
         except: pass
 
 class AdminCommands(commands.GroupCog, name="admin"):
@@ -795,24 +798,24 @@ class AdminCommands(commands.GroupCog, name="admin"):
             return await interaction.followup.send(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
             
         if not event_id and not all_time:
-            return await interaction.followup.send("💡 Please provide an `event_id` to audit a specific group, or set `all_time=True` for a guild-wide check.", ephemeral=True)
+            return await interaction.followup.send(t("MSG_AUDIT_HINT", guild_id=guild_id), ephemeral=True)
 
         try:
             if event_id:
                 # Mode A: Focus on specific event's participants
                 stats = await database.get_event_reliability_audit(event_id, guild_id)
-                title = f"### 📋 Event Audit: `{event_id}`"
+                title = t("LBL_AUDIT_TITLE_EVENT", guild_id=guild_id).replace("{event_id}", str(event_id))
                 # For specific event, we show everyone to see who attended vs who didn't
                 filtered_stats = stats 
             else:
                 # Mode B: Global leaderboard
                 stats = await database.get_guild_reliability_stats(guild_id, all_time=True)
-                title = "### 📋 Global No-show Leaderboard"
+                title = t("LBL_AUDIT_TITLE_GLOBAL", guild_id=guild_id)
                 # For global leaderboard, only show those with at least 1 no-show
                 filtered_stats = [s for s in stats if int(s.get("noshow_count") or 0) > 0]
 
             if not filtered_stats:
-                return await interaction.followup.send("✅ No reliability data found for the selection.", ephemeral=True)
+                return await interaction.followup.send(t("ERR_AUDIT_NO_DATA", guild_id=guild_id), ephemeral=True)
                 
             view = ReliabilityAuditView(self.bot, interaction.guild, filtered_stats, title=title)
             await view.build()
@@ -823,7 +826,7 @@ class AdminCommands(commands.GroupCog, name="admin"):
         except Exception as e:
             import traceback
             log.error(f"[Audit] Command Error: {e}\n{traceback.format_exc()}")
-            try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+            try: await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e))}", ephemeral=True)
             except: pass
 
     @admin_check_noshow.autocomplete("event_id")
