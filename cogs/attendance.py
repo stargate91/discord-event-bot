@@ -18,6 +18,7 @@ class AttendanceView(ui.LayoutView):
         self.event_title = title
         self.page = 0
         self.per_page = 3  # Compact layout for premium Container look
+        self.name_cache = {} # Avoid redundant member lookups
 
     async def build(self):
         self.clear_items()
@@ -43,26 +44,31 @@ class AttendanceView(ui.LayoutView):
             att = p.get("attendance", "present")
             is_noshow = (att == "no_show")
             
-            # Resolve Member Identity
-            guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
-            member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
-            user_name = member.display_name if member else f"User {uid}"
+            # Resolve Member Identity (with caching)
+            user_name = self.name_cache.get(uid)
+            if not user_name:
+                guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
+                member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
+                user_name = member.display_name if member else f"User {uid}"
+                self.name_cache[uid] = user_name
             
-            # ActionRow for the member (Name + Toggle)
-            name_btn = ui.Button(
-                label=user_name[:80],
-                style=discord.ButtonStyle.secondary, 
-                disabled=True
-            )
+            # Add Name as Text
+            container_items.append(ui.TextDisplay(f"**{user_name}**"))
             
+            # ActionRow for the Toggle Button
             label = "❌ No-show" if is_noshow else "✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             toggle_btn = ui.Button(label=label, style=style)
             
             async def create_callback(u_id, current_att):
                 async def callback(interaction: discord.Interaction):
+                    # ABSOLUTE FIRST LINE: Defer to prevent timeouts
                     try:
-                        await interaction.response.defer() # Immediate defer to prevent timeouts
+                        await interaction.response.defer()
+                    except:
+                        pass
+                        
+                    try:
                         new_att = "present" if current_att == "no_show" else "no_show"
                         await database.update_rsvp_attendance(self.event_id, u_id, new_att)
                         for part in self.participants:
@@ -71,12 +77,14 @@ class AttendanceView(ui.LayoutView):
                                 break
                         await self.refresh(interaction)
                     except Exception as e:
-                        log.error(f"Attendance callback error: {e}")
+                        log.error(f"Attendance callback error: {e}", exc_info=True)
+                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+                        except: pass
                 return callback
                 
             toggle_btn.callback = create_callback(uid, att)
             
-            container_items.append(ui.ActionRow(name_btn, toggle_btn))
+            container_items.append(ui.ActionRow(toggle_btn))
             container_items.append(ui.Separator())
 
         # 3. Navigation Controls
