@@ -67,6 +67,7 @@ class ServerSetupView(ui.LayoutView):
             else:
                 await database.save_guild_setting(self.guild_id, "default_color", val)
                 await self.refresh_message(it)
+                await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("SETTING_COLOR", guild_id=self.guild_id), val=val), ephemeral=True)
         color_sel.callback = color_cb
 
         defaults_btn = ui.Button(label=t("BTN_EVENT_DEFAULTS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
@@ -159,6 +160,7 @@ class GeneralSetupView(ui.LayoutView):
             await database.save_guild_setting(self.guild_id, "template_language", val)
             await load_guild_translations(self.guild_id)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id), val=val), ephemeral=True)
         tpl_sel.callback = tpl_cb
 
         back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
@@ -199,8 +201,8 @@ class GeneralSetupView(ui.LayoutView):
     async def _set_lang(self, interaction, lang):
         await database.save_guild_setting(self.guild_id, "language", lang)
         await load_guild_translations(self.guild_id) # Reload cache
-        # No ephemeral popup here for smoother transition
         await self.refresh_message(interaction)
+        await interaction.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key="Language", val=lang), ephemeral=True)
 
 class MultiReminderOffsetModal(ui.Modal):
     def __init__(self, guild_id, current_val, parent_view):
@@ -277,6 +279,7 @@ class ReminderSetupView(ui.LayoutView):
             val = status_sel.values[0]
             await database.save_guild_setting(self.guild_id, "status_notification_type", val)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), val=val), ephemeral=True)
         status_sel.callback = status_sel_cb
 
         # Final Assembly
@@ -365,6 +368,7 @@ class EventDefaultsView(ui.LayoutView):
             new_val = "false" if is_on else "true"
             await database.save_guild_setting(self.guild_id, "default_use_waiting_list", new_val)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_WAITLIST_LIMIT", guild_id=self.guild_id), val=new_val), ephemeral=True)
         wait_btn.callback = wait_cb
 
         repost_btn = ui.Button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
@@ -383,8 +387,10 @@ class EventDefaultsView(ui.LayoutView):
         ]
         trig_sel = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id), options=trig_opts)
         async def trig_cb(it):
-            await database.save_guild_setting(self.guild_id, "default_repost_trigger", trig_sel.values[0])
+            val = trig_sel.values[0]
+            await database.save_guild_setting(self.guild_id, "default_repost_trigger", val)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("SEL_TRIG_TYPE", guild_id=self.guild_id), val=val), ephemeral=True)
         trig_sel.callback = trig_cb
 
         temp_val = await database.get_guild_setting(self.guild_id, "default_use_temp_role", default="false")
@@ -399,6 +405,7 @@ class EventDefaultsView(ui.LayoutView):
             new_val = "false" if is_temp_on else "true"
             await database.save_guild_setting(self.guild_id, "default_use_temp_role", new_val)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_WIZ_TEMP_ROLE", guild_id=self.guild_id), val=new_val), ephemeral=True)
         temp_role_btn.callback = temp_cb
 
         # 3. Archive & Promotion Selection
@@ -425,8 +432,10 @@ class EventDefaultsView(ui.LayoutView):
         ]
         promo_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_opts)
         async def promo_cb(it):
-            await database.save_guild_setting(self.guild_id, "default_notify_promotion", promo_sel.values[0])
+            val = promo_sel.values[0]
+            await database.save_guild_setting(self.guild_id, "default_notify_promotion", val)
             await self.refresh_message(it)
+            await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), val=val), ephemeral=True)
         promo_sel.callback = promo_cb
 
         # 4. Final Assembly
@@ -489,6 +498,11 @@ class SimpleConfigModal(ui.Modal):
             # 3. If parent view exists, refresh it in-place (this also handles the interaction response)
             if self.parent_view:
                 await self.parent_view.refresh_message(interaction)
+                # Success feedback after modal submit and refresh
+                await interaction.followup.send(
+                    t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=self.key, val=val[:100]), 
+                    ephemeral=True
+                )
             else:
                 # No parent view, just confirm
                 await interaction.response.send_message(

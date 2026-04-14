@@ -9,6 +9,8 @@ from utils import emojis
 import time
 import math
 
+import asyncio
+
 class AttendanceView(ui.LayoutView):
     def __init__(self, bot, event_id, participants, guild_id, title="Event"):
         super().__init__(timeout=600)
@@ -29,7 +31,23 @@ class AttendanceView(ui.LayoutView):
         page_users = self.participants[start:end]
         total_pages = math.ceil(len(self.participants) / self.per_page) if self.participants else 1
         
-        # 1. Prepare Container Items
+        # 1. Parallel Member Resolution (Performance Boost)
+        missing_ids = [str(p["user_id"]) for p in page_users if str(p["user_id"]) not in self.name_cache]
+        if missing_ids:
+            guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
+            if guild:
+                async def fetch(uid):
+                    try:
+                        mem = guild.get_member(int(uid)) or await guild.fetch_member(int(uid))
+                        return uid, mem.display_name
+                    except:
+                        return uid, t("LBL_USER_DEFAULT", guild_id=self.guild_id).replace("{uid}", str(uid))
+                
+                results = await asyncio.gather(*(fetch(uid) for uid in missing_ids))
+                for uid, name in results:
+                    self.name_cache[uid] = name
+
+        # 2. Prepare Container Items
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
         
         # Localized Stats
@@ -46,21 +64,12 @@ class AttendanceView(ui.LayoutView):
         
         for i, p in enumerate(page_users):
             idx = (self.page * self.per_page) + i + 1
-            uid = p["user_id"]
+            uid = str(p["user_id"])
             att = p.get("attendance", "present")
             is_noshow = (att == "no_show")
             
-            # Name Lookup (cached)
-            user_name = self.name_cache.get(uid)
-            if not user_name:
-                guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
-                member = guild.get_member(int(uid)) if guild and uid and str(uid).isdigit() else None
-                if not member and guild:
-                    try: member = await guild.fetch_member(int(uid))
-                    except: pass
-                
-                user_name = member.display_name if member else t("LBL_USER_DEFAULT", guild_id=self.guild_id).replace("{uid}", str(uid))
-                self.name_cache[uid] = user_name
+            # Name Lookup (from cache)
+            user_name = self.name_cache.get(uid, t("LBL_USER_DEFAULT", guild_id=self.guild_id).replace("{uid}", str(uid)))
             
             # Create Toggle Button as Accessory
             label = t("LBL_ATT_NOSHOW", guild_id=self.guild_id) if is_noshow else t("LBL_ATT_PRESENT", guild_id=self.guild_id)

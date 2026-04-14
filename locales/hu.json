@@ -404,5 +404,6 @@
   "LBL_AUDIT_ENTRIES": "Összes bejegyzés: {count}",
   "MSG_AUDIT_HINT": "{INFO} Adj meg egy `event_id`-t a szűréshez, vagy válaszd az `all_time=True` opciót a teljes szerverre.",
   "LBL_PAGE": "Oldal",
-  "LBL_USER_DEFAULT": "Felhasználó {uid}"
+  "LBL_USER_DEFAULT": "Felhasználó {uid}",
+  "MSG_DELETE_CONFIRM": "{WARNING} **VESZÉLYZÓNA** {WARNING}\nBiztosan törölni szeretnéd a(z) **{name}** készletet? Ez a művelet nem vonható vissza!"
 }

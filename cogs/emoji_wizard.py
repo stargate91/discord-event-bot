@@ -55,6 +55,48 @@ async def send_emoji_help(interaction: discord.Interaction, guild_id):
     await view.prepare()
     await interaction.response.send_message(view=view, ephemeral=True)
 
+class ConfirmDeleteView(ui.LayoutView):
+    """Safety confirmation view for destructive delete operations."""
+    def __init__(self, wizard_view, set_id, set_name):
+        super().__init__(timeout=180)
+        self.wizard_view = wizard_view
+        self.set_id = set_id
+        self.set_name = set_name
+
+    async def build(self):
+        self.clear_items()
+        
+        async def cancel_cb(it):
+            await it.response.defer()
+            await it.delete_original_response()
+
+        async def confirm_cb(it):
+            await it.response.defer()
+            if self.wizard_view.is_global:
+                pool = await database.get_pool()
+                await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", self.set_id)
+                from cogs.event_ui import load_custom_sets; await load_custom_sets()
+            else:
+                await database.delete_emoji_set(self.wizard_view.guild_id, self.set_id)
+            
+            self.wizard_view.selected_set_id = None
+            await self.wizard_view.refresh_message(it, status_msg=t("MSG_SET_DELETED", guild_id=self.wizard_view.guild_id))
+
+        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.secondary)
+        confirm_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.danger)
+        
+        cancel_btn.callback = cancel_cb
+        confirm_btn.callback = confirm_cb
+        
+        warning_msg = t("MSG_DELETE_CONFIRM", guild_id=self.wizard_view.guild_id).replace("{name}", self.set_name)
+        
+        container = ui.Container(
+            ui.TextDisplay(warning_msg),
+            ui.ActionRow(cancel_btn, confirm_btn),
+            accent_color=0xff0000 # Red for danger
+        )
+        self.add_item(container)
+
 class EmojiWizardView(ui.LayoutView):
     """Main management console for emoji sets (Guild or Global)."""
     def __init__(self, bot, guild_id, selected_set_id=None, is_global=False):
@@ -183,15 +225,14 @@ class EmojiWizardView(ui.LayoutView):
         async def del_cb(it):
             if not new_view.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=new_view.guild_id), ephemeral=True)
-            if new_view.is_global:
-                pool = await database.get_pool()
-                await pool.execute("DELETE FROM global_emoji_sets WHERE set_id = $1", new_view.selected_set_id)
-                from cogs.event_ui import load_custom_sets; await load_custom_sets()
-            else:
-                await database.delete_emoji_set(new_view.guild_id, new_view.selected_set_id)
-            new_view.selected_set_id = None
-            await it.response.send_message(t("MSG_SET_DELETED", guild_id=new_view.guild_id), ephemeral=True)
-            await new_view.refresh_message(it)
+            
+            cur_sets = await database.get_all_global_emoji_sets() if new_view.is_global else await database.get_emoji_sets(new_view.guild_id)
+            curr = next((s for s in cur_sets if s["set_id"] == new_view.selected_set_id), None)
+            if not curr: return await it.response.send_message(t("ERR_NO_SET_FOUND", guild_id=new_view.guild_id), ephemeral=True)
+            
+            conf_view = ConfirmDeleteView(new_view, new_view.selected_set_id, curr["name"])
+            await conf_view.build()
+            await it.response.send_message(view=conf_view, ephemeral=True)
         del_btn.callback = del_cb
         
         help_btn = ui.Button(label=t("BTN_HELP", guild_id=new_view.guild_id), emoji=emojis.HELP, style=discord.ButtonStyle.secondary)

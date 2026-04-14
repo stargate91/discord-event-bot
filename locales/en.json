@@ -404,5 +404,6 @@
   "LBL_AUDIT_ENTRIES": "Total entries: {count}",
   "MSG_AUDIT_HINT": "{INFO} Please provide an `event_id` to audit a specific group, or set `all_time=True` for a guild-wide check.",
   "LBL_PAGE": "Page",
-  "LBL_USER_DEFAULT": "User {uid}"
+  "LBL_USER_DEFAULT": "User {uid}",
+  "MSG_DELETE_CONFIRM": "{WARNING} **DANGER ZONE** {WARNING}\nAre you sure you want to delete the set **{name}**? This action cannot be undone!"
 }
