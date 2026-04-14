@@ -28,20 +28,21 @@ class AttendanceView(ui.LayoutView):
         page_users = self.participants[start:end]
         total_pages = math.ceil(len(self.participants) / self.per_page) if self.participants else 1
         
-        # 1. Header Row (Top Level)
+        # 1. Header & Member Info (Static Container)
         no_shows = sum(1 for p in self.participants if p.get("attendance") == "no_show")
         stats_text = f"✅ {len(self.participants) - no_shows} | ❌ {no_shows}"
-        header_text = f"### {self.event_title}\n-# {stats_text} • Page {self.page + 1}/{total_pages}"
-        self.add_item(ui.TextDisplay(header_text))
         
-        # 2. Member Rows (Flattened Vertical Stack)
+        container_items = [
+            ui.TextDisplay(f"### {self.event_title}"),
+            ui.TextDisplay(f"-# {stats_text} • Page {self.page + 1}/{total_pages}"),
+            ui.Separator()
+        ]
+        
         for i, p in enumerate(page_users):
             idx = (self.page * self.per_page) + i + 1
             uid = p["user_id"]
-            att = p.get("attendance", "present")
-            is_noshow = (att == "no_show")
             
-            # Resolve Member Identity (with caching)
+            # Resolve Name (cached)
             user_name = self.name_cache.get(uid)
             if not user_name:
                 guild = self.bot.get_guild(int(self.guild_id)) if self.guild_id and str(self.guild_id).isdigit() else None
@@ -49,22 +50,35 @@ class AttendanceView(ui.LayoutView):
                 user_name = member.display_name if member else f"User {uid}"
                 self.name_cache[uid] = user_name
             
-            # Row A: Name (TextDisplay)
-            self.add_item(ui.TextDisplay(f"**{idx}. {user_name}**"))
+            container_items.append(ui.TextDisplay(f"**{idx}. {user_name}**"))
+            container_items.append(ui.Separator())
+
+        # Add the static container to the View
+        main_container = ui.Container(*container_items, accent_color=0x3498db)
+        self.add_item(main_container)
+        
+        # 2. Interactive Buttons (Top Level Actions)
+        # We add them SEPARATELY to the view to guarantee callback registration in V2
+        for i, p in enumerate(page_users):
+            idx = (self.page * self.per_page) + i + 1
+            uid = p["user_id"]
+            att = p.get("attendance", "present")
+            is_noshow = (att == "no_show")
             
-            # Row B: Toggle Button (ActionRow)
-            label = "❌ No-show" if is_noshow else "✅ Present"
+            label = f"#{idx} ❌ No-show" if is_noshow else f"#{idx} ✅ Present"
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             
-            # Stability: Use unique custom_id to avoid interaction conflicts during refreshes
             toggle_btn = ui.Button(
                 label=label, 
                 style=style, 
-                custom_id=f"att_tg_{uid}_{self.page}_{'ns' if is_noshow else 'ps'}"
+                custom_id=f"att_tg_{uid}_{self.page}"
             )
             
-            async def create_callback(u_id, current_att):
+            async def create_callback(u_id, current_att, current_idx):
                 async def callback(interaction: discord.Interaction):
+                    # LOUD LOG: Confirm the interaction hit the bot
+                    log.info(f"[Attendance Debug] Button clicked for #{current_idx} (UID: {u_id})")
+                    
                     try:
                         # 1. Immediate Deferral
                         try: await interaction.response.defer()
@@ -82,25 +96,28 @@ class AttendanceView(ui.LayoutView):
                         await self.refresh(interaction)
                     except Exception as e:
                         import traceback
-                        log.error(f"[Attendance] Fatal: {e}\n{traceback.format_exc()}")
-                        try: await interaction.followup.send(f"❌ Error: {e}", ephemeral=True)
+                        tb = traceback.format_exc()
+                        log.error(f"[Attendance] Fatal in callback: {e}\n{tb}")
+                        try: await interaction.followup.send(f"❌ Hiba: {e}\n```python\n{tb[:1000]}```", ephemeral=True)
                         except: pass
                 return callback
                 
-            toggle_btn.callback = create_callback(uid, att)
+            toggle_btn.callback = create_callback(uid, att, idx)
             
-            # If it's the last user on the page, we'll combine the toggle with navigation to conserve rows
+            # Add to separate ActionRow
             if i == len(page_users) - 1 and total_pages > 1:
-                # Add Navigation to the same ActionRow as the last toggle
+                # Add Nav to the last row
                 prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_prev_{self.page}")
                 next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_next_{self.page}")
                 
                 async def prev_cb(it):
+                    log.info(f"[Attendance Debug] Nav: Prev clicked")
                     try: await it.response.defer()
                     except: pass
                     self.page -= 1
                     await self.refresh(it)
                 async def next_cb(it):
+                    log.info(f"[Attendance Debug] Nav: Next clicked")
                     try: await it.response.defer()
                     except: pass
                     self.page += 1
@@ -108,11 +125,8 @@ class AttendanceView(ui.LayoutView):
                     
                 prev_btn.callback = prev_cb
                 next_btn.callback = next_cb
-                
-                nav_row = ui.ActionRow(toggle_btn, prev_btn, next_btn)
-                self.add_item(nav_row)
+                self.add_item(ui.ActionRow(toggle_btn, prev_btn, next_btn))
             else:
-                # Just the toggle button
                 self.add_item(ui.ActionRow(toggle_btn))
 
     async def refresh(self, interaction: discord.Interaction):
