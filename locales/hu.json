@@ -143,7 +143,7 @@
   "MSG_GLOBAL_SAVED": "{SUCCESS_MSG} Globális szett elmentve!",
   "MSG_GLOBAL_RESETS_SUCCESS": "{SUCCESS_MSG} Sikeresen visszaállítva {val} globális emoji szett a sablonokból.",
   "MSG_GLOBAL_RESETS_NONE": "{SUCCESS_MSG} Nem lett visszaállítva emoji szett (nem volt egyezés).",
-  "LBL_GLOBAL_EMOJI_DESC": "{GLOBE_LBL} **Globális Emoji Kezelés**\\nItt a bot központi alapértelmezett szettjeit módosíthatod. Minden szerverre hatással van!",
+  "LBL_GLOBAL_EMOJI_DESC": "Itt a bot központi alapértelmezett szettjeit módosíthatod. Minden szerverre hatással van!",
   "LBL_PREVIEW": "Előnézet",
   "LBL_VARIABLES": "Használható változók",
   "LBL_GLOBAL_TITLE": "Global Emojis",

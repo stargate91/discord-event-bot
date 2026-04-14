@@ -142,7 +142,7 @@
   "MSG_GLOBAL_SAVED": "{SUCCESS_MSG} Global set saved!",
   "MSG_GLOBAL_RESETS_SUCCESS": "{SUCCESS_MSG} Successfully reset {val} global emoji sets from templates.",
   "MSG_GLOBAL_RESETS_NONE": "{SUCCESS_MSG} No global emoji sets were reset (nothing matched).",
-  "LBL_GLOBAL_EMOJI_DESC": "{GLOBE_LBL} **Global Emoji Management**\nHere you can modify the bot's central default sets. Any changes will affect all servers!",
+  "LBL_GLOBAL_EMOJI_DESC": "Here you can modify the bot's central default sets. Any changes will affect all servers!",
   "LBL_PREVIEW": "Preview",
   "LBL_VARIABLES": "Available variables",
   "LBL_GLOBAL_TITLE": "Global Emojis",
