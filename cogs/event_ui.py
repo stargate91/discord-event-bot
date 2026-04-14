@@ -874,8 +874,8 @@ class DynamicEventView(discord.ui.LayoutView):
         db_event = await database.get_active_event(self.event_id)
         if not db_event: return await interaction.response.send_message(t("ERR_EV_NOT_FOUND"), ephemeral=True)
 
-        # Cooldown check: only enforce when waiting list is possible
-        has_waitlist = (db_event.get("max_accepted") or 0) > 0
+        # Cooldown check: only enforce when waiting list is explicitly enabled
+        has_waitlist = db_event.get("use_waiting_list", False)
         if has_waitlist:
             cd_key = (self.event_id, interaction.user.id)
             last_press = _rsvp_cooldowns.get(cd_key, 0)
