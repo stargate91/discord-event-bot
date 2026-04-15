@@ -1,5 +1,5 @@
 import discord
-from utils.emojis import ERROR, GLOBE, GEAR, BELL
+from utils.emojis import ERROR, GLOBE
 from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
