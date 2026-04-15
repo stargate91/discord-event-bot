@@ -440,7 +440,7 @@ class EventDefaultsView(ui.LayoutView):
 
         # 4. Final Assembly
         header = ui.Container(
-            ui.TextDisplay(f"### {t('BTN_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
             accent_color=0x40C4FF
         )
         self.add_item(header)
