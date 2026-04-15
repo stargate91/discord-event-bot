@@ -236,7 +236,7 @@
   "TAG_CLOSED": "ENDED",
   "TAG_DELETED": "DELETED",
   "TAG_POSTPONED": "POSTPONED",
-  "TAG_RESCHEDULED": "📅 NEW DATE",
+  "TAG_RESCHEDULED": "NEW DATE",
   "_section_rsvp": "── RSVP ───────────────────────────────────────",
   "ERR_POS_FULL": "<:warningfilledcircledualyellowbla:1493932991192502295> Sorry, the {name} position is full!",
   "ERR_RSVP_NEED_SERVER": "<:xfilledcircledualredwhite:1493920874011820114> You must use RSVP in the server (not from DMs).",

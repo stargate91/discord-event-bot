@@ -236,7 +236,7 @@
   "TAG_CLOSED": "VÉGE",
   "TAG_DELETED": "TÖRÖLVE",
   "TAG_POSTPONED": "ELHALASZTVA",
-  "TAG_RESCHEDULED": "📅 ÚJ DÁTUM",
+  "TAG_RESCHEDULED": "ÚJ DÁTUM",
   "_section_rsvp": "── RSVP ───────────────────────────────────────",
   "ERR_POS_FULL": "<:warningfilledcircledualyellowbla:1493932991192502295> Sajnálom, a(z) {name} pozíció betelt!",
   "ERR_RSVP_NEED_SERVER": "<:xfilledcircledualredwhite:1493920874011820114> A jelentkezést a szerveren kell használni (DM-ből nem).",

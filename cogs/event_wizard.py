@@ -1220,11 +1220,7 @@ class EventWizardView(ui.LayoutView):
         # Build options for hardcoded templates
         self.icon_set_options = []
         for k, v in ICON_SET_TEMPLATES.items():
-            opts, _ = parse_emoji_config(v["text"])
-            preview_emojis = [o["emoji"] for o in opts[:3]]
-            preview_raw = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
-            preview_str = resolve_placeholders(preview_raw)
-            label = t(v["label_key"], guild_id=self.guild_id) + preview_str
+            label = t(v["label_key"], guild_id=self.guild_id)
             
             self.icon_set_options.append(make_select_option(
                 label=label[:100], 
@@ -1238,12 +1234,7 @@ class EventWizardView(ui.LayoutView):
         for s in db_sets:
             if s["set_id"] in ICON_SET_TEMPLATES: continue
             
-            sdata = json.loads(s["data"]) if isinstance(s["data"], str) else s["data"]
-            opts = sdata.get("options", [])
-            preview_emojis = [o.get("emoji") or "?" for o in opts[:3]]
-            preview_raw = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
-            preview_str = resolve_placeholders(preview_raw)
-            label = (s["name"][:30] + preview_str)[:100]
+            label = s["name"][:100]
             
             self.icon_set_options.append(make_select_option(
                 label=label, 
