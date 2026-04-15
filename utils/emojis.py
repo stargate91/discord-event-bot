@@ -9,10 +9,21 @@ INFO = "<:statusinfo:1493836039284850708>"
 PING = "🔔"
 
 # --- UI / Navigation ---
+BACK = "⬅️"
+FORWARD = "➡️"
+CROSS = "❌"
+HELP = "❔"
+SYNC = "🔄"
 DROPDOWN_OPEN = "🔽"
 DROPDOWN_CLOSED = "◀️"
 LANG_HU = "🇭🇺"
 LANG_EN = "🇺🇸"
+
+# --- Common Items ---
+GEAR = "⚙️"
+GLOBE = "🌐"
+BELL = "🔔"
+SHIELD = "🛡️"
 
 # --- Recurrence Icons ---
 REC_DAILY = "📅"
