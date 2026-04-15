@@ -229,12 +229,12 @@ class MasterPresenceView(ui.LayoutView):
 
         self.clear_items()
         
-        add_btn = make_button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.secondary)
+        add_btn = make_button(label=t("BTN_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
             await it.response.send_modal(StatusModal(self.refresh_message))
         add_btn.callback = add_cb
         
-        cfg_btn = make_button(label=t("MASTER_PRESENCE_BTN_CFG", guild_id=None), style=discord.ButtonStyle.secondary)
+        cfg_btn = make_button(label=t("BTN_PRESENCE_BTN_CFG", guild_id=None), style=discord.ButtonStyle.secondary)
         async def cfg_cb(it):
             await it.response.send_modal(PresenceConfigModal(self.current_config, self.refresh_message))
         cfg_btn.callback = cfg_cb
@@ -297,12 +297,12 @@ class PresenceEditView(ui.LayoutView):
         desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", type_text).replace("{text}", self.status_data.get('text', ''))
         
         self.clear_items()
-        edit_btn = make_button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
+        edit_btn = make_button(label=t("BTN_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
         async def edit_cb(it):
             await it.response.send_modal(StatusModal(self.parent_view.refresh_message, self.status_id, self.status_data))
         edit_btn.callback = edit_cb
         
-        del_btn = make_button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
+        del_btn = make_button(label=t("BTN_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             db_presence = await database.get_global_setting("bot_presence_list")
             if not db_presence:
@@ -329,7 +329,7 @@ class PresenceEditView(ui.LayoutView):
             await self.parent_view.refresh_message(it)
         del_btn.callback = del_cb
         
-        back_btn = make_button(label=t("MASTER_PRESENCE_BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("BTN_PRESENCE_BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             await it.response.defer()
             await self.parent_view.refresh_message(it)
