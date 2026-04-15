@@ -466,7 +466,7 @@ class NotificationSettingsModal(ui.Modal):
         if isinstance(extra, str): extra = json.loads(extra)
         
         self.promo_input = ui.TextInput(
-            label=t("LBL_PROMO_MSG", guild_id=wizard_view.guild_id),
+            label=t("LBL_PROMO_MSG", guild_id=wizard_view.guild_id)[:45],
             default=extra.get("custom_promo_msg", ""),
             style=discord.TextStyle.paragraph,
             required=False

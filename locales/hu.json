@@ -149,7 +149,7 @@
   "_section_wizard_advanced": "── Esemény Varázsló ► Haladó Beállítások ───────",
   "TITLE_ADVANCED_SETTINGS": "4. Haladó beállítások",
   "LBL_CLEANUP_OFFSET": "Takarítási eltolás",
-  "LBL_PROMO_MSG": "Értesítés szövege (Változók: {user_id}, {role})",
+  "LBL_PROMO_MSG": "Értesítés (Változók: {user_id}, {role})",
   "LBL_REMINDER_MSG": "Emlékeztető szövege (Változó: {title})",
   "LBL_REMINDER_TYPE": "Emlékeztető típusa",
   "LBL_REMINDER_OFFSETS_PARAGRAPH": "Időzítések (idő,mód,cél) pl: 15m,dm",
