@@ -160,6 +160,7 @@
   "LBL_REMINDER_LIST_PREVIEW": "Current offsets: {offsets}",
   "PH_REMINDER_OFFSETS": "15m\n1h\n1d",
   "SEL_ICON_SET": "Select Icon Set...",
+  "LBL_CHOOSE_EMOJI_SET": "Choose Emoji Set:",
   "SEL_WAIT_ENABLED": "Waiting List: Enabled",
   "SEL_WAIT_DISABLED": "Waiting List: Disabled",
   "SEL_TRIG_TYPE": "Repost Timing",

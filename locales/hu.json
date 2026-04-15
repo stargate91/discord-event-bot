@@ -160,6 +160,7 @@
   "LBL_REMINDER_LIST_PREVIEW": "Aktuális időzítések: {offsets}",
   "PH_REMINDER_OFFSETS": "15m\n1h\n1d",
   "SEL_ICON_SET": "Ikonkészlet kiválasztása...",
+  "LBL_CHOOSE_EMOJI_SET": "Válaszd ki az Emoji szettet:",
   "SEL_WAIT_ENABLED": "Várólista: Bekapcsolva",
   "SEL_WAIT_DISABLED": "Várólista: Kikapcsolva",
   "SEL_TRIG_TYPE": "Újraposztolás ideje",

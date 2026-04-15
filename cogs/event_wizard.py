@@ -1012,7 +1012,6 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
-                container_items.append(ui.Separator())
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
                 if not isinstance(ro_list, list):
@@ -1027,8 +1026,9 @@ class EventWizardView(ui.LayoutView):
                     )
                 )
                 container_items.append(ui.ActionRow(rem_offset_btn, rem_msg_btn))
-                container_items.append(ui.Separator())
 
+            container_items.append(ui.Separator())
+            container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
         elif view.wizard_type == "lobby":
             container_items.append(ui.ActionRow(step1, step2, adv_btn, rem_toggle_btn))
@@ -1043,13 +1043,13 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, role_btn, msg_btn))
                 container_items.append(ui.ActionRow(rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
-                container_items.append(ui.Separator())
             elif view.show_reminder:
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(t("MSG_LOBBY_REMINDER_HINT", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(rem_type_sel))
-                container_items.append(ui.Separator())
 
+            container_items.append(ui.Separator())
+            container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
         else:
             container_items.append(ui.ActionRow(step1, step2, step3))
@@ -1064,7 +1064,6 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
-                container_items.append(ui.Separator())
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
                 if not isinstance(ro_list, list):
@@ -1079,7 +1078,6 @@ class EventWizardView(ui.LayoutView):
                     )
                 )
                 container_items.append(ui.ActionRow(rem_offset_btn, rem_msg_btn))
-                container_items.append(ui.Separator())
             
             container_items.append(ui.ActionRow(sel_rec))
             container_items.append(ui.ActionRow(sel_trig))
@@ -1089,6 +1087,8 @@ class EventWizardView(ui.LayoutView):
             elif view.data.get("recurrence_type") == "relative":
                 container_items.append(ui.ActionRow(rel_sel))
                 
+            container_items.append(ui.Separator())
+            container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
 
         view.add_item(ui.Container(*container_items, accent_color=0x40C4FF))
