@@ -989,8 +989,11 @@ class EventWizardView(ui.LayoutView):
 
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, thread_btn))
-                container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_PARTICIPATION', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, role_btn, rsvp_roles_btn))
+                container_items.append(ui.Separator())
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
             elif view.show_reminder:
@@ -1016,8 +1019,11 @@ class EventWizardView(ui.LayoutView):
 
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_PARTICIPATION', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(role_btn, rsvp_roles_btn))
+                container_items.append(ui.Separator())
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
             elif view.show_reminder:
                 container_items.append(ui.Separator())
@@ -1033,8 +1039,11 @@ class EventWizardView(ui.LayoutView):
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, thread_btn))
-                container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_PARTICIPATION', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, role_btn, rsvp_roles_btn))
+                container_items.append(ui.Separator())
+                container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
             elif view.show_reminder:
