@@ -620,6 +620,9 @@ class EventWizardView(ui.LayoutView):
         msg_btn = make_button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         msg_btn.callback = msg_cb
 
+        async def rsvp_roles_cb(it):
+            await it.response.send_modal(RsvpRolesModal(view))
+
         rsvp_roles_btn = make_button(label=t("BTN_RSVP_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         rsvp_roles_btn.callback = rsvp_roles_cb
 
