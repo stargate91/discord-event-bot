@@ -23,7 +23,7 @@ EVENTS_CONFIG = config.get("events_config", [])
 
 
 
-class MyEventsView(ui.View):
+class MyEventsView(ui.LayoutView):
     def __init__(self, bot, guild_id, user_id, events):
         super().__init__(timeout=300)
         self.bot = bot
@@ -98,7 +98,7 @@ class MyEventsView(ui.View):
             self.add_item(prev_btn)
             self.add_item(next_btn)
 
-class EventHistoryView(ui.View):
+class EventHistoryView(ui.LayoutView):
     def __init__(self, bot, guild_id, user_id, events):
         super().__init__(timeout=300)
         self.bot = bot
