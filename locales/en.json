@@ -2,7 +2,7 @@
   "_section_global_ui": "── Global UI ──────────────────────────────────",
   "BTN_CLOSE": "<:xfilledmonored:1493925947232223242> Close",
   "BTN_BACK": "<:backchevronfilledmonowhite:1493919482630901790> Back",
-  "BTN_CANCEL": "❌ Cancel",
+  "BTN_CANCEL": "<:xfilledmonored:1493925947232223242> Cancel",
   "BTN_HELP": "<:infofilledmonowhite:1493924416525176924> Info",
   "BTN_EDIT": "<:pencilfilledmonowhite:1493914073618714777> Edit",
   "BTN_DELETE": "<:trashfilledmonowhite:1493915679429103686> Delete",

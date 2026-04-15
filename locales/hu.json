@@ -2,7 +2,7 @@
   "_section_global_ui": "── Globális UI ────────────────────────────────",
   "BTN_CLOSE": "<:xfilledmonored:1493925947232223242> Bezárás",
   "BTN_BACK": "<:backchevronfilledmonowhite:1493919482630901790> Vissza",
-  "BTN_CANCEL": "❌ Mégse",
+  "BTN_CANCEL": "<:xfilledmonored:1493925947232223242> Mégse",
   "BTN_HELP": "<:infofilledmonowhite:1493924416525176924> Súgó",
   "BTN_EDIT": "<:pencilfilledmonowhite:1493914073618714777> Szerkesztés",
   "BTN_DELETE": "<:trashfilledmonowhite:1493915679429103686> Törlés",
