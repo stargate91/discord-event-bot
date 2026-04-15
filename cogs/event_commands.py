@@ -73,11 +73,11 @@ class MyEventsView(ui.LayoutView):
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(make_button(
+            self.add_item(ui.ActionRow(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
-            ))
+            )))
 
         # Pagination controls
         if len(self.events) > self.per_page:
@@ -95,8 +95,7 @@ class MyEventsView(ui.LayoutView):
                 await it.response.edit_message(view=self)
             next_btn.callback = next_cb
             
-            self.add_item(prev_btn)
-            self.add_item(next_btn)
+            self.add_item(ui.ActionRow(prev_btn, next_btn))
 
 class EventHistoryView(ui.LayoutView):
     def __init__(self, bot, guild_id, user_id, events):
@@ -156,11 +155,11 @@ class EventHistoryView(ui.LayoutView):
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(make_button(
+            self.add_item(ui.ActionRow(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
-            ))
+            )))
 
         # Pagination controls
         if len(self.events) > self.per_page:
@@ -178,8 +177,7 @@ class EventHistoryView(ui.LayoutView):
                 await it.response.edit_message(view=self)
             next_btn.callback = next_cb
             
-            self.add_item(prev_btn)
-            self.add_item(next_btn)
+            self.add_item(ui.ActionRow(prev_btn, next_btn))
 
 class EventCommands(commands.Cog):
     """Cog for general event management commands."""
