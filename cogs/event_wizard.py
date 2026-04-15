@@ -1019,7 +1019,9 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_COLOR", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(color_sel))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_PROMO_NOTIFY", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(promo_type_sel))
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
@@ -1049,10 +1051,12 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_COLOR", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(color_sel))
             elif view.show_reminder:
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(t("MSG_LOBBY_REMINDER_HINT", guild_id=self.guild_id)))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_LOBBY_NOTIFY", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(rem_type_sel))
 
             container_items.append(ui.Separator())
@@ -1068,17 +1072,23 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(f"**{t('LBL_ADV_CAT_CONFIG', guild_id=self.guild_id)}**"))
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_COLOR", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(color_sel))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_PROMO_NOTIFY", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(promo_type_sel))
             elif view.show_recurrence:
                 container_items.append(ui.Separator())
                 container_items.append(ui.TextDisplay(f"**{t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}**"))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_REC_TYPE", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(sel_rec))
+                container_items.append(ui.TextDisplay(t("LBL_CHOOSE_REPOST_TIME", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(sel_trig))
                 
                 if view.data.get("recurrence_type") == "custom":
+                    container_items.append(ui.TextDisplay(t("LBL_CHOOSE_CUSTOM_DAYS", guild_id=self.guild_id)))
                     container_items.append(ui.ActionRow(cust_sel))
                 elif view.data.get("recurrence_type") == "relative":
+                    container_items.append(ui.TextDisplay(t("LBL_CHOOSE_REL_COMBO", guild_id=self.guild_id)))
                     container_items.append(ui.ActionRow(rel_sel))
                 
                 # The actual modal button for Step 2
