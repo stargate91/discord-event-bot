@@ -4,9 +4,9 @@
 # --- Core Status Icons ---
 SUCCESS = "<:checkfilledcircledualgreenwhite:1493922385613815828>"
 ERROR = "<:xfilledcircledualredwhite:1493920874011820114>"
-WARNING = "<:statuswarning:1493856974088048692>"
-INFO = "<:statusinfo:1493856969663189052>"
-PING = "<:statusping:1493861847064121344>"
+WARNING = "<:warningfilledcircledualyellowbla:1493932991192502295>"
+INFO = "<:infofilledcircledualbluewhite:1493932987966816296>"
+PING = "<:pingfilledcircledualmagentawhite:1493932989317386320>"
 
 # --- UI / Navigation ---
 SYNC = "🔄"
