@@ -2,10 +2,10 @@
 """Centralized Emoji Registry for the Nexus Event Bot with context decoupling."""
 
 # --- Core Status Icons ---
-SUCCESS = "✅"
-ERROR = "❌"
-WARNING = "⚠️"
-INFO = "💡"
+SUCCESS = "<:statussuccess:1493827926008008815>"
+ERROR = "<:statuserror:1493833100382310430>"
+WARNING = "<:statuswarning:1493835074196607006>"
+INFO = "<:statusinfo:1493836039284850708>"
 PING = "🔔"
 
 # --- UI / Navigation ---
