@@ -14,5 +14,9 @@
   "RSVP_HEAL": "Healerek",
   "RSVP_DPS": "DPS-ek",
   "RSVP_TEAM_A": "A Csapat",
-  "RSVP_TEAM_B": "B Csapat"
+  "RSVP_TEAM_B": "B Csapat",
+  "BTN_LIKE": "Tetszik",
+  "BTN_DISLIKE": "Nem tetszik",
+  "RSVP_LIKED": "Tetszett nekik",
+  "RSVP_DISLIKED": "Nem tetszett nekik"
 }

@@ -55,6 +55,8 @@ def get_template_data(template_id: str):
         "team_a": {"list_label_key": "RSVP_TEAM_A"},
         "team_b": {"list_label_key": "RSVP_TEAM_B"},
         "ill_spectate": {"list_label_key": "RSVP_SPECTATOR"},
+        "like": {"label_key": "BTN_LIKE", "list_label_key": "RSVP_LIKED"},
+        "dislike": {"label_key": "BTN_DISLIKE", "list_label_key": "RSVP_DISLIKED"},
     }
     for o in opts:
         km = KEY_MAP.get(o["id"])

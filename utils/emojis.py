@@ -31,9 +31,9 @@ REC_CUSTOM = "⚙️"
 REC_RELATIVE = "🕒"
 
 # --- Template-Specific RSVP Icons ---
-TEMP_STD_YES = "<:templatesaccepted:1493953385517420544>"
-TEMP_STD_MAYBE = "<:templatesmaybe:1493953387627282552>"
-TEMP_STD_NO = "<:templatedeclined:1493953384288485557>"
+TEMP_STD_YES = "<:templatesaccepted:1493965288407040172>"
+TEMP_STD_MAYBE = "<:templatesmaybe:1493965290051076307>"
+TEMP_STD_NO = "<:templatedeclined:1493965286817140797>"
 
 TEMP_MMO_TANK = "🛡️"
 TEMP_MMO_HEAL = "🏥"

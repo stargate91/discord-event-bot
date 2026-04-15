@@ -14,5 +14,9 @@
   "RSVP_HEAL": "Healers",
   "RSVP_DPS": "DPSes",
   "RSVP_TEAM_A": "Team A",
-  "RSVP_TEAM_B": "Team B"
+  "RSVP_TEAM_B": "Team B",
+  "BTN_LIKE": "Like",
+  "BTN_DISLIKE": "Dislike",
+  "RSVP_LIKED": "Liked it",
+  "RSVP_DISLIKED": "Disliked it"
 }
