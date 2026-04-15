@@ -1,6 +1,7 @@
 import discord
 from utils.emojis import SHIELD
 from discord import ui
+from utils.emoji_utils import make_button, make_select_option
 import database
 from utils.i18n import t, load_guild_translations, CATEGORIES
 from utils.auth import is_admin
@@ -46,7 +47,7 @@ class MessageWizardView(ui.LayoutView):
             current_val = t(k, guild_id=self.guild_id)
             is_overridden = (current_val != t(k))
             label = f"{'🔹 ' if is_overridden else ''}{friendly_name}"
-            options.append(discord.SelectOption(
+            options.append(make_select_option(
                 label=label[:100], 
                 value=k, 
                 description=current_val[:100],
@@ -54,7 +55,7 @@ class MessageWizardView(ui.LayoutView):
             ))
 
         if not options:
-            options.append(discord.SelectOption(label=t("ERR_NO_KEYS_AVAILABLE", guild_id=self.guild_id), value="none", disabled=True))
+            options.append(make_select_option(label=t("ERR_NO_KEYS_AVAILABLE", guild_id=self.guild_id), value="none", disabled=True))
             
         key_select = ui.Select(placeholder=t("SEL_KEY", guild_id=self.guild_id), options=options)
         async def key_callback(it: discord.Interaction):
@@ -66,7 +67,7 @@ class MessageWizardView(ui.LayoutView):
         row_select = ui.ActionRow(key_select)
 
         # 2. Buttons
-        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        edit_btn = make_button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
         async def edit_cb(it: discord.Interaction):
             try:
                 if not await is_admin(it):
@@ -81,7 +82,7 @@ class MessageWizardView(ui.LayoutView):
                 log.error(f"[MessageWizard] Error in edit_cb: {e}", exc_info=True)
         edit_btn.callback = edit_cb
 
-        reset_btn = ui.Button(label=t("BTN_RESET_DEFAULT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        reset_btn = make_button(label=t("BTN_RESET_DEFAULT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def reset_cb(it: discord.Interaction):
             if not await is_admin(it):
                 return await it.response.send_message(t("ERR_ADMIN_ONLY", guild_id=self.guild_id), ephemeral=True)

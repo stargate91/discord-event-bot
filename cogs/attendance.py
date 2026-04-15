@@ -6,6 +6,7 @@ from utils.i18n import t
 from utils.auth import is_admin
 from utils.logger import log
 from utils import emojis
+from utils.emoji_utils import make_button, make_select_option
 import time
 import math
 
@@ -75,7 +76,7 @@ class AttendanceView(ui.LayoutView):
             label = t("LBL_ATT_NOSHOW", guild_id=self.guild_id) if is_noshow else t("LBL_ATT_PRESENT", guild_id=self.guild_id)
             style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
             
-            toggle_btn = ui.Button(
+            toggle_btn = make_button(
                 label=label, 
                 style=style, 
                 custom_id=f"att_tg_{uid}_{self.page}"
@@ -115,8 +116,8 @@ class AttendanceView(ui.LayoutView):
         
         # 3. Navigation Buttons (if needed)
         if total_pages > 1:
-            prev_btn = ui.Button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
-            next_btn = ui.Button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
+            prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
+            next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
             
             async def prev_cb(it):
                 try: await it.response.defer()

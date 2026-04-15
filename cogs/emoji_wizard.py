@@ -8,7 +8,7 @@ import database
 from utils.i18n import t
 from utils.auth import is_admin
 import utils.emojis as emojis
-from utils.emoji_utils import slugify, parse_emoji_config, to_emoji, resolve_placeholders
+from utils.emoji_utils import slugify, parse_emoji_config, to_emoji, resolve_placeholders, make_button, make_select_option
 from utils.templates import ICON_SET_TEMPLATES, get_template_data
 from utils.logger import log
 
@@ -32,7 +32,7 @@ class EmojiHelpView(ui.LayoutView):
             except Exception as e:
                 log.error(f"[EmojiWizard] Error in EmojiHelpView close_callback: {e}", exc_info=True)
 
-        close_btn = ui.Button(
+        close_btn = make_button(
             label=t("BTN_CLOSE", guild_id=self.guild_id), 
             emoji=emojis.CROSS, 
             style=discord.ButtonStyle.secondary
@@ -82,8 +82,8 @@ class ConfirmDeleteView(ui.LayoutView):
             self.wizard_view.selected_set_id = None
             await self.wizard_view.refresh_message(it, status_msg=t("MSG_SET_DELETED", guild_id=self.wizard_view.guild_id))
 
-        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.secondary)
-        confirm_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.danger)
+        cancel_btn = make_button(label=t("BTN_CANCEL", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.secondary)
+        confirm_btn = make_button(label=t("BTN_DELETE", guild_id=self.wizard_view.guild_id), style=discord.ButtonStyle.danger)
         
         cancel_btn.callback = cancel_cb
         confirm_btn.callback = confirm_cb
@@ -153,13 +153,13 @@ class EmojiWizardView(ui.LayoutView):
             preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
             label = (s["name"][:50] + preview_str)[:100]
             
-            options.append(discord.SelectOption(
+            options.append(make_select_option(
                 label=label, 
                 value=s["set_id"], 
                 default=(s["set_id"] == new_view.selected_set_id)
             ))
         if not options:
-            options.append(discord.SelectOption(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none"))
+            options.append(make_select_option(label=t("LBL_NO_SETS", guild_id=self.guild_id), value="none"))
 
         set_select = ui.Select(placeholder=t("SEL_EMOJI_SET", guild_id=self.guild_id), options=options)
         async def select_callback(it):
@@ -172,7 +172,7 @@ class EmojiWizardView(ui.LayoutView):
         row_select = ui.ActionRow(set_select)
         
         # 2. Buttons
-        add_btn = ui.Button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        add_btn = make_button(label=t("BTN_NEW_SET", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
             try:
                 log.debug(f"[EmojiWizard] Interaction 'New set' triggered. is_global: {new_view.is_global}, guild_id: {new_view.guild_id}, user: {it.user.id}")
@@ -199,7 +199,7 @@ class EmojiWizardView(ui.LayoutView):
                     await it.followup.send(t('ERR_WIZARD_GENERAL', guild_id=new_view.guild_id).replace('{e}', str(e)), ephemeral=True)
         add_btn.callback = add_cb
         
-        clone_btn = ui.Button(label=t("BTN_CLONE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        clone_btn = make_button(label=t("BTN_CLONE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def clone_cb(it):
             if not new_view.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=new_view.guild_id), ephemeral=True)
@@ -211,7 +211,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_modal(modal)
         clone_btn.callback = clone_cb
         
-        edit_btn = ui.Button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        edit_btn = make_button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def edit_cb(it):
             if not new_view.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_KEY_FIRST", guild_id=new_view.guild_id), ephemeral=True)
@@ -221,7 +221,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_modal(EditEmojiSetModal(new_view, curr))
         edit_btn.callback = edit_cb
         
-        del_btn = ui.Button(label=t("BTN_DELETE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        del_btn = make_button(label=t("BTN_DELETE", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             if not new_view.selected_set_id:
                 return await it.response.send_message(t("ERR_SELECT_SET_DELETE", guild_id=new_view.guild_id), ephemeral=True)
@@ -235,7 +235,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_message(view=conf_view, ephemeral=True)
         del_btn.callback = del_cb
         
-        help_btn = ui.Button(label=t("BTN_HELP", guild_id=new_view.guild_id), emoji=emojis.HELP, style=discord.ButtonStyle.secondary)
+        help_btn = make_button(label=t("BTN_HELP", guild_id=new_view.guild_id), emoji=emojis.HELP, style=discord.ButtonStyle.secondary)
         async def help_cb(it): await send_emoji_help(it, new_view.guild_id)
         help_btn.callback = help_cb
         
@@ -281,9 +281,9 @@ class TemplateChoiceView(ui.LayoutView):
             preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
             # Resolve placeholders in the final label
             label = resolve_placeholders(t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str)
-            options.append(discord.SelectOption(label=label[:100], value=k, emoji=to_emoji(v["emoji"]) or None))
+            options.append(make_select_option(label=label[:100], value=k, emoji=to_emoji(v["emoji"]) or None))
         
-        options.append(discord.SelectOption(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))
+        options.append(make_select_option(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))
         
         select_template = ui.Select(placeholder=t("SEL_TEMPLATE", guild_id=self.wizard_view.guild_id), options=options)
         async def select_callback(interaction: discord.Interaction):

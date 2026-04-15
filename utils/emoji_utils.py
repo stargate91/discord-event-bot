@@ -129,6 +129,26 @@ def make_select_option(label: str, **kwargs):
     return discord.SelectOption(label=label[:100], emoji=emoji_obj, **kwargs)
 
 
+def make_button(label: str, **kwargs):
+    """Create a discord.ui.Button, auto-extracting any leading custom or standard 
+    emoji from *label* into the separate ``emoji`` kwarg so Discord renders it
+    properly (Button.label is plain-text only).
+
+    Usage::
+
+        self.add_item(make_button(label=t("BTN_GENERAL", ...), style=...))
+    """
+    import discord
+    from utils.emoji_utils import split_emoji
+
+    emoji_obj, clean_label = split_emoji(label)
+    
+    # If the user explicitly provided an emoji, we let it override the extracted one
+    final_emoji = kwargs.pop("emoji", emoji_obj)
+    
+    return discord.ui.Button(label=clean_label[:80], emoji=final_emoji, **kwargs)
+
+
 def to_emoji(emoji_str: str):
     """Converts a string to a discord.PartialEmoji if it matches custom emoji format, 
     resolves {PLACEHOLDERS} from the registry, otherwise returns original."""

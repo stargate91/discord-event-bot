@@ -4,7 +4,7 @@ from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations
-from utils.emoji_utils import to_emoji, make_select_option, split_emoji
+from utils.emoji_utils import to_emoji, make_select_option, split_emoji, make_button
 from utils.auth import is_admin
 from utils.logger import log
 
@@ -20,22 +20,21 @@ class ServerSetupView(ui.LayoutView):
         self.clear_items()
         
         # 1. Action Buttons
-        general_btn = ui.Button(label=t("BTN_GENERAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        general_btn = make_button(label=t("BTN_GENERAL", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def general_cb(it):
             v = GeneralSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
         general_btn.callback = general_cb
 
         curr_tz = await database.get_guild_setting(self.guild_id, "timezone", default=DEFAULT_TIMEZONE)
-        local_btn = ui.Button(label=curr_tz, emoji=to_emoji(GLOBE), style=discord.ButtonStyle.secondary)
+        local_btn = make_button(label=curr_tz, emoji=to_emoji(GLOBE), style=discord.ButtonStyle.secondary)
         async def local_cb(it):
             modal = SimpleConfigModal(self.guild_id, "timezone", t("SETTING_TIMEZONE", guild_id=self.guild_id), 
                                      placeholder=t("PH_TIMEZONE", guild_id=self.guild_id), default_val=curr_tz, parent_view=self)
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 
-        rem_em, rem_lb = split_emoji(t("BTN_REMINDERS", guild_id=self.guild_id))
-        reminder_btn = ui.Button(label=rem_lb, emoji=rem_em, style=discord.ButtonStyle.secondary)
+        reminder_btn = make_button(label=t("BTN_REMINDERS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def reminder_cb(it):
             v = ReminderSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
@@ -71,7 +70,7 @@ class ServerSetupView(ui.LayoutView):
                 await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("SETTING_COLOR", guild_id=self.guild_id), val=val), ephemeral=True)
         color_sel.callback = color_cb
 
-        defaults_btn = ui.Button(label=t("BTN_EVENT_DEFAULTS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        defaults_btn = make_button(label=t("BTN_EVENT_DEFAULTS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def defaults_cb(it):
             v = EventDefaultsView(self.bot, self.guild_id)
             await v.refresh_message(it)
@@ -118,21 +117,21 @@ class GeneralSetupView(ui.LayoutView):
         # 1. Get current language from DB
         cur_lang = await database.get_guild_setting(self.guild_id, "language", default="en")
 
-        lang_hu = ui.Button(
+        lang_hu = make_button(
             label=t("LBL_LANG_HU", guild_id=self.guild_id), 
             style=discord.ButtonStyle.success if cur_lang == "hu" else discord.ButtonStyle.secondary
         )
         async def hu_cb(it): await self._set_lang(it, "hu")
         lang_hu.callback = hu_cb
 
-        lang_en = ui.Button(
+        lang_en = make_button(
             label=t("LBL_LANG_EN", guild_id=self.guild_id), 
             style=discord.ButtonStyle.success if cur_lang == "en" else discord.ButtonStyle.secondary
         )
         async def en_cb(it): await self._set_lang(it, "en")
         lang_en.callback = en_cb
 
-        roles_btn = ui.Button(label=t("BTN_ADMIN_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        roles_btn = make_button(label=t("BTN_ADMIN_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def roles_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "admin_role_ids", default="")
             modal = SimpleConfigModal(self.guild_id, "admin_role_ids", t("SETTING_ADMIN_ROLES", guild_id=self.guild_id), 
@@ -140,7 +139,7 @@ class GeneralSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         roles_btn.callback = roles_cb
 
-        channels_btn = ui.Button(label=t("BTN_ADMIN_CHANNELS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        channels_btn = make_button(label=t("BTN_ADMIN_CHANNELS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channels_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "admin_channel_ids", default="")
             modal = SimpleConfigModal(self.guild_id, "admin_channel_ids", t("SETTING_ADMIN_CHANNELS", guild_id=self.guild_id), 
@@ -151,9 +150,9 @@ class GeneralSetupView(ui.LayoutView):
         # 2. Template Lang Select
         cur_tpl_lang = await database.get_guild_setting(self.guild_id, "template_language", default="en")
         tpl_opts = [
-            discord.SelectOption(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id), value="default", default=(cur_tpl_lang=="default")),
-            discord.SelectOption(label=t("LBL_LANG_HU", guild_id=self.guild_id), value="hu", default=(cur_tpl_lang=="hu")),
-            discord.SelectOption(label=t("LBL_LANG_EN", guild_id=self.guild_id), value="en", default=(cur_tpl_lang=="en")),
+            make_select_option(label=t("SEL_LANG_DEFAULT", guild_id=self.guild_id), value="default", default=(cur_tpl_lang=="default")),
+            make_select_option(label=t("LBL_LANG_HU", guild_id=self.guild_id), value="hu", default=(cur_tpl_lang=="hu")),
+            make_select_option(label=t("LBL_LANG_EN", guild_id=self.guild_id), value="en", default=(cur_tpl_lang=="en")),
         ]
         tpl_sel = ui.Select(placeholder=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id), options=tpl_opts)
         async def tpl_cb(it):
@@ -164,7 +163,7 @@ class GeneralSetupView(ui.LayoutView):
             await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_TEMPLATE_LANG", guild_id=self.guild_id), val=val), ephemeral=True)
         tpl_sel.callback = tpl_cb
 
-        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
@@ -253,14 +252,14 @@ class ReminderSetupView(ui.LayoutView):
         """Asynchronously build the UI components and bind callbacks."""
         self.clear_items()
 
-        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
         back_btn.callback = back_cb
 
         # Reminder Offset button
-        offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        offset_btn = make_button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def offset_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_reminder_offset", default="")
             modal = MultiReminderOffsetModal(self.guild_id, curr, self)
@@ -270,10 +269,10 @@ class ReminderSetupView(ui.LayoutView):
         # Status Change Notification config
         cur_status_notify = await database.get_guild_setting(self.guild_id, "status_notification_type", default="none")
         status_opts = [
-            discord.SelectOption(label=t("OPT_NOTIFY_NONE", guild_id=self.guild_id) or "Semmi", value="none", default=(cur_status_notify=="none")),
-            discord.SelectOption(label=t("OPT_NOTIFY_DM", guild_id=self.guild_id) or "Csak DM", value="dm", default=(cur_status_notify=="dm")),
-            discord.SelectOption(label=t("OPT_NOTIFY_CHAT", guild_id=self.guild_id) or "Csak Ping", value="chat", default=(cur_status_notify=="chat")),
-            discord.SelectOption(label=t("OPT_NOTIFY_BOTH", guild_id=self.guild_id) or "Mindkettő", value="both", default=(cur_status_notify=="both")),
+            make_select_option(label=t("OPT_NOTIFY_NONE", guild_id=self.guild_id) or "Semmi", value="none", default=(cur_status_notify=="none")),
+            make_select_option(label=t("OPT_NOTIFY_DM", guild_id=self.guild_id) or "Csak DM", value="dm", default=(cur_status_notify=="dm")),
+            make_select_option(label=t("OPT_NOTIFY_CHAT", guild_id=self.guild_id) or "Csak Ping", value="chat", default=(cur_status_notify=="chat")),
+            make_select_option(label=t("OPT_NOTIFY_BOTH", guild_id=self.guild_id) or "Mindkettő", value="both", default=(cur_status_notify=="both")),
         ]
         status_sel = ui.Select(placeholder=t("PH_STATUS_NOTIFY", guild_id=self.guild_id) or "Státuszváltozás értesítő...", options=status_opts)
         async def status_sel_cb(it):
@@ -321,7 +320,7 @@ class EventDefaultsView(ui.LayoutView):
         self.clear_items()
         
         # 1. Static Configuration Buttons
-        channel_btn = ui.Button(label=t("BTN_DEFAULT_CHANNEL", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        channel_btn = make_button(label=t("BTN_DEFAULT_CHANNEL", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def channel_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_event_channel", default="")
             modal = SimpleConfigModal(
@@ -335,7 +334,7 @@ class EventDefaultsView(ui.LayoutView):
             await it.response.send_modal(modal)
         channel_btn.callback = channel_cb
 
-        max_acc_btn = ui.Button(label=t("BTN_DEFAULT_MAX_ACC", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        max_acc_btn = make_button(label=t("BTN_DEFAULT_MAX_ACC", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def max_acc_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
             modal = SimpleConfigModal(
@@ -349,7 +348,7 @@ class EventDefaultsView(ui.LayoutView):
             await it.response.send_modal(modal)
         max_acc_btn.callback = max_acc_cb
 
-        back_btn = ui.Button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("BTN_BACK", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             v = ServerSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)
@@ -360,7 +359,7 @@ class EventDefaultsView(ui.LayoutView):
         is_on = wait_val.lower() == "true"
         state_text = t("LBL_WAITLIST_ON", guild_id=self.guild_id) if is_on else t("LBL_WAITLIST_OFF", guild_id=self.guild_id)
         
-        wait_btn = ui.Button(
+        wait_btn = make_button(
             label=t("BTN_DEFAULT_WAITLIST", guild_id=self.guild_id, state=state_text),
             style=discord.ButtonStyle.success if is_on else discord.ButtonStyle.secondary
         )
@@ -371,7 +370,7 @@ class EventDefaultsView(ui.LayoutView):
             await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_WAITLIST_LIMIT", guild_id=self.guild_id), val=new_val), ephemeral=True)
         wait_btn.callback = wait_cb
 
-        repost_btn = ui.Button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        repost_btn = make_button(label=t("BTN_DEFAULT_REPOST", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def repost_cb(it):
             curr = await database.get_guild_setting(self.guild_id, "default_repost_offset", default="12h")
             modal = SimpleConfigModal(self.guild_id, "default_repost_offset", t("SETTING_REPOST_OFFSET", guild_id=self.guild_id), 
@@ -381,9 +380,9 @@ class EventDefaultsView(ui.LayoutView):
 
         cur_trig = await database.get_guild_setting(self.guild_id, "default_repost_trigger", default="after_end")
         trig_opts = [
-            discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
-            discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
-            discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
+            make_select_option(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
+            make_select_option(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
+            make_select_option(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
         ]
         trig_sel = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id), options=trig_opts)
         async def trig_cb(it):
@@ -397,7 +396,7 @@ class EventDefaultsView(ui.LayoutView):
         is_temp_on = temp_val.lower() == "true"
         temp_state_text = t("LBL_TEMP_ROLE_ON", guild_id=self.guild_id) if is_temp_on else t("LBL_TEMP_ROLE_OFF", guild_id=self.guild_id)
         
-        temp_role_btn = ui.Button(
+        temp_role_btn = make_button(
             label=t("BTN_DEFAULT_TEMP_ROLE", guild_id=self.guild_id, state=temp_state_text),
             style=discord.ButtonStyle.success if is_temp_on else discord.ButtonStyle.secondary
         )
@@ -410,7 +409,7 @@ class EventDefaultsView(ui.LayoutView):
 
         # 3. Archive & Promotion Selection
         archive_val = await database.get_guild_setting(self.guild_id, "auto_archive_hours", default="12")
-        archive_btn = ui.Button(label=f"{t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", emoji=to_emoji("⏱️"), style=discord.ButtonStyle.gray)
+        archive_btn = make_button(label=f"{t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", emoji=to_emoji("⏱️"), style=discord.ButtonStyle.gray)
         async def archive_cb(it):
             modal = SimpleConfigModal(
                 self.guild_id,
@@ -425,10 +424,10 @@ class EventDefaultsView(ui.LayoutView):
 
         cur_promo = await database.get_guild_setting(self.guild_id, "default_notify_promotion", default="none")
         promo_opts = [
-            discord.SelectOption(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo=="none")),
-            discord.SelectOption(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo=="channel")),
-            discord.SelectOption(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo=="dm")),
-            discord.SelectOption(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo=="both")),
+            make_select_option(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo=="none")),
+            make_select_option(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo=="channel")),
+            make_select_option(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo=="dm")),
+            make_select_option(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo=="both")),
         ]
         promo_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_opts)
         async def promo_cb(it):

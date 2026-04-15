@@ -14,7 +14,7 @@ from dateutil import tz
 from utils.auth import is_admin, is_master
 from utils.logger import log
 from utils import emojis
-import math
+from utils.emoji_utils import make_button, make_select_option
 
 # We load the config for command suffixes
 from utils.config import config
@@ -76,7 +76,7 @@ class MyEventsView(ui.View):
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(ui.Button(
+            self.add_item(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
@@ -84,14 +84,14 @@ class MyEventsView(ui.View):
 
         # Pagination controls
         if len(self.events) > self.per_page:
-            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            prev_btn = make_button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
                 await self.build()
                 await it.response.edit_message(view=self)
             prev_btn.callback = prev_cb
             
-            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            next_btn = make_button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
             async def next_cb(it):
                 self.page += 1
                 await self.build()
@@ -162,7 +162,7 @@ class EventHistoryView(ui.View):
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(ui.Button(
+            self.add_item(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
@@ -170,14 +170,14 @@ class EventHistoryView(ui.View):
 
         # Pagination controls
         if len(self.events) > self.per_page:
-            prev_btn = ui.Button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            prev_btn = make_button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
                 await self.build()
                 await it.response.edit_message(view=self)
             prev_btn.callback = prev_cb
             
-            next_btn = ui.Button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            next_btn = make_button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
             async def next_cb(it):
                 self.page += 1
                 await self.build()
@@ -731,7 +731,7 @@ class ReliabilityAuditView(ui.LayoutView):
             if ns > 2: style = discord.ButtonStyle.danger
             elif ns > 0: style = discord.ButtonStyle.primary
             
-            stat_btn = ui.Button(label=status_label, style=style, disabled=True)
+            stat_btn = make_button(label=status_label, style=style, disabled=True)
             
             section = ui.Section(f"**{idx}. {name}**", accessory=stat_btn)
             container_items.append(section)
@@ -741,8 +741,8 @@ class ReliabilityAuditView(ui.LayoutView):
         
         # Navigation
         if total_pages > 1:
-            prev_btn = ui.Button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0))
-            next_btn = ui.Button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
+            prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0))
+            next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
             
             async def prev_cb(it):
                 try: await it.response.defer()
@@ -904,8 +904,8 @@ class AdminCommands(commands.GroupCog, name="admin"):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY", guild_id=guild_id), ephemeral=True)
 
         view = ui.View()
-        confirm_btn = ui.Button(label=t("BTN_RESET_CONFIRM", guild_id=guild_id), style=discord.ButtonStyle.danger)
-        cancel_btn = ui.Button(label=t("BTN_CANCEL", guild_id=guild_id), style=discord.ButtonStyle.secondary)
+        confirm_btn = make_button(label=t("BTN_RESET_CONFIRM", guild_id=guild_id), style=discord.ButtonStyle.danger)
+        cancel_btn = make_button(label=t("BTN_CANCEL", guild_id=guild_id), style=discord.ButtonStyle.secondary)
 
         async def confirm_callback(it: discord.Interaction):
             try:

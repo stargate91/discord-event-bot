@@ -8,6 +8,7 @@ import json
 from utils.logger import log
 from utils.i18n import t
 from utils.auth import is_admin, is_master
+from utils.emoji_utils import make_button, make_select_option
 
 @app_commands.check(is_master)
 class MasterCommands(commands.GroupCog, name="master"):
@@ -228,12 +229,12 @@ class MasterPresenceView(ui.LayoutView):
 
         self.clear_items()
         
-        add_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.secondary)
+        add_btn = make_button(label=t("MASTER_PRESENCE_BTN_ADD", guild_id=None), style=discord.ButtonStyle.secondary)
         async def add_cb(it):
             await it.response.send_modal(StatusModal(self.refresh_message))
         add_btn.callback = add_cb
         
-        cfg_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_CFG", guild_id=None), style=discord.ButtonStyle.secondary)
+        cfg_btn = make_button(label=t("MASTER_PRESENCE_BTN_CFG", guild_id=None), style=discord.ButtonStyle.secondary)
         async def cfg_cb(it):
             await it.response.send_modal(PresenceConfigModal(self.current_config, self.refresh_message))
         cfg_btn.callback = cfg_cb
@@ -257,7 +258,7 @@ class MasterPresenceView(ui.LayoutView):
                 type_key = f"PRESENCE_TYPE_{s.get('type', 'watching').upper()}"
                 type_text = t(type_key, guild_id=None).replace("**", "") # Strip bolding for select menu if any
                 label = f"{type_text}: {s.get('text', '')}"[:100]
-                options.append(discord.SelectOption(label=label, value=s["id"]))
+                options.append(make_select_option(label=label, value=s["id"]))
             
             select = ui.Select(placeholder=t("MASTER_PRESENCE_SEL_PH", guild_id=None), options=options)
             async def select_cb(it):
@@ -296,12 +297,12 @@ class PresenceEditView(ui.LayoutView):
         desc = t("MASTER_PRESENCE_EDIT_DESC", guild_id=None).replace("{type}", type_text).replace("{text}", self.status_data.get('text', ''))
         
         self.clear_items()
-        edit_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
+        edit_btn = make_button(label=t("MASTER_PRESENCE_BTN_EDIT", guild_id=None), style=discord.ButtonStyle.secondary)
         async def edit_cb(it):
             await it.response.send_modal(StatusModal(self.parent_view.refresh_message, self.status_id, self.status_data))
         edit_btn.callback = edit_cb
         
-        del_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
+        del_btn = make_button(label=t("MASTER_PRESENCE_BTN_DEL", guild_id=None), style=discord.ButtonStyle.secondary)
         async def del_cb(it):
             db_presence = await database.get_global_setting("bot_presence_list")
             if not db_presence:
@@ -328,7 +329,7 @@ class PresenceEditView(ui.LayoutView):
             await self.parent_view.refresh_message(it)
         del_btn.callback = del_cb
         
-        back_btn = ui.Button(label=t("MASTER_PRESENCE_BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("MASTER_PRESENCE_BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             await it.response.defer()
             await self.parent_view.refresh_message(it)

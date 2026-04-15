@@ -1,6 +1,6 @@
 import discord
 from utils.emojis import WARNING, PING, SYNC
-from utils.emoji_utils import to_emoji, resolve_placeholders
+from utils.emoji_utils import to_emoji, resolve_placeholders, make_button, make_select_option
 from discord.ext import commands
 import database
 from utils.i18n import t
@@ -604,7 +604,7 @@ class DynamicEventView(discord.ui.LayoutView):
             }
             btn_color = color_map.get(opt.get("button_color"), discord.ButtonStyle.secondary)
 
-            btn = discord.ui.Button(
+            btn = make_button(
                 style=btn_color,
                 emoji=to_emoji(btn_emoji) or None,
                 label=btn_label or None,
@@ -631,11 +631,11 @@ class DynamicEventView(discord.ui.LayoutView):
             if self.active_set.get("show_mgmt", True) and added_count < 40:
                 mgmt_items = []
                 if not (lobby_mode and not event_conf.get("start_time")):
-                    resched_btn = discord.ui.Button(label=t("BTN_RESCHEDULE", guild_id=guild_id), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
+                    resched_btn = make_button(label=t("BTN_RESCHEDULE", guild_id=guild_id), style=discord.ButtonStyle.primary, custom_id=f"resched_{self.event_id}")
                     resched_btn.callback = self.reschedule_callback
                     mgmt_items.append(resched_btn)
                 
-                cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+                cancel_btn = make_button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
                 cancel_btn.callback = self.cancel_callback
                 mgmt_items.append(cancel_btn)
                 
@@ -645,11 +645,11 @@ class DynamicEventView(discord.ui.LayoutView):
                 mgmt_items = []
 
                 if not (lobby_mode and not event_conf.get("start_time")):
-                    postpone_btn = discord.ui.Button(label=t("BTN_POSTPONE_EVENT", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
+                    postpone_btn = make_button(label=t("BTN_POSTPONE_EVENT", guild_id=guild_id) or "Elhalasztás", style=discord.ButtonStyle.gray, custom_id=f"postpone_{self.event_id}")
                     postpone_btn.callback = self.postpone_callback
                     mgmt_items.append(postpone_btn)
 
-                cancel_btn = discord.ui.Button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
+                cancel_btn = make_button(label=t("BTN_CANCEL_EVENT", guild_id=guild_id) or "Lemondás", style=discord.ButtonStyle.danger, custom_id=f"cancel_{self.event_id}")
                 cancel_btn.callback = self.cancel_callback
                 mgmt_items.append(cancel_btn)
 
@@ -1316,23 +1316,52 @@ class PostponeModal(discord.ui.Modal):
 
 class EditChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events):
-        super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events = bot, event_id, db_event, series_events
-    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
-    async def edit_single(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event)
-    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
-    async def edit_series(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event, bulk_ids=[ev['event_id'] for ev in self.series_events])
+        super().__init__(timeout=180)
+        self.bot, self.event_id, self.db_event, self.series_events = bot, event_id, db_event, series_events
+        guild_id = db_event.get("guild_id")
+        
+        btn_single = make_button(label=t("BTN_SINGLE_INSTANCE", guild_id=guild_id), style=discord.ButtonStyle.secondary)
+        btn_single.callback = self.edit_single_callback
+        self.add_item(btn_single)
+        
+        btn_series = make_button(label=t("BTN_ENTIRE_SERIES", guild_id=guild_id), style=discord.ButtonStyle.primary)
+        btn_series.callback = self.edit_series_callback
+        self.add_item(btn_series)
+
+    async def edit_single_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event)
+
+    async def edit_series_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        await DynamicEventView(self.bot, self.event_id)._open_wizard(interaction, self.db_event, bulk_ids=[ev['event_id'] for ev in self.series_events])
 
 class StatusChoiceView(discord.ui.View):
     def __init__(self, bot, event_id, db_event, series_events, new_status, notify_type="none"):
-        super().__init__(timeout=180); self.bot, self.event_id, self.db_event, self.series_events, self.new_status, self.notify_type = bot, event_id, db_event, series_events, new_status, notify_type
-    @discord.ui.button(label=t("BTN_SINGLE_INSTANCE"), style=discord.ButtonStyle.secondary)
-    async def status_single(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); await database.update_event_status(self.event_id, self.new_status); await self.refresh_and_notify(interaction, [self.event_id]); await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
-    @discord.ui.button(label=t("BTN_ENTIRE_SERIES"), style=discord.ButtonStyle.primary)
-    async def status_series(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await interaction.response.defer(ephemeral=True); ids = [ev['event_id'] for ev in self.series_events]; await database.update_event_status_bulk(ids, self.new_status); await self.refresh_and_notify(interaction, ids); await interaction.followup.send(t("MSG_SERIES_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
+        super().__init__(timeout=180)
+        self.bot, self.event_id, self.db_event, self.series_events, self.new_status, self.notify_type = bot, event_id, db_event, series_events, new_status, notify_type
+        guild_id = db_event.get("guild_id")
+        
+        btn_single = make_button(label=t("BTN_SINGLE_INSTANCE", guild_id=guild_id), style=discord.ButtonStyle.secondary)
+        btn_single.callback = self.status_single_callback
+        self.add_item(btn_single)
+        
+        btn_series = make_button(label=t("BTN_ENTIRE_SERIES", guild_id=guild_id), style=discord.ButtonStyle.primary)
+        btn_series.callback = self.status_series_callback
+        self.add_item(btn_series)
+
+    async def status_single_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        await database.update_event_status(self.event_id, self.new_status)
+        await self.refresh_and_notify(interaction, [self.event_id])
+        await interaction.followup.send(t("MSG_STATUS_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
+
+    async def status_series_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        ids = [ev['event_id'] for ev in self.series_events]
+        await database.update_event_status_bulk(ids, self.new_status)
+        await self.refresh_and_notify(interaction, ids)
+        await interaction.followup.send(t("MSG_SERIES_UPDATED", guild_id=interaction.guild_id, status=self.new_status), ephemeral=True)
     async def refresh_and_notify(self, interaction, event_ids):
         for eid in event_ids:
             ev = await database.get_active_event(eid)

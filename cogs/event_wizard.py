@@ -15,7 +15,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
-from utils.emoji_utils import parse_emoji_config, to_emoji, resolve_placeholders, make_select_option, split_emoji
+from utils.emoji_utils import parse_emoji_config, to_emoji, resolve_placeholders, make_select_option, split_emoji, make_button
 
 async def resolve_channel(guild, channel_query):
     """Tries to resolve a channel by ID or Name. Returns channel_id or None."""
@@ -47,7 +47,7 @@ class WizardStartView(ui.LayoutView):
         desc = t("WIZARD_TYPE_DESC", guild_id=guild_id) + "\n" + t("WIZARD_TYPE_LOBBY_HINT", guild_id=guild_id)
         
         # Action Buttons
-        single_btn = ui.Button(
+        single_btn = make_button(
             label=t("BTN_SINGLE_EVENT", guild_id=guild_id),
             style=discord.ButtonStyle.secondary
         )
@@ -63,7 +63,7 @@ class WizardStartView(ui.LayoutView):
 
         single_btn.callback = single_cb
         
-        recurring_btn = ui.Button(
+        recurring_btn = make_button(
             label=t("BTN_RECURRING_EVENT", guild_id=guild_id),
             style=discord.ButtonStyle.secondary
         )
@@ -641,7 +641,7 @@ class EventWizardView(ui.LayoutView):
                 log.error(f"[Wizard] s1_cb error: {e}", exc_info=True)
                 if not it.response.is_done():
                     await it.response.send_message(f"{ERROR} {e}", ephemeral=True)
-        step1 = ui.Button(label=t("BTN_STEP_1", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        step1 = make_button(label=t("BTN_STEP_1", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step1.callback = s1_cb
 
         # Step 2: Single/Lobby = Supplementary, Series = Recurrence Settings
@@ -657,7 +657,7 @@ class EventWizardView(ui.LayoutView):
             s2_label = t("BTN_STEP_2_SINGLE", guild_id=self.guild_id)
         else:
             s2_label = t("BTN_STEP_2_SERIES", guild_id=self.guild_id)
-        step2 = ui.Button(label=s2_label, style=discord.ButtonStyle.gray)
+        step2 = make_button(label=s2_label, style=discord.ButtonStyle.gray)
         step2.callback = s2_cb
 
         # Step 3: Series only — timezone, max participants, channel (multi-reminder: use Reminder toggle)
@@ -666,24 +666,24 @@ class EventWizardView(ui.LayoutView):
                 await it.response.send_modal(Step3Modal(view))
             else:
                 await it.response.send_modal(SingleEventSupplementaryModal(view))
-        step3 = ui.Button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        step3 = make_button(label=t("BTN_STEP_3_SERIES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         step3.callback = s3_cb
 
         async def role_cb(it):
             from cogs.event_ui import get_active_set
             active_set = get_active_set(view.data.get("icon_set", "standard"))
             await it.response.send_modal(RoleLimitsModal(view, active_set))
-        role_btn = ui.Button(label=t("BTN_ROLE_LIMITS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        role_btn = make_button(label=t("BTN_ROLE_LIMITS", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         role_btn.callback = role_cb
 
         async def msg_cb(it): await it.response.send_modal(NotificationSettingsModal(view))
-        msg_btn = ui.Button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        msg_btn = make_button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         msg_btn.callback = msg_cb
 
         async def rsvp_roles_cb(it):
             await it.response.send_modal(RsvpRolesModal(view))
 
-        rsvp_roles_btn = ui.Button(label=t("BTN_RSVP_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        rsvp_roles_btn = make_button(label=t("BTN_RSVP_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         rsvp_roles_btn.callback = rsvp_roles_cb
 
         async def wait_cb(it):
@@ -713,7 +713,7 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         use_waiting = view.data.get("use_waiting_list", False)
 
-        wait_btn = ui.Button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
+        wait_btn = make_button(label=t("SEL_WAIT_ENABLED" if use_waiting else "SEL_WAIT_DISABLED", guild_id=self.guild_id), style=discord.ButtonStyle.green if use_waiting else discord.ButtonStyle.gray)
         wait_btn.callback = wait_cb
 
         # Temp Role Toggle
@@ -723,7 +723,7 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         
         use_temp = view.data.get("use_temp_role", False)
-        temp_role_btn = ui.Button(
+        temp_role_btn = make_button(
             label=t("LBL_WIZ_TEMP_ROLE", guild_id=self.guild_id) + (f": {t('LBL_TEMP_ROLE_ON', guild_id=self.guild_id)}" if use_temp else f": {t('LBL_TEMP_ROLE_OFF', guild_id=self.guild_id)}"),
             style=discord.ButtonStyle.green if use_temp else discord.ButtonStyle.gray
         )
@@ -736,14 +736,14 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         
         use_threads = view.data.get("use_threads", False)
-        thread_btn = ui.Button(
+        thread_btn = make_button(
             label=t("LBL_WIZ_THREADS", guild_id=self.guild_id) + (f": {t('LBL_THREADS_ON', guild_id=self.guild_id)}" if use_threads else f": {t('LBL_THREADS_OFF', guild_id=self.guild_id)}"),
             style=discord.ButtonStyle.green if use_threads else discord.ButtonStyle.gray
         )
         thread_btn.callback = thread_cb
 
         save_style = discord.ButtonStyle.green
-        save_btn = ui.Button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
+        save_btn = make_button(label=t("BTN_SAVE_PREVIEW", guild_id=self.guild_id), style=save_style, disabled=view.can_publish)
         async def save_cb(it): await view.handle_save_preview(it)
         save_btn.callback = save_cb
 
@@ -759,9 +759,9 @@ class EventWizardView(ui.LayoutView):
         if view.wizard_type == "series":
             cur_trig = view.data.get("repost_trigger", "after_end")
             trig_opts = [
-                discord.SelectOption(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
-                discord.SelectOption(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
-                discord.SelectOption(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
+                make_select_option(label=t("SEL_TRIG_BEFORE", guild_id=self.guild_id), value="before_start", default=(cur_trig=="before_start")),
+                make_select_option(label=t("SEL_TRIG_AFTER_START", guild_id=self.guild_id), value="after_start", default=(cur_trig=="after_start")),
+                make_select_option(label=t("SEL_TRIG_AFTER_END", guild_id=self.guild_id), value="after_end", default=(cur_trig=="after_end")),
             ]
             sel_trig = ui.Select(placeholder=t("SEL_TRIG_TYPE", guild_id=self.guild_id), options=trig_opts)
             async def trig_cb(it):
@@ -780,7 +780,7 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        adv_btn = ui.Button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
+        adv_btn = make_button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
             await it.response.defer()
             view.show_advanced = not view.show_advanced
@@ -792,7 +792,7 @@ class EventWizardView(ui.LayoutView):
         # Reminder Toggle
         rem_em, rem_lb = split_emoji(t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id))
         caret = " \u25BC" if view.show_reminder else " \u25C0"
-        rem_toggle_btn = ui.Button(label=rem_lb + caret, emoji=rem_em, style=discord.ButtonStyle.secondary)
+        rem_toggle_btn = make_button(label=rem_lb + caret, emoji=rem_em, style=discord.ButtonStyle.secondary)
         async def rem_toggle_cb(it):
             await it.response.defer()
             view.show_reminder = not view.show_reminder
@@ -802,7 +802,7 @@ class EventWizardView(ui.LayoutView):
         rem_toggle_btn.callback = rem_toggle_cb
 
         # Reminder Offset Button (for expanded reminder section)
-        rem_offset_btn = ui.Button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        rem_offset_btn = make_button(label=t("BTN_REMINDER_OFFSET", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def rem_offset_cb(it):
             class ReminderOffsetModal(ui.Modal):
                 def __init__(self, v):
@@ -853,7 +853,7 @@ class EventWizardView(ui.LayoutView):
         # New Reminder Messages Button
         rem_msg_raw = view.data.get("reminder_offsets") or []
         has_reminders = len(rem_msg_raw) > 0
-        rem_msg_btn = ui.Button(
+        rem_msg_btn = make_button(
             label=t("BTN_REMINDER_MESSAGES", guild_id=self.guild_id), 
             style=discord.ButtonStyle.gray,
             disabled=not has_reminders
@@ -865,10 +865,10 @@ class EventWizardView(ui.LayoutView):
         # Reminder Type Dropdown (lobby: megteléskori értesítés módja)
         cur_rem_type = view.data.get("reminder_type", "none")
         rem_type_opts = [
-            discord.SelectOption(label=t("SEL_REM_NONE", guild_id=self.guild_id), value="none", default=(cur_rem_type=="none")),
-            discord.SelectOption(label=t("SEL_REM_DM", guild_id=self.guild_id), value="dm", default=(cur_rem_type=="dm")),
-            discord.SelectOption(label=t("SEL_REM_PING", guild_id=self.guild_id), value="ping", default=(cur_rem_type=="ping")),
-            discord.SelectOption(label=t("SEL_REM_BOTH", guild_id=self.guild_id), value="both", default=(cur_rem_type=="both"))
+            make_select_option(label=t("SEL_REM_NONE", guild_id=self.guild_id), value="none", default=(cur_rem_type=="none")),
+            make_select_option(label=t("SEL_REM_DM", guild_id=self.guild_id), value="dm", default=(cur_rem_type=="dm")),
+            make_select_option(label=t("SEL_REM_PING", guild_id=self.guild_id), value="ping", default=(cur_rem_type=="ping")),
+            make_select_option(label=t("SEL_REM_BOTH", guild_id=self.guild_id), value="both", default=(cur_rem_type=="both"))
         ]
         rem_ph = (
             t("SEL_LOBBY_FILL_NOTIFY", guild_id=self.guild_id)
@@ -890,10 +890,10 @@ class EventWizardView(ui.LayoutView):
             view.data["notify_promotion"] = cur_promo_type
 
         promo_type_opts = [
-            discord.SelectOption(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo_type=="none")),
-            discord.SelectOption(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo_type=="channel")),
-            discord.SelectOption(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo_type=="dm")),
-            discord.SelectOption(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo_type=="both"))
+            make_select_option(label=t("SEL_NOTIFY_NONE", guild_id=self.guild_id), value="none", default=(cur_promo_type=="none")),
+            make_select_option(label=t("SEL_NOTIFY_CHANNEL", guild_id=self.guild_id), value="channel", default=(cur_promo_type=="channel")),
+            make_select_option(label=t("SEL_NOTIFY_DM", guild_id=self.guild_id), value="dm", default=(cur_promo_type=="dm")),
+            make_select_option(label=t("SEL_NOTIFY_BOTH", guild_id=self.guild_id), value="both", default=(cur_promo_type=="both"))
         ]
         promo_type_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_type_opts)
         async def promo_type_cb(it):
@@ -903,7 +903,7 @@ class EventWizardView(ui.LayoutView):
             await view.refresh_message(it)
         promo_type_sel.callback = promo_type_cb
 
-        creator_btn = ui.Button(label=t("LBL_WIZ_CREATOR", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        creator_btn = make_button(label=t("LBL_WIZ_CREATOR", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def creator_cb(it):
             class CreatorModal(ui.Modal):
                 def __init__(self, v):
@@ -1011,7 +1011,7 @@ class EventWizardView(ui.LayoutView):
         ]
 
         if view.can_publish:
-            pub_btn = ui.Button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green)
+            pub_btn = make_button(label=t("BTN_PUBLISH", guild_id=self.guild_id), style=discord.ButtonStyle.green)
             async def pub_cb(it): await view.publish_btn(it)
             pub_btn.callback = pub_cb
 
@@ -1227,7 +1227,7 @@ class EventWizardView(ui.LayoutView):
             preview_str = resolve_placeholders(preview_raw)
             label = t(v["label_key"], guild_id=self.guild_id) + preview_str
             
-            self.icon_set_options.append(discord.SelectOption(
+            self.icon_set_options.append(make_select_option(
                 label=label[:100], 
                 value=k, 
                 emoji=to_emoji(v["emoji"]) or None, 
@@ -1246,7 +1246,7 @@ class EventWizardView(ui.LayoutView):
             preview_str = resolve_placeholders(preview_raw)
             label = (s["name"][:30] + preview_str)[:100]
             
-            self.icon_set_options.append(discord.SelectOption(
+            self.icon_set_options.append(make_select_option(
                 label=label, 
                 value=s["set_id"], 
                 default=(current_set == s["set_id"])
@@ -1257,7 +1257,7 @@ class EventWizardView(ui.LayoutView):
             ("biweekly", REC_BIWEEKLY), ("weekdays", REC_WEEKDAYS), ("weekends", REC_WEEKENDS),
             ("custom", REC_CUSTOM), ("relative", REC_RELATIVE)
         ]
-        self.recurrence_options = [discord.SelectOption(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=to_emoji(e), default=(current_rec == k)) for k, e in rec_types]
+        self.recurrence_options = [make_select_option(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=to_emoji(e), default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
         s1 = SUCCESS if self.steps_completed["step1"] else ERROR
