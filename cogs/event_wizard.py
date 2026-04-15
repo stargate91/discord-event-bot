@@ -101,7 +101,7 @@ class WizardStartView(ui.LayoutView):
 class SingleEventModal(ui.Modal):
     """Step 1 for Single Events (lobby: no start/end; max létszám itt)."""
     def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_BASIC_INFO", guild_id=wizard_view.guild_id)[:45])
+        super().__init__(title=t("MODAL_EVENT_BASIC", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
@@ -189,8 +189,7 @@ class SingleEventSupplementaryModal(ui.Modal):
     def __init__(self, wizard_view):
         gid = wizard_view.guild_id
         is_lobby = wizard_view.wizard_type == "lobby"
-        title_key = "BTN_STEP_2_LOBBY" if is_lobby else "BTN_STEP_2_SINGLE"
-        super().__init__(title=t(title_key, guild_id=gid, default="2. Kiegészítő")[:45])
+        super().__init__(title=t("MODAL_EVENT_SUPPLEMENTARY", guild_id=gid))
         self.wizard_view = wizard_view
         self.is_lobby = is_lobby
         data = wizard_view.data
@@ -242,7 +241,7 @@ class SingleEventSupplementaryModal(ui.Modal):
 
 class Step1Modal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=(t("BTN_STEP_1", guild_id=wizard_view.guild_id)[:45]))
+        super().__init__(title=t("MODAL_WIZARD_STEP1", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
@@ -274,7 +273,7 @@ class Step1Modal(ui.Modal):
 
 class Step2Modal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=(t("BTN_STEP_2", guild_id=wizard_view.guild_id)[:45]))
+        super().__init__(title=t("MODAL_WIZARD_STEP2", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
@@ -318,7 +317,7 @@ class Step2Modal(ui.Modal):
 
 class Step3Modal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=(t("SEL_TRIG_TYPE", guild_id=wizard_view.guild_id)[:45]))
+        super().__init__(title=t("MODAL_WIZARD_STEP3", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = self.wizard_view.guild_id
@@ -386,7 +385,7 @@ class Step3Modal(ui.Modal):
 class RecurrenceSettingsModal(ui.Modal):
     """Step 4 for Series: recurrence_limit + repost_offset."""
     def __init__(self, wizard_view):
-        super().__init__(title=t("BTN_STEP_4_SERIES", guild_id=wizard_view.guild_id, default="4. Ismétlődés")[:45])
+        super().__init__(title=t("MODAL_RECURRENCE_SETTINGS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = wizard_view.guild_id
@@ -421,7 +420,7 @@ class RecurrenceSettingsModal(ui.Modal):
 
 class AdvancedSettingsModal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_ADVANCED_SETTINGS", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("MODAL_ADVANCED_SETTINGS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         self.creator_input = ui.TextInput(label=t("LBL_WIZ_CREATOR", guild_id=wizard_view.guild_id), default=str(data.get("creator_id") or wizard_view.creator_id), required=False)
@@ -442,7 +441,7 @@ class AdvancedSettingsModal(ui.Modal):
 
 class RoleLimitsModal(ui.Modal):
     def __init__(self, wizard_view, icon_set_data):
-        super().__init__(title=t("WIZARD_LIMITS_TITLE", guild_id=wizard_view.guild_id)[:45])
+        super().__init__(title=t("MODAL_ROLE_LIMITS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         self.options = icon_set_data.get("options", [])
         
@@ -495,7 +494,7 @@ class RsvpRolesModal(ui.Modal):
     """Comma-separated role IDs; OR logic; empty = everyone can RSVP (stored on active_events)."""
 
     def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_RSVP_ROLES", guild_id=wizard_view.guild_id)[:45])
+        super().__init__(title=t("MODAL_RSVP_ROLES", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         gid = wizard_view.guild_id
         cur = database.normalize_rsvp_allowed_role_ids_value(wizard_view.data.get("rsvp_allowed_role_ids"))
@@ -518,7 +517,7 @@ class RsvpRolesModal(ui.Modal):
 
 class NotificationSettingsModal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=t("WIZARD_MESSAGES_TITLE", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("MODAL_NOTIFICATION_SETTINGS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         extra = wizard_view.data.get("extra_data", {})
         if isinstance(extra, str): extra = json.loads(extra)
@@ -541,7 +540,7 @@ class NotificationSettingsModal(ui.Modal):
 
 class ReminderMessagesModal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=t("TITLE_REMINDER_MESSAGES", guild_id=wizard_view.guild_id)[:45])
+        super().__init__(title=t("MODAL_REMINDER_MESSAGES", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         gid = wizard_view.guild_id
         data = wizard_view.data
@@ -806,7 +805,7 @@ class EventWizardView(ui.LayoutView):
         async def rem_offset_cb(it):
             class ReminderOffsetModal(ui.Modal):
                 def __init__(self, v):
-                    super().__init__(title=t("BTN_REMINDER_OFFSET", guild_id=v.guild_id)[:45])
+                    super().__init__(title=t("MODAL_REMINDER_OFFSETS", guild_id=v.guild_id))
                     self.v = v
                     ro = self.v.data.get("reminder_offsets")
                     if isinstance(ro, list) and ro:
@@ -907,7 +906,7 @@ class EventWizardView(ui.LayoutView):
         async def creator_cb(it):
             class CreatorModal(ui.Modal):
                 def __init__(self, v):
-                    super().__init__(title=t("LBL_WIZ_CREATOR", guild_id=v.guild_id)[:45])
+                    super().__init__(title=t("MODAL_EVENT_CREATOR", guild_id=v.guild_id))
                     self.v = v
                     self.inp = ui.TextInput(label=t("LBL_WIZ_CREATOR", guild_id=v.guild_id), default=str(v.data.get("creator_id") or v.creator_id), required=True)
                     self.add_item(self.inp)
@@ -937,7 +936,7 @@ class EventWizardView(ui.LayoutView):
             if val == "custom":
                 class ColorModal(ui.Modal):
                     def __init__(self, v):
-                        super().__init__(title=t("COLOR_CUSTOM", guild_id=v.guild_id)[:45])
+                        super().__init__(title=t("MODAL_EVENT_COLOR", guild_id=v.guild_id))
                         self.v = v
                         self.inp = ui.TextInput(label=t("LBL_WIZ_COLOR", guild_id=v.guild_id), default=cur_color, required=True)
                         self.add_item(self.inp)

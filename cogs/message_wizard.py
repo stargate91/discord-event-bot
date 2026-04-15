@@ -124,13 +124,13 @@ class MessageWizardView(ui.LayoutView):
 
 class MessageEditModal(ui.Modal):
     def __init__(self, wizard_view, key, current_val, guild_id):
-        super().__init__(title=f"{t('BTN_EDIT', guild_id=guild_id)}: {key}"[:45])
+        super().__init__(title=t("MODAL_MESSAGE_EDIT", guild_id=guild_id))
         self.wizard_view = wizard_view
         self.key = key
         self.guild_id = guild_id
         
         self.text_input = ui.TextInput(
-            label=t('LBL_CUSTOM_TEXT', guild_id=guild_id),
+            label=f"{t('LBL_CUSTOM_TEXT', guild_id=guild_id)}: {key}"[:45],
             placeholder=f"{t('LBL_VARIABLES', guild_id=guild_id)}: {{user_id}}, {{title}}...",
             default=current_val,
             style=discord.TextStyle.paragraph,

@@ -116,7 +116,7 @@ class PresenceConfigModal(ui.Modal):
     rotate_mode = ui.TextInput(label="Mode", placeholder="random", default="random")
 
     def __init__(self, current_config, refresh_callback):
-        super().__init__(title=t("MASTER_PRESENCE_CFG_TITLE", guild_id=None))
+        super().__init__(title=t("MODAL_PRESENCE_CFG", guild_id=None))
         self.rotate_time.label = t("MASTER_PRESENCE_CFG_TIME", guild_id=None)
         self.rotate_time.placeholder = t("MASTER_PRESENCE_CFG_TIME_PH", guild_id=None)
         self.rotate_mode.label = t("MASTER_PRESENCE_CFG_MODE", guild_id=None)
@@ -153,7 +153,7 @@ class StatusModal(ui.Modal):
     type_input = ui.TextInput(label="Type", placeholder="watching", default="watching", required=False)
 
     def __init__(self, refresh_callback, status_id=None, current_data=None):
-        title = t("MASTER_PRESENCE_EDIT_TITLE", guild_id=None) if status_id else t("MASTER_PRESENCE_ADD_TITLE", guild_id=None)
+        title = t("MODAL_STATUS_EDIT", guild_id=None) if status_id else t("MODAL_STATUS_ADD", guild_id=None)
         super().__init__(title=title)
         
         self.text_input.label = t("MASTER_PRESENCE_TXT_LBL", guild_id=None)

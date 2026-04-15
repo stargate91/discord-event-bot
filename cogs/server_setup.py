@@ -206,7 +206,7 @@ class GeneralSetupView(ui.LayoutView):
 
 class MultiReminderOffsetModal(ui.Modal):
     def __init__(self, guild_id, current_val, parent_view):
-        super().__init__(title=t("BTN_REMINDER_OFFSET", guild_id=guild_id)[:45])
+        super().__init__(title=t("MODAL_REMINDER_OFFSETS", guild_id=guild_id))
         self.guild_id = guild_id
         self.parent_view = parent_view
         self.inp = ui.TextInput(
@@ -472,14 +472,14 @@ class EventDefaultsView(ui.LayoutView):
                 await interaction.followup.send(msg, ephemeral=True)
 
 class SimpleConfigModal(ui.Modal):
-    def __init__(self, guild_id, key, title, placeholder="", is_long=False, default_val="", parent_view=None):
-        super().__init__(title=title[:45])
+    def __init__(self, guild_id, key, label_text, placeholder="", is_long=False, default_val="", parent_view=None):
+        super().__init__(title=t("MODAL_CONFIG_VALUE", guild_id=guild_id))
         self.guild_id = guild_id
         self.key = key
         self.parent_view = parent_view
         
         style = discord.TextStyle.paragraph if is_long else discord.TextStyle.short
-        self.input_field = ui.TextInput(label=title[:45], placeholder=placeholder[:45], style=style, default=default_val, required=True)
+        self.input_field = ui.TextInput(label=label_text[:45], placeholder=placeholder[:45], style=style, default=default_val, required=True)
         self.add_item(self.input_field)
 
     async def on_submit(self, interaction: discord.Interaction):

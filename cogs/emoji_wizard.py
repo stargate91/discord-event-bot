@@ -207,7 +207,8 @@ class EmojiWizardView(ui.LayoutView):
             curr = next((s for s in cur_sets if s["set_id"] == new_view.selected_set_id), None)
             if not curr: return await it.response.send_message(t("ERR_NO_SET_FOUND", guild_id=new_view.guild_id), ephemeral=True)
             modal = EditEmojiSetModal(new_view, curr)
-            modal.title = t("BTN_CLONE", guild_id=new_view.guild_id); modal.is_clone = True
+            modal.title = t("MODAL_EMOJI_SET_CLONE", guild_id=new_view.guild_id)
+            modal.is_clone = True
             await it.response.send_modal(modal)
         clone_btn.callback = clone_cb
         
@@ -298,7 +299,7 @@ class TemplateChoiceView(ui.LayoutView):
                     "data": json.dumps(tmpl_data)
                 }
                 edit_modal = EditEmojiSetModal(self.wizard_view, dummy_record)
-                edit_modal.title = t("MODAL_NEW_SET_TITLE", guild_id=self.wizard_view.guild_id)
+                edit_modal.title = t("MODAL_EMOJI_SET_NEW", guild_id=self.wizard_view.guild_id)
                 edit_modal.opts_input.default = initial_text
                 edit_modal.is_new = True 
                 await interaction.response.send_modal(edit_modal)
@@ -318,7 +319,7 @@ class TemplateChoiceView(ui.LayoutView):
 
 class EditEmojiSetModal(ui.Modal):
     def __init__(self, wizard_view, set_record):
-        super().__init__(title=t("MODAL_EDIT_SET_TITLE", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("MODAL_EMOJI_SET_EDIT", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         self.set_id = set_record["set_id"]
         self.is_clone = False
