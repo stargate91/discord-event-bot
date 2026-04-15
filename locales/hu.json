@@ -124,7 +124,7 @@
   "LBL_WIZ_END": "Befejezés időpontja (opcionális)",
   "LBL_WIZ_TZ": "Időzóna (pl. Europe/Budapest)",
   "LBL_WIZ_COLOR": "Szín (Hex kód)",
-  "LBL_WIZ_CREATOR": "Esemény felelőse (Név vagy User ID)",
+  "LBL_WIZ_CREATOR": "Szervező",
   "LBL_WIZ_IMAGES": "Borítóképek URL címei (vesszővel)",
   "LBL_WIZ_MAX": "Maximális létszám (0 = végtelen)",
   "LBL_WIZ_PING": "Hirdetéskor pingleendő rang ID",
