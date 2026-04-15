@@ -1,5 +1,5 @@
 import discord
-from utils.emojis import ERROR, GLOBE, GEAR
+from utils.emojis import ERROR, GLOBE, GEAR, BELL
 from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
@@ -285,7 +285,7 @@ class ReminderSetupView(ui.LayoutView):
         import re
         rem_label = re.sub(r'^(<a?:[a-zA-Z0-9_]+:[0-9]+>|[\U00002600-\U0001FFFF]+)\s*', '', t('BTN_REMINDERS', guild_id=self.guild_id))
         header = ui.Container(
-            ui.TextDisplay(f"### <:titleping:1493846908907683870> {rem_label}"),
+            ui.TextDisplay(f"### {BELL} {rem_label}"),
             accent_color=0x40C4FF
         )
         self.add_item(header)
