@@ -116,32 +116,33 @@ class SingleEventModal(ui.Modal):
                 default=str(data.get("max_accepted") or 0),
                 required=False,
             )
-            self.time_input = None
+            self.start_input = None
+            self.end_input = None
         else:
             self.max_acc_input = None
-            combined_time = ""
-            if data.get("start_str"):
-                combined_time = str(data["start_str"])
-                if data.get("end_str"):
-                    combined_time += f", {data['end_str']}"
-            self.time_input = ui.TextInput(
+            self.start_input = ui.TextInput(
                 label=t("LBL_WIZ_START", guild_id=guild_id),
-                placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
-                default=combined_time,
+                placeholder="2025-06-15 18:00",
+                default=str(data.get("start_str") or ""),
                 required=True,
+            )
+            self.end_input = ui.TextInput(
+                label=t("LBL_WIZ_END", guild_id=guild_id),
+                placeholder="20:00",
+                default=str(data.get("end_str") or ""),
+                required=False,
             )
 
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
-        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
 
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
         if is_lobby:
             self.add_item(self.max_acc_input)
         else:
-            self.add_item(self.time_input)
+            self.add_item(self.start_input)
+            self.add_item(self.end_input)
         self.add_item(self.images_input)
-        self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         try:
@@ -150,7 +151,6 @@ class SingleEventModal(ui.Modal):
             self.wizard_view.data["config_name"] = "manual"
             self.wizard_view.data["description"] = str(self.desc_input.value)
             self.wizard_view.data["image_urls"] = str(self.images_input.value)
-            self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
 
             if self.wizard_view.wizard_type == "lobby":
                 self.wizard_view.data["start_str"] = ""
@@ -161,18 +161,8 @@ class SingleEventModal(ui.Modal):
                 if self.wizard_view.data["max_accepted"] == 0:
                     self.wizard_view.data["use_waiting_list"] = False
             else:
-                time_val = str(self.time_input.value).strip()
-                if "," in time_val:
-                    parts = time_val.split(",", 1)
-                elif " - " in time_val:
-                    parts = time_val.split(" - ", 1)
-                elif ". " in time_val:
-                    parts = time_val.split(". ", 1)
-                else:
-                    parts = [time_val]
-
-                self.wizard_view.data["start_str"] = parts[0].strip()
-                self.wizard_view.data["end_str"] = parts[1].strip() if len(parts) > 1 else ""
+                self.wizard_view.data["start_str"] = str(self.start_input.value).strip()
+                self.wizard_view.data["end_str"] = str(self.end_input.value).strip()
 
             self.wizard_view.steps_completed["step1"] = bool(title) and (
                 self.wizard_view.wizard_type == "lobby" or bool(self.wizard_view.data.get("start_str"))
@@ -185,7 +175,7 @@ class SingleEventModal(ui.Modal):
                 await interaction.response.send_message(f"{ERROR} {e}", ephemeral=True)
 
 class SingleEventSupplementaryModal(ui.Modal):
-    """Step 2: single = tz + max + channel; lobby = tz + channel + lejárati offset."""
+    """Step 2: single = tz + max + channel + ping; lobby = tz + channel + lejárati offset + ping."""
     def __init__(self, wizard_view):
         gid = wizard_view.guild_id
         is_lobby = wizard_view.wizard_type == "lobby"
@@ -196,6 +186,7 @@ class SingleEventSupplementaryModal(ui.Modal):
 
         self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=gid), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
         self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=gid), placeholder=t("PH_CURRENT_CHANNEL", guild_id=gid), default=str(data.get("channel_id") or ""), required=False)
+        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=gid), default=str(data.get("ping_role") or ""), required=False)
 
         if is_lobby:
             self.max_acc_input = None
@@ -209,16 +200,19 @@ class SingleEventSupplementaryModal(ui.Modal):
             self.add_item(self.timezone_input)
             self.add_item(self.channel_id_input)
             self.add_item(self.lobby_expire_input)
+            self.add_item(self.ping_input)
         else:
             self.lobby_expire_input = None
             self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=gid), default=str(data.get("max_accepted") or 0), required=False)
             self.add_item(self.timezone_input)
             self.add_item(self.max_acc_input)
             self.add_item(self.channel_id_input)
+            self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
+        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
         if self.is_lobby:
             raw = str(self.lobby_expire_input.value).strip().lower() or "12h"
             if not re.match(r"^(\d+)([mhd])$", raw):
@@ -250,25 +244,25 @@ class Step1Modal(ui.Modal):
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=guild_id), default=str(data.get("title") or ""), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
 
-        combined_time = ""
-        if data.get("start_str"):
-            combined_time = str(data["start_str"])
-            if data.get("end_str"):
-                combined_time += f", {data['end_str']}"
-        self.time_input = ui.TextInput(
+        self.start_input = ui.TextInput(
             label=t("LBL_WIZ_START", guild_id=guild_id),
-            placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
-            default=combined_time,
+            placeholder="2025-06-15 18:00",
+            default=str(data.get("start_str") or ""),
             required=True,
         )
+        self.end_input = ui.TextInput(
+            label=t("LBL_WIZ_END", guild_id=guild_id),
+            placeholder="20:00",
+            default=str(data.get("end_str") or ""),
+            required=False,
+        )
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
-        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
         
         self.add_item(self.title_input)
         self.add_item(self.desc_input)
-        self.add_item(self.time_input)
+        self.add_item(self.start_input)
+        self.add_item(self.end_input)
         self.add_item(self.images_input)
-        self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         title = str(self.title_input.value)
@@ -278,20 +272,9 @@ class Step1Modal(ui.Modal):
             self.wizard_view.data["config_name"] = f"{base_slug}-{uuid.uuid4().hex[:6]}"
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
-        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
 
-        time_val = str(self.time_input.value).strip()
-        if "," in time_val:
-            parts = time_val.split(",", 1)
-        elif " - " in time_val:
-            parts = time_val.split(" - ", 1)
-        elif ". " in time_val:
-            parts = time_val.split(". ", 1)
-        else:
-            parts = [time_val]
-
-        self.wizard_view.data["start_str"] = parts[0].strip()
-        self.wizard_view.data["end_str"] = parts[1].strip() if len(parts) > 1 else ""
+        self.wizard_view.data["start_str"] = str(self.start_input.value).strip()
+        self.wizard_view.data["end_str"] = str(self.end_input.value).strip()
 
         self.wizard_view.steps_completed["step1"] = bool(title) and bool(self.wizard_view.data.get("start_str"))
         await self.wizard_view.save_to_draft()
@@ -344,10 +327,12 @@ class Step3Modal(ui.Modal):
         self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
         self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
         self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
+        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
 
         self.add_item(self.timezone_input)
         self.add_item(self.max_acc_input)
         self.add_item(self.channel_id_input)
+        self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["timezone"] = str(self.timezone_input.value)
@@ -355,6 +340,7 @@ class Step3Modal(ui.Modal):
         if self.wizard_view.data["max_accepted"] == 0:
             self.wizard_view.data["use_waiting_list"] = False
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
+        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
         
         self.wizard_view.data["step3_opened"] = True
         self.wizard_view.steps_completed["step3"] = True
