@@ -1,5 +1,5 @@
 import discord
-from utils.emojis import ERROR, GLOBE, GEAR, BELL
+from utils.emojis import ERROR, GLOBE, GEAR
 from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
@@ -282,9 +282,10 @@ class ReminderSetupView(ui.LayoutView):
             await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), val=val), ephemeral=True)
         status_sel.callback = status_sel_cb
 
-        # Final Assembly
+        import re
+        rem_label = re.sub(r'^(<a?:[a-zA-Z0-9_]+:[0-9]+>|[\U00002600-\U0001FFFF]+)\s*', '', t('BTN_REMINDERS', guild_id=self.guild_id))
         header = ui.Container(
-            ui.TextDisplay(f"### {GEAR} {t('BTN_REMINDERS', guild_id=self.guild_id).replace(BELL + ' ', '')}"),
+            ui.TextDisplay(f"### <:titleping:1493846908907683870> {rem_label}"),
             accent_color=0x40C4FF
         )
         self.add_item(header)
