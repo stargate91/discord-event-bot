@@ -366,13 +366,10 @@ class AdvancedSettingsModal(ui.Modal):
         super().__init__(title=t("MODAL_ADVANCED_SETTINGS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
-        self.creator_input = ui.TextInput(label=t("LBL_WIZ_CREATOR", guild_id=wizard_view.guild_id), default=str(data.get("creator_id") or wizard_view.creator_id), required=False)
         self.wait_limit_input = ui.TextInput(label=t("LBL_WAITLIST_LIMIT", guild_id=wizard_view.guild_id), default=str(data.get("waiting_list_limit") or 0), required=False)
-        self.add_item(self.creator_input)
         self.add_item(self.wait_limit_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        self.wizard_view.data["creator_id"] = str(self.creator_input.value)
         val = str(self.wait_limit_input.value)
         wait_limit = int(val) if val.isdigit() else 0
         extra = self.wizard_view.data.get("extra_data", {})
