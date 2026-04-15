@@ -122,13 +122,13 @@ class SingleEventModal(ui.Modal):
             self.max_acc_input = None
             self.start_input = ui.TextInput(
                 label=t("LBL_WIZ_START", guild_id=guild_id),
-                placeholder="2025-06-15 18:00",
+                placeholder="2026-05-15 18:00",
                 default=str(data.get("start_str") or ""),
                 required=True,
             )
             self.end_input = ui.TextInput(
                 label=t("LBL_WIZ_END", guild_id=guild_id),
-                placeholder="20:00",
+                placeholder="2026-05-15 20:00",
                 default=str(data.get("end_str") or ""),
                 required=False,
             )
@@ -246,13 +246,13 @@ class Step1Modal(ui.Modal):
 
         self.start_input = ui.TextInput(
             label=t("LBL_WIZ_START", guild_id=guild_id),
-            placeholder="2025-06-15 18:00",
+            placeholder="2026-05-15 18:00",
             default=str(data.get("start_str") or ""),
             required=True,
         )
         self.end_input = ui.TextInput(
             label=t("LBL_WIZ_END", guild_id=guild_id),
-            placeholder="20:00",
+            placeholder="2026-05-15 20:00",
             default=str(data.get("end_str") or ""),
             required=False,
         )
@@ -809,7 +809,7 @@ class EventWizardView(ui.LayoutView):
                         dflt = str(self.v.data.get("reminder_offset", ""))
                     self.inp = ui.TextInput(
                         label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=v.guild_id),
-                        placeholder="15m, 1h,dm,all, 30m,ping,Tank",
+                        placeholder="15m,dm\n1h,ping,All\n2d,dm,Tank",
                         default=dflt,
                         style=discord.TextStyle.paragraph,
                         max_length=400,
