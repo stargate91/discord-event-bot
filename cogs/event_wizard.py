@@ -15,7 +15,7 @@ from dateutil import parser
 from dateutil import tz
 from utils.text_utils import slugify
 from utils.templates import ICON_SET_TEMPLATES
-from utils.emoji_utils import parse_emoji_config, to_emoji, resolve_placeholders, make_select_option
+from utils.emoji_utils import parse_emoji_config, to_emoji, resolve_placeholders, make_select_option, split_emoji
 
 async def resolve_channel(guild, channel_query):
     """Tries to resolve a channel by ID or Name. Returns channel_id or None."""
@@ -790,7 +790,9 @@ class EventWizardView(ui.LayoutView):
         adv_btn.callback = adv_cb
 
         # Reminder Toggle
-        rem_toggle_btn = ui.Button(label=t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_reminder else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
+        rem_em, rem_lb = split_emoji(t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id))
+        caret = " \u25BC" if view.show_reminder else " \u25C0"
+        rem_toggle_btn = ui.Button(label=rem_lb + caret, emoji=rem_em, style=discord.ButtonStyle.secondary)
         async def rem_toggle_cb(it):
             await it.response.defer()
             view.show_reminder = not view.show_reminder

@@ -4,7 +4,7 @@ from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations
-from utils.emoji_utils import to_emoji, make_select_option
+from utils.emoji_utils import to_emoji, make_select_option, split_emoji
 from utils.auth import is_admin
 from utils.logger import log
 
@@ -34,7 +34,8 @@ class ServerSetupView(ui.LayoutView):
             await it.response.send_modal(modal)
         local_btn.callback = local_cb
 
-        reminder_btn = ui.Button(label=t("BTN_REMINDERS", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
+        rem_em, rem_lb = split_emoji(t("BTN_REMINDERS", guild_id=self.guild_id))
+        reminder_btn = ui.Button(label=rem_lb, emoji=rem_em, style=discord.ButtonStyle.secondary)
         async def reminder_cb(it):
             v = ReminderSetupView(self.bot, self.guild_id)
             await v.refresh_message(it)

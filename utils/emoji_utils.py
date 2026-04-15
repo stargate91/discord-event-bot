@@ -77,6 +77,24 @@ def resolve_placeholders(text: str) -> str:
         return re.sub(r"\{([a-zA-Z0-9\_]+)\}", replace, text)
     except Exception:
         return text
+def split_emoji(label: str):
+    import discord
+    import re
+    emoji_obj = None
+    m = re.match(r'^(<a?:[a-zA-Z0-9_]+:[0-9]+>)\s*', label)
+    if m:
+        raw = m.group(1)
+        label = label[m.end():]
+        try:
+            emoji_obj = discord.PartialEmoji.from_str(raw)
+        except Exception:
+            pass
+    if not emoji_obj and not m:
+        um = re.match(r'^([\U00002600-\U0001FFFF]+)\s*', label)
+        if um:
+            emoji_obj = um.group(1)
+            label = label[um.end():]
+    return emoji_obj, label
 
 def make_select_option(label: str, **kwargs):
     """Create a discord.SelectOption, auto-extracting any leading custom emoji
