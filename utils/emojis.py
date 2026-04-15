@@ -14,8 +14,13 @@ DROPDOWN_OPEN = "🔽"
 DROPDOWN_CLOSED = "◀️"
 LANG_HU = "🇭🇺"
 LANG_EN = "🇺🇸"
+BACK = "⬅️"
+FORWARD = "➡️"
 
 # --- Common Items ---
+CALENDAR = "📅"
+CROWN = "👑"
+SPARKLES = "✨"
 GLOBE = "<:buttonglobe:1493863327321821205>"
 BELL = "<:titleping:1493846908907683870>"
 SHIELD = "<:exampleemojiwizard:1493863833973035068>"

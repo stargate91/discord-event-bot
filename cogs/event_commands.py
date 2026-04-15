@@ -42,7 +42,7 @@ class MyEventsView(ui.LayoutView):
         slice = self.events[start:end]
         
         for ev in slice:
-            title = ev["title"] or "Unnamed Event"
+            title = ev["title"] or t("LBL_UNNAMED_EVENT", guild_id=self.guild_id)
             st = ev["start_time"]
             eid = ev["event_id"]
             cid = ev["channel_id"]
@@ -56,14 +56,15 @@ class MyEventsView(ui.LayoutView):
             
             # Content
             time_rel = f"<t:{int(st)}:R>" if st else t("LBL_LOBBY_LIST_NO_START", guild_id=self.guild_id)
+            lbl_id = t("LBL_ID", guild_id=self.guild_id)
             container.add_item(ui.TextDisplay(
-                f"📅 **{title}**\nID: `{eid}` | {time_rel}"
+                f"{emojis.CALENDAR} **{title}**\n{lbl_id}: `{eid}` | {time_rel}"
             ))
             
             if int(creator_id) == self.user_id:
-                state_text = f"👑 **{t('LBL_ORGANIZER', guild_id=self.guild_id)}**"
+                state_text = f"{emojis.CROWN} **{t('LBL_ORGANIZER', guild_id=self.guild_id)}**"
             else:
-                state_text = f"✨ {str(status_raw).capitalize()}"
+                state_text = f"{emojis.SPARKLES} {str(status_raw).capitalize()}"
                 
             status_lbl = t("LBL_STATUS", guild_id=self.guild_id) or "Status"
             container.add_item(ui.TextDisplay(
@@ -82,14 +83,14 @@ class MyEventsView(ui.LayoutView):
 
         # Pagination controls
         if len(self.events) > self.per_page:
-            prev_btn = make_button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
                 await self.build()
                 await it.response.edit_message(view=self)
             prev_btn.callback = prev_cb
             
-            next_btn = make_button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
             async def next_cb(it):
                 self.page += 1
                 await self.build()
@@ -116,7 +117,7 @@ class EventHistoryView(ui.LayoutView):
         slice = self.events[start:end]
         
         for ev in slice:
-            title = ev["title"] or "Unnamed Event"
+            title = ev["title"] or t("LBL_UNNAMED_EVENT", guild_id=self.guild_id)
             st = ev["start_time"]
             eid = ev["event_id"]
             cid = ev["channel_id"]
@@ -131,21 +132,21 @@ class EventHistoryView(ui.LayoutView):
             container = ui.Container(accent_color=accent)
             
             # Content
-            time_str = f"<t:{int(st)}:d> (<t:{int(st)}:R>)" if st else "Past event"
-            title_prefix = "👑" if is_creator else "📅"
+            time_str = f"<t:{int(st)}:d> (<t:{int(st)}:R>)" if st else t("LBL_PAST_EVENT", guild_id=self.guild_id)
+            title_prefix = emojis.CROWN if is_creator else emojis.CALENDAR
             container.add_item(ui.TextDisplay(
                 f"{title_prefix} **{title}**\n{time_str}"
             ))
             
             if is_creator:
-                res_text = f"👑 {t('LBL_ORGANIZER', guild_id=self.guild_id)}"
+                res_text = f"{emojis.CROWN} {t('LBL_ORGANIZER', guild_id=self.guild_id)}"
             else:
                 if attendance == "present":
-                    res_text = f"✅ {t('LBL_PRESENT', guild_id=self.guild_id) or 'Present'}"
+                    res_text = f"{emojis.SUCCESS} {t('LBL_PRESENT', guild_id=self.guild_id)}"
                 elif attendance == "no_show":
-                    res_text = f"❌ {t('LBL_NOSHOW', guild_id=self.guild_id) or 'No-show'}"
+                    res_text = f"{emojis.ERROR} {t('LBL_NOSHOW', guild_id=self.guild_id)}"
                 else:
-                    res_text = f"✨ {str(status_raw).capitalize()}"
+                    res_text = f"{emojis.SPARKLES} {str(status_raw).capitalize()}"
                 
             res_lbl = t("LBL_RESULT", guild_id=self.guild_id) or "Result"
             container.add_item(ui.TextDisplay(
@@ -164,14 +165,14 @@ class EventHistoryView(ui.LayoutView):
 
         # Pagination controls
         if len(self.events) > self.per_page:
-            prev_btn = make_button(label="⬅️", style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
+            prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
                 await self.build()
                 await it.response.edit_message(view=self)
             prev_btn.callback = prev_cb
             
-            next_btn = make_button(label="➡️", style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
+            next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.secondary, disabled=(end >= len(self.events)))
             async def next_cb(it):
                 self.page += 1
                 await self.build()
@@ -324,7 +325,7 @@ class EventCommands(commands.Cog):
             results.append(discord.app_commands.Choice(name=label[:100], value=f"series:{config_name}"))
         
         for ev in single_events:
-            title = ev.get('title') or 'Unnamed'
+            title = ev.get('title') or t("LBL_UNNAMED_EVENT", guild_id=interaction.guild_id)
             eid = ev['event_id']
             if q and q not in title.lower() and q not in eid.lower():
                 continue
@@ -343,7 +344,7 @@ class EventCommands(commands.Cog):
 
         text = t("LBL_ACTIVE_EVENTS_LIST", guild_id=interaction.guild_id) + "\n"
         for ev in events:
-            title = ev.get('title') or ev.get('config_name') or "Unnamed"
+            title = ev.get('title') or ev.get('config_name') or t("LBL_UNNAMED_EVENT", guild_id=interaction.guild_id)
             st = ev.get("start_time")
             if st is not None:
                 text += f"- `{ev['event_id']}`: {title} (<t:{int(st)}:R>)\n"
@@ -413,7 +414,7 @@ class EventCommands(commands.Cog):
             
         except Exception as ex:
             log.error(f"Sheets export error: {ex}")
-            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+            await interaction.followup.send(t("ERR_WIZARD_GENERAL", guild_id=guild_id, e=ex), ephemeral=True)
 
     @event_group.command(name="ics", description="Export all future events to a .ics calendar file")
     async def ics_export(self, interaction: discord.Interaction):
@@ -451,7 +452,7 @@ class EventCommands(commands.Cog):
             
         except Exception as ex:
             log.error(f"ICS export error: {ex}")
-            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+            await interaction.followup.send(t("ERR_WIZARD_GENERAL", guild_id=guild_id, e=ex), ephemeral=True)
 
     @event_group.command(name="my-events", description="List all events you are organizing or attending")
     async def my_events(self, interaction: discord.Interaction):
@@ -472,7 +473,7 @@ class EventCommands(commands.Cog):
             
         except Exception as ex:
             log.error(f"My events error: {ex}")
-            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+            await interaction.followup.send(t("ERR_WIZARD_GENERAL", guild_id=guild_id, e=ex), ephemeral=True)
 
     @event_group.command(name="end", description="Manually close an active event and move it to history")
     @app_commands.describe(event_id="The ID of the event to close")
@@ -481,7 +482,7 @@ class EventCommands(commands.Cog):
             return await interaction.response.send_message(t("ERR_ADMIN_ONLY"), ephemeral=True)
             
         await database.set_event_status(event_id, "closed")
-        await interaction.response.send_message(f"✅ Event `{event_id}` has been closed and moved to history.", ephemeral=True)
+        await interaction.response.send_message(t("MSG_EVENT_CLOSED", guild_id=interaction.guild_id, event_id=event_id), ephemeral=True)
 
     @event_end.autocomplete("event_id")
     async def end_autocomplete(self, interaction: discord.Interaction, current: str):
@@ -510,7 +511,7 @@ class EventCommands(commands.Cog):
             
         except Exception as ex:
             log.error(f"Event history error: {ex}")
-            await interaction.followup.send(f"Error: {ex}", ephemeral=True)
+            await interaction.followup.send(t("ERR_WIZARD_GENERAL", guild_id=guild_id, e=ex), ephemeral=True)
 
     async def _handle_status_change(self, interaction, event_id, status, notify_type, occurrence, new_time=None):
         if not await is_admin(interaction):
