@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import database
 
 from utils.config import config
@@ -19,10 +20,16 @@ LOCALES_DIR = "locales"
 if os.path.exists(LOCALES_DIR):
     for filename in os.listdir(LOCALES_DIR):
         if filename.endswith(".json"):
-            lang_code = filename[:-5] # remove .json
+            # Extract lang_code (first part before any dot or underscore)
+            # e.g., 'en.json' -> 'en', 'en.templates.json' -> 'en', 'hu_main.json' -> 'hu'
+            lang_code = re.split(r'[\._]', filename)[0]
+            
             try:
                 with open(os.path.join(LOCALES_DIR, filename), "r", encoding="utf-8") as f:
-                    ALL_MESSAGES[lang_code] = json.load(f)
+                    new_messages = json.load(f)
+                    if lang_code not in ALL_MESSAGES:
+                        ALL_MESSAGES[lang_code] = {}
+                    ALL_MESSAGES[lang_code].update(new_messages)
             except Exception as e:
                 print(f"Error loading {filename}: {e}")
 

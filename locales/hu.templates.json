@@ -1,0 +1,18 @@
+{
+  "TEMP_STANDARD": "Alapértelmezett",
+  "TEMP_MMO": "MMO / Raid",
+  "TEMP_SURVEY": "Szavazás",
+  "SET_TEAMS": "Csapatok",
+  "BTN_ACCEPT": "Jövök",
+  "BTN_DECLINE": "Nem jövök",
+  "BTN_TENTATIVE": "Talán",
+  "RSVP_ACCEPTED": "Résztvevők",
+  "RSVP_DECLINED": "Nem jönnek",
+  "RSVP_TENTATIVE": "Bizonytalanok",
+  "RSVP_SPECTATOR": "Nézők",
+  "RSVP_TANK": "Tankok",
+  "RSVP_HEAL": "Healerek",
+  "RSVP_DPS": "DPS-ek",
+  "RSVP_TEAM_A": "A Csapat",
+  "RSVP_TEAM_B": "B Csapat"
+}

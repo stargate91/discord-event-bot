@@ -1,0 +1,18 @@
+{
+  "TEMP_STANDARD": "Standard",
+  "TEMP_MMO": "MMO / Raid",
+  "TEMP_SURVEY": "Survey",
+  "SET_TEAMS": "Teams",
+  "BTN_ACCEPT": "I'm coming",
+  "BTN_DECLINE": "Not coming",
+  "BTN_TENTATIVE": "Maybe",
+  "RSVP_ACCEPTED": "Coming",
+  "RSVP_DECLINED": "Not coming",
+  "RSVP_TENTATIVE": "Not sure",
+  "RSVP_SPECTATOR": "Spectators",
+  "RSVP_TANK": "Tanks",
+  "RSVP_HEAL": "Healers",
+  "RSVP_DPS": "DPSes",
+  "RSVP_TEAM_A": "Team A",
+  "RSVP_TEAM_B": "Team B"
+}
