@@ -29,6 +29,8 @@
   "ERR_WIZARD_GENERAL": "<:statuserror:1493861993742860318> Oops! Something went wrong: {e}",
   "_section_setup_general": "── Server Setup ► General ─────────────────────",
   "BTN_GENERAL": "🌐 General",
+  "SETUP_MAIN_TITLE": "⚙️ Server Dashboard",
+  "SETUP_MAIN_DESC": "Manage your server's default settings, reminders, and color themes.",
   "SETUP_GENERAL_TITLE": "⚙️ General Settings",
   "SETUP_GENERAL_DESC": "Manage bot language, admin roles, and restricted channels.",
   "LBL_LANG_HU": "🇭🇺 Hungarian",

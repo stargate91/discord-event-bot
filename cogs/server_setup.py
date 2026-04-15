@@ -79,7 +79,7 @@ class ServerSetupView(ui.LayoutView):
 
         # 3. Final Assembly
         header = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('SETUP_MAIN_TITLE', guild_id=self.guild_id)}\n{t('SETUP_MAIN_DESC', guild_id=self.guild_id)}"),
             accent_color=0x40C4FF
         )
         self.add_item(header)
