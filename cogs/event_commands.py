@@ -56,9 +56,7 @@ class MyEventsView(ui.View):
             # Content
             time_rel = f"<t:{int(st)}:R>" if st else t("LBL_LOBBY_LIST_NO_START", guild_id=self.guild_id)
             container.add_item(ui.TextDisplay(
-                label=f"📅 {title}",
-                value=f"ID: `{eid}` | {time_rel}",
-                style=discord.TextStyle.paragraph
+                f"📅 **{title}**\nID: `{eid}` | {time_rel}"
             ))
             
             if int(creator_id) == self.user_id:
@@ -66,10 +64,9 @@ class MyEventsView(ui.View):
             else:
                 state_text = f"✨ {str(status_raw).capitalize()}"
                 
+            status_lbl = t("LBL_STATUS", guild_id=self.guild_id) or "Status"
             container.add_item(ui.TextDisplay(
-                label=t("LBL_STATUS", guild_id=self.guild_id) or "Status",
-                value=state_text,
-                style=discord.TextStyle.short
+                f"**{status_lbl}:** {state_text}"
             ))
             
             self.add_item(container)
@@ -137,9 +134,7 @@ class EventHistoryView(ui.View):
             time_str = f"<t:{int(st)}:d> (<t:{int(st)}:R>)" if st else "Past event"
             title_prefix = "👑" if is_creator else "📅"
             container.add_item(ui.TextDisplay(
-                label=f"{title_prefix} {title}",
-                value=f"{time_str}",
-                style=discord.TextStyle.short
+                f"{title_prefix} **{title}**\n{time_str}"
             ))
             
             if is_creator:
@@ -152,10 +147,9 @@ class EventHistoryView(ui.View):
                 else:
                     res_text = f"✨ {str(status_raw).capitalize()}"
                 
+            res_lbl = t("LBL_RESULT", guild_id=self.guild_id) or "Result"
             container.add_item(ui.TextDisplay(
-                label=t("LBL_RESULT", guild_id=self.guild_id) or "Result",
-                value=res_text,
-                style=discord.TextStyle.short
+                f"**{res_lbl}:** {res_text}"
             ))
             
             self.add_item(container)
