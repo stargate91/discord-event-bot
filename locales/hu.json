@@ -239,6 +239,7 @@
   "TAG_RESCHEDULED": "ÚJ DÁTUM",
   "_section_rsvp": "── RSVP ───────────────────────────────────────",
   "ERR_POS_FULL": "<:warningfilledcircledualyellowbla:1493932991192502295> Sajnálom, a(z) {name} pozíció betelt!",
+  "ERR_WAITLIST_FULL": "<:warningfilledcircledualyellowbla:1493932991192502295> Sajnálom, a várólista is megtelt ehhez az eseményhez!",
   "ERR_RSVP_NEED_SERVER": "<:xfilledcircledualredwhite:1493920874011820114> A jelentkezést a szerveren kell használni (DM-ből nem).",
   "ERR_RSVP_ROLE_REQUIRED": "<:xfilledcircledualredwhite:1493920874011820114> Ehhez az eseményhez legalább egy engedélyezett rang szükséges.",
   "ERR_RSVP_COOLDOWN": "<:warningfilledcircledualyellowbla:1493932991192502295> Kérlek várj még {seconds} másodpercet, mielőtt újra megváltoztatod a státuszod.",

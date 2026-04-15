@@ -247,16 +247,27 @@ class Step1Modal(ui.Modal):
         guild_id = self.wizard_view.guild_id
         
         self.title_input = ui.TextInput(label=t("LBL_WIZ_TITLE", guild_id=guild_id), default=str(data.get("title") or ""), required=True)
-        self.waitlist_limit = ui.TextInput(label=t("LBL_WAITLIST_LIMIT", guild_id=guild_id), default=str(data.get("waitlist_limit", 0)), required=True)
         self.desc_input = ui.TextInput(label=t("LBL_WIZ_DESC", guild_id=guild_id), style=discord.TextStyle.paragraph, default=str(data.get("description") or ""), required=False)
+
+        combined_time = ""
+        if data.get("start_str"):
+            combined_time = str(data["start_str"])
+            if data.get("end_str"):
+                combined_time += f", {data['end_str']}"
+        self.time_input = ui.TextInput(
+            label=t("LBL_WIZ_START", guild_id=guild_id),
+            placeholder=t("PH_WIZ_START_COMBINED", guild_id=guild_id),
+            default=combined_time,
+            required=True,
+        )
         self.images_input = ui.TextInput(label=t("LBL_WIZ_IMAGES", guild_id=guild_id), default=str(data.get("image_urls") or ""), required=False)
-        self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
+        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
         
         self.add_item(self.title_input)
-        self.add_item(self.waitlist_limit)
         self.add_item(self.desc_input)
+        self.add_item(self.time_input)
         self.add_item(self.images_input)
-        self.add_item(self.channel_id_input)
+        self.add_item(self.ping_input)
 
     async def on_submit(self, interaction: discord.Interaction):
         title = str(self.title_input.value)
@@ -266,126 +277,29 @@ class Step1Modal(ui.Modal):
             self.wizard_view.data["config_name"] = f"{base_slug}-{uuid.uuid4().hex[:6]}"
         self.wizard_view.data["description"] = str(self.desc_input.value)
         self.wizard_view.data["image_urls"] = str(self.images_input.value)
-        self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
-        self.wizard_view.steps_completed["step1"] = True
+        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
+
+        time_val = str(self.time_input.value).strip()
+        if "," in time_val:
+            parts = time_val.split(",", 1)
+        elif " - " in time_val:
+            parts = time_val.split(" - ", 1)
+        elif ". " in time_val:
+            parts = time_val.split(". ", 1)
+        else:
+            parts = [time_val]
+
+        self.wizard_view.data["start_str"] = parts[0].strip()
+        self.wizard_view.data["end_str"] = parts[1].strip() if len(parts) > 1 else ""
+
+        self.wizard_view.steps_completed["step1"] = bool(title) and bool(self.wizard_view.data.get("start_str"))
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
 
 class Step2Modal(ui.Modal):
+    """Step 2 for Series: recurrence_limit + repost_offset (Now labeled 'Ismétlődés')."""
     def __init__(self, wizard_view):
         super().__init__(title=t("MODAL_WIZARD_STEP2", guild_id=wizard_view.guild_id))
-        self.wizard_view = wizard_view
-        data = wizard_view.data
-        guild_id = self.wizard_view.guild_id
-
-        self.color_input = ui.TextInput(label=t("LBL_WIZ_COLOR", guild_id=guild_id), default=str(data.get("color") or "0x40C4FF"), required=False)
-        self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
-        self.ping_input = ui.TextInput(label=t("LBL_WIZ_PING", guild_id=guild_id), default=str(data.get("ping_role") or ""), required=False)
-        self.start_input = ui.TextInput(label=t("LBL_WIZ_START", guild_id=guild_id), placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("start_str") or ""), required=True)
-        self.end_input = ui.TextInput(label=f"{t('LBL_WIZ_END', guild_id=guild_id)} {t('LBL_OPTIONAL', guild_id=guild_id)}", placeholder=t("PH_DATETIME", guild_id=guild_id), default=str(data.get("end_str") or ""), required=False)
-
-        self.add_item(self.color_input)
-        self.add_item(self.max_acc_input)
-        self.add_item(self.ping_input)
-        self.add_item(self.start_input)
-        self.add_item(self.end_input)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        self.wizard_view.data["color"] = str(self.color_input.value)
-        self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
-        if self.wizard_view.data["max_accepted"] == 0:
-            self.wizard_view.data["use_waiting_list"] = False
-        self.wizard_view.data["ping_role"] = int(self.ping_input.value) if str(self.ping_input.value).isdigit() else 0
-        
-        start_val = str(self.start_input.value).strip()
-        end_val = str(self.end_input.value).strip()
-        
-        if not end_val:
-            if "," in start_val: parts = start_val.split(",", 1)
-            elif " - " in start_val: parts = start_val.split(" - ", 1)
-            elif ". " in start_val: parts = start_val.split(". ", 1)
-            else: parts = [start_val]
-            
-            start_val = parts[0].strip()
-            end_val = parts[1].strip() if len(parts) > 1 else ""
-
-        self.wizard_view.data["start_str"] = start_val
-        self.wizard_view.data["end_str"] = end_val
-        self.wizard_view.steps_completed["step2"] = True
-        await self.wizard_view.save_to_draft()
-        await self.wizard_view.refresh_message(interaction)
-
-class Step3Modal(ui.Modal):
-    def __init__(self, wizard_view):
-        super().__init__(title=t("MODAL_WIZARD_STEP3", guild_id=wizard_view.guild_id))
-        self.wizard_view = wizard_view
-        data = wizard_view.data
-        guild_id = self.wizard_view.guild_id
-
-        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
-        self.cleanup_offset = ui.TextInput(
-            label=t("LBL_CLEANUP_OFFSET", guild_id=guild_id),
-            placeholder=t("PH_EXAMPLE_4H", guild_id=guild_id),
-            default=data.get("cleanup_offset", "4h"),
-            required=True,
-        )
-        ro = data.get("reminder_offsets")
-        if isinstance(ro, list) and ro:
-            def_offset = "\n".join(ro[:database.MAX_EVENT_REMINDERS])
-        else:
-            def_offset = str(data.get("reminder_offset", ""))
-        self.rem_offset = ui.TextInput(
-            label=t("LBL_REMINDER_OFFSETS_PARAGRAPH", guild_id=guild_id),
-            placeholder=t("PH_REMINDER_OFFSETS", guild_id=guild_id),
-            default=def_offset,
-            style=discord.TextStyle.paragraph,
-            max_length=400,
-            required=False,
-        )
-        self.rec_limit = ui.TextInput(label=t("LBL_RECURRENCE_LIMIT", guild_id=guild_id), default=str(data.get("recurrence_limit", 0)), required=True)
-        self.rem_type = ui.TextInput(label=t("LBL_REMINDER_TYPE", guild_id=guild_id), default=data.get("reminder_type", "none"), required=True)
-
-        self.add_item(self.timezone_input)
-        self.add_item(self.cleanup_offset)
-        self.add_item(self.rem_offset)
-        self.add_item(self.rec_limit)
-        self.add_item(self.rem_type)
-
-    async def on_submit(self, interaction: discord.Interaction):
-        self.wizard_view.data["timezone"] = str(self.timezone_input.value)
-        self.wizard_view.data["repost_offset"] = str(self.cleanup_offset.value)
-        lines = [
-            x.strip()
-            for x in str(self.rem_offset.value).splitlines()
-            if x.strip()
-        ][: database.MAX_EVENT_REMINDERS]
-        self.wizard_view.data["reminder_offsets"] = lines
-        self.wizard_view.data["reminder_offset"] = lines[0] if lines else ""
-        
-        limit_val = str(self.rec_limit.value).strip()
-        if limit_val.isdigit():
-            self.wizard_view.data["recurrence_limit"] = int(limit_val)
-        else:
-            try:
-                dt = parser.parse(limit_val)
-                extra = self.wizard_view.data.get("extra_data", {})
-                if isinstance(extra, str): extra = json.loads(extra)
-                extra["recurrence_limit_date"] = dt.timestamp()
-                self.wizard_view.data["extra_data"] = json.dumps(extra)
-                self.wizard_view.data["recurrence_limit"] = 0
-            except Exception as e:
-                log.debug("RecurrenceLimitModal limit_date parse: %s", e)
-                self.wizard_view.data["recurrence_limit"] = 0
-
-        self.wizard_view.data["reminder_type"] = str(self.rem_type.value).lower()
-        self.wizard_view.steps_completed["step3"] = True
-        await self.wizard_view.save_to_draft()
-        await self.wizard_view.refresh_message(interaction)
-
-class RecurrenceSettingsModal(ui.Modal):
-    """Step 4 for Series: recurrence_limit + repost_offset."""
-    def __init__(self, wizard_view):
-        super().__init__(title=t("MODAL_RECURRENCE_SETTINGS", guild_id=wizard_view.guild_id))
         self.wizard_view = wizard_view
         data = wizard_view.data
         guild_id = wizard_view.guild_id
@@ -398,7 +312,6 @@ class RecurrenceSettingsModal(ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction):
         self.wizard_view.data["repost_offset"] = str(self.repost_input.value)
-        
         limit_val = str(self.limit_input.value).strip()
         if limit_val.isdigit():
             self.wizard_view.data["recurrence_limit"] = int(limit_val)
@@ -411,12 +324,42 @@ class RecurrenceSettingsModal(ui.Modal):
                 self.wizard_view.data["extra_data"] = json.dumps(extra)
                 self.wizard_view.data["recurrence_limit"] = 0
             except Exception as e:
-                log.debug("RecurrenceSettingsModal limit_date parse: %s", e)
+                log.debug("Step2Modal limit_date parse: %s", e)
                 self.wizard_view.data["recurrence_limit"] = 0
 
-        self.wizard_view.steps_completed["step4"] = True
+        self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
+
+class Step3Modal(ui.Modal):
+    """Step 3 for Series: timezone + max_acc + channel (Now labeled 'Kiegészítő')."""
+    def __init__(self, wizard_view):
+        super().__init__(title=t("MODAL_WIZARD_STEP3", guild_id=wizard_view.guild_id))
+        self.wizard_view = wizard_view
+        data = wizard_view.data
+        guild_id = self.wizard_view.guild_id
+
+        self.timezone_input = ui.TextInput(label=t("LBL_WIZ_TZ", guild_id=guild_id), default=str(data.get("timezone") or DEFAULT_TIMEZONE), required=True)
+        self.max_acc_input = ui.TextInput(label=t("LBL_WIZ_MAX", guild_id=guild_id), default=str(data.get("max_accepted") or 0), required=False)
+        self.channel_id_input = ui.TextInput(label=t("LBL_CHANNEL_ID", guild_id=guild_id), placeholder=t("PH_CURRENT_CHANNEL", guild_id=guild_id), default=str(data.get("channel_id") or ""), required=False)
+
+        self.add_item(self.timezone_input)
+        self.add_item(self.max_acc_input)
+        self.add_item(self.channel_id_input)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        self.wizard_view.data["timezone"] = str(self.timezone_input.value)
+        self.wizard_view.data["max_accepted"] = int(self.max_acc_input.value) if str(self.max_acc_input.value).isdigit() else 0
+        if self.wizard_view.data["max_accepted"] == 0:
+            self.wizard_view.data["use_waiting_list"] = False
+        self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
+        
+        self.wizard_view.steps_completed["step3"] = True
+        await self.wizard_view.save_to_draft()
+        await self.wizard_view.refresh_message(interaction)
+
+# Deprecated: RecurrenceSettingsModal content merged into Step2Modal
+
 
 class AdvancedSettingsModal(ui.Modal):
     def __init__(self, wizard_view):
@@ -614,9 +557,7 @@ class EventWizardView(ui.LayoutView):
             s1 = bool(self.data.get("title"))
         self.steps_completed = {
             "step1": s1,
-            "step2": bool(self.data.get("start_str") or self.data.get("start_time"))
-            if self.wizard_type == "series"
-            else bool(self.data.get("timezone")),
+            "step2": bool(self.data.get("repost_offset") or self.data.get("recurrence_limit")) if self.wizard_type == "series" else True,
             "step3": bool(self.data.get("timezone")) if self.wizard_type == "series" else True,
         }
 
@@ -679,11 +620,13 @@ class EventWizardView(ui.LayoutView):
         msg_btn = make_button(label=t("BTN_MESSAGES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         msg_btn.callback = msg_cb
 
-        async def rsvp_roles_cb(it):
-            await it.response.send_modal(RsvpRolesModal(view))
-
         rsvp_roles_btn = make_button(label=t("BTN_RSVP_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         rsvp_roles_btn.callback = rsvp_roles_cb
+
+        async def wait_limit_cb(it):
+            await it.response.send_modal(AdvancedSettingsModal(view))
+        wait_limit_btn = make_button(label=t("LBL_WAITLIST_LIMIT", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
+        wait_limit_btn.callback = wait_limit_cb
 
         async def wait_cb(it):
             # Guard: waiting list requires at least one capacity limit
@@ -1024,7 +967,7 @@ class EventWizardView(ui.LayoutView):
 
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, thread_btn))
+                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, thread_btn))
                 container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
@@ -1076,8 +1019,8 @@ class EventWizardView(ui.LayoutView):
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, temp_role_btn, creator_btn, role_btn, msg_btn))
-                container_items.append(ui.ActionRow(rsvp_roles_btn))
+                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, creator_btn))
+                container_items.append(ui.ActionRow(role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
                 container_items.append(ui.Separator())

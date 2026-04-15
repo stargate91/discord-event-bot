@@ -966,6 +966,13 @@ class DynamicEventView(discord.ui.LayoutView):
         role_limit = role_limits.get(status, opt.get("max_slots") if opt else None)
         if role_limit and sum(1 for s in rsvps_list if s["status"] == status) >= role_limit and old_status != status:
             if self.event_conf.get("use_waiting_list", True): 
+                # Global waitlist check
+                wait_limit = role_limits.get("waiting_list_limit", 0)
+                if wait_limit > 0:
+                    wait_count = sum(1 for s in rsvps_list if str(s["status"]).startswith("wait_"))
+                    if wait_count >= wait_limit and not str(old_status).startswith("wait_"):
+                        return await interaction.response.send_message(t("ERR_WAITLIST_FULL", guild_id=interaction.guild_id), ephemeral=True)
+                
                 target_status = f"wait_{status}"
                 # Send waitlist hint
                 try:
