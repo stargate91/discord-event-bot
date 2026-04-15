@@ -125,6 +125,7 @@
   "LBL_WIZ_TZ": "Timezone (e.g. Europe/Budapest)",
   "LBL_WIZ_COLOR": "Embed Color (Hex)",
   "LBL_WIZ_CREATOR": "Organizer",
+  "LBL_WIZ_CREATOR_FIELD": "Organizer (ID or name)",
   "LBL_WIZ_IMAGES": "Cover Image URLs (comma separated)",
   "LBL_WIZ_MAX": "Max Participants (0 = infinite)",
   "LBL_WIZ_PING": "Role ID to ping on announce",

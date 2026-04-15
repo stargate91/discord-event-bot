@@ -903,10 +903,11 @@ class EventWizardView(ui.LayoutView):
                 def __init__(self, v):
                     super().__init__(title=t("MODAL_EVENT_CREATOR", guild_id=v.guild_id))
                     self.v = v
-                    self.inp = ui.TextInput(label=t("LBL_WIZ_CREATOR", guild_id=v.guild_id), default=str(v.data.get("creator_id") or v.creator_id), required=True)
+                    self.inp = ui.TextInput(label=t("LBL_WIZ_CREATOR_FIELD", guild_id=v.guild_id), default=str(v.data.get("creator_id") or v.creator_id), required=False)
                     self.add_item(self.inp)
                 async def on_submit(self, i):
-                    self.v.data["creator_id"] = str(self.inp.value)
+                    val = str(self.inp.value).strip()
+                    self.v.data["creator_id"] = val if val else None
                     await self.v.save_to_draft()
                     await self.v.refresh_message(i)
             await it.response.send_modal(CreatorModal(view))
