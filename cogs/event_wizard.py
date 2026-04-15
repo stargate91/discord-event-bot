@@ -1034,8 +1034,7 @@ class EventWizardView(ui.LayoutView):
             container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
         else:
-            container_items.append(ui.ActionRow(step1, step2, step3))
-            container_items.append(ui.ActionRow(adv_btn, rem_toggle_btn))
+            container_items.append(ui.ActionRow(step1, step2, step3, adv_btn, rem_toggle_btn))
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
