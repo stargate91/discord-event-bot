@@ -372,8 +372,16 @@ class AdvancedSettingsModal(ui.Modal):
     async def on_submit(self, interaction: discord.Interaction):
         val = str(self.wait_limit_input.value)
         wait_limit = int(val) if val.isdigit() else 0
-        extra = self.wizard_view.data.get("extra_data", {})
-        if isinstance(extra, str): extra = json.loads(extra)
+        extra = self.wizard_view.data.get("extra_data")
+        if not extra:
+            extra = {}
+        elif isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
         extra["waiting_list_limit"] = wait_limit
         self.wizard_view.data["extra_data"] = json.dumps(extra)
         await self.wizard_view.save_to_draft()
@@ -381,7 +389,7 @@ class AdvancedSettingsModal(ui.Modal):
 
 class RoleLimitsModal(ui.Modal):
     def __init__(self, wizard_view, icon_set_data):
-        super().__init__(title=t("MODAL_ROLE_LIMITS", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("MODAL_ROLE_LIMITS", guild_id=wizard_view.guild_id)[:45])
         self.wizard_view = wizard_view
         self.options = icon_set_data.get("options", [])
         
@@ -389,7 +397,9 @@ class RoleLimitsModal(ui.Modal):
         existing_limits = {}
         if extra_data:
             try:
-                existing_limits = json.loads(extra_data).get("role_limits", {})
+                d = json.loads(extra_data) if isinstance(extra_data, str) else extra_data
+                if isinstance(d, dict):
+                    existing_limits = d.get("role_limits", {})
             except Exception as e:
                 log.debug("RoleLimitsModal extra_data: %s", e)
             
@@ -401,7 +411,7 @@ class RoleLimitsModal(ui.Modal):
             lines.append(f"{emoji} {rid}: {lim}".strip())
             
         self.limits_input = ui.TextInput(
-            label=t("LBL_ROLE_LIMITS_FORMAT", guild_id=wizard_view.guild_id),
+            label=t("LBL_ROLE_LIMITS_FORMAT", guild_id=wizard_view.guild_id)[:45],
             style=discord.TextStyle.paragraph,
             default="\n".join(lines),
             required=False,
@@ -423,8 +433,16 @@ class RoleLimitsModal(ui.Modal):
             if matched_id and right.isdigit():
                 role_limits[matched_id] = int(right)
                 
-        extra = self.wizard_view.data.get("extra_data", {})
-        if isinstance(extra, str): extra = json.loads(extra)
+        extra = self.wizard_view.data.get("extra_data")
+        if not extra:
+            extra = {}
+        elif isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        if not isinstance(extra, dict):
+            extra = {}
         extra["role_limits"] = role_limits
         self.wizard_view.data["extra_data"] = json.dumps(extra)
         await self.wizard_view.save_to_draft()
@@ -457,11 +475,21 @@ class RsvpRolesModal(ui.Modal):
 
 class NotificationSettingsModal(ui.Modal):
     def __init__(self, wizard_view):
-        super().__init__(title=t("MODAL_NOTIFICATION_SETTINGS", guild_id=wizard_view.guild_id))
+        super().__init__(title=t("MODAL_NOTIFICATION_SETTINGS", guild_id=wizard_view.guild_id)[:45])
         self.wizard_view = wizard_view
-        extra = wizard_view.data.get("extra_data", {})
-        if isinstance(extra, str): extra = json.loads(extra)
         
+        extra = wizard_view.data.get("extra_data")
+        if not extra:
+            extra = {}
+        elif isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+        
+        if not isinstance(extra, dict):
+            extra = {}
+            
         self.promo_input = ui.TextInput(
             label=t("LBL_PROMO_MSG", guild_id=wizard_view.guild_id)[:45],
             default=extra.get("custom_promo_msg", ""),
@@ -471,8 +499,18 @@ class NotificationSettingsModal(ui.Modal):
         self.add_item(self.promo_input)
 
     async def on_submit(self, interaction: discord.Interaction):
-        extra = self.wizard_view.data.get("extra_data", {})
-        if isinstance(extra, str): extra = json.loads(extra)
+        extra = self.wizard_view.data.get("extra_data")
+        if not extra:
+            extra = {}
+        elif isinstance(extra, str):
+            try:
+                extra = json.loads(extra)
+            except Exception:
+                extra = {}
+                
+        if not isinstance(extra, dict):
+            extra = {}
+            
         extra["custom_promo_msg"] = self.promo_input.value
         self.wizard_view.data["extra_data"] = json.dumps(extra)
         await self.wizard_view.save_to_draft()
@@ -1019,8 +1057,8 @@ class EventWizardView(ui.LayoutView):
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
-                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, creator_btn))
-                container_items.append(ui.ActionRow(role_btn, msg_btn, rsvp_roles_btn))
+                container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, thread_btn))
+                container_items.append(ui.ActionRow(creator_btn, role_btn, msg_btn, rsvp_roles_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
                 container_items.append(ui.Separator())

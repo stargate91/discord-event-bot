@@ -315,6 +315,28 @@ class SchedulerTask(commands.Cog):
             await database.set_event_message(new_event_id, new_msg.id)
             self.bot.add_view(view)
 
+            if event_conf.get("use_threads"):
+                try:
+                    title = event_conf.get("title") or "Event"
+                    thread_name = title
+                    
+                    if next_start and not event_conf.get("lobby_mode"):
+                        dt = datetime.datetime.fromtimestamp(float(next_start))
+                        thread_name = f"{title} - {dt.strftime('%m/%d')}"
+                    
+                    thread = await new_msg.create_thread(name=thread_name[:100])
+                    
+                    extra_data = event_conf.get("extra_data", {})
+                    if isinstance(extra_data, str):
+                        extra_data = json.loads(extra_data)
+                    extra_data["thread_id"] = thread.id
+                    event_conf["extra_data"] = json.dumps(extra_data)
+                    await database.update_active_event(new_event_id, event_conf)
+                    
+                    log.info(f"[Scheduler] Created thread '{thread_name}' for reposted event {new_event_id}", guild_id=guild_id)
+                except Exception as te:
+                    log.error(f"[Scheduler] Failed to create thread for reposted event: {te}", guild_id=guild_id)
+
     async def handle_reminders(self, db_event, now):
         if db_event.get("lobby_mode"):
             return
