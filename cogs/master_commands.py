@@ -329,7 +329,7 @@ class PresenceEditView(ui.LayoutView):
             await self.parent_view.refresh_message(it)
         del_btn.callback = del_cb
         
-        back_btn = make_button(label=t("BTN_PRESENCE_BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
+        back_btn = make_button(label=t("BTN_BACK", guild_id=None), style=discord.ButtonStyle.secondary)
         async def back_cb(it):
             await it.response.defer()
             await self.parent_view.refresh_message(it)

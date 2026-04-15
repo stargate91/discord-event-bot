@@ -425,7 +425,6 @@
   "BTN_PRESENCE_BTN_CFG": "<:toolfilledmonowhite:1493910152208846928> Beállítások",
   "BTN_PRESENCE_BTN_EDIT": "<:pencilfilledmonowhite:1493914073618714777> Szerkesztés",
   "BTN_PRESENCE_BTN_DEL": "<:trashfilledmonowhite:1493915679429103686> Törlés",
-  "BTN_PRESENCE_BTN_BACK": "<:backchevronfilledmonowhite:1493919482630901790> Vissza",
   "PRESENCE_DEFAULT": "nézi: {event_count} esemény",
   "PRESENCE_TYPE_COMPETING": "Versenyzik",
   "PRESENCE_TYPE_LISTENING": "Hallgatja",

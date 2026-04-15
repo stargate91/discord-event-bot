@@ -425,7 +425,6 @@
   "BTN_PRESENCE_BTN_CFG": "<:toolfilledmonowhite:1493910152208846928> Settings",
   "BTN_PRESENCE_BTN_EDIT": "<:pencilfilledmonowhite:1493914073618714777> Edit",
   "BTN_PRESENCE_BTN_DEL": "<:trashfilledmonowhite:1493915679429103686> Delete",
-  "BTN_PRESENCE_BTN_BACK": "<:backchevronfilledmonowhite:1493919482630901790> Back",
   "PRESENCE_DEFAULT": "watching: {event_count} events",
   "PRESENCE_TYPE_COMPETING": "Competing",
   "PRESENCE_TYPE_LISTENING": "Listening",
