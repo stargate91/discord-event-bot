@@ -779,7 +779,7 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        adv_btn = make_button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji("◀️"), style=discord.ButtonStyle.secondary)
+        adv_btn = make_button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji(DROPDOWN_CLOSED), style=discord.ButtonStyle.secondary)
         async def adv_cb(it):
             await it.response.defer()
             view.show_advanced = not view.show_advanced
