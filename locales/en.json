@@ -51,6 +51,7 @@
   "SETTING_ADMIN_CHANNELS": "Authorized Admin Channels",
   "_section_setup_reminders": "── Server Setup ► Reminders ───────────────────",
   "BTN_REMINDERS": "<:buttonping:1493845404616228985> Reminders",
+  "TITLE_SETUP_REMINDERS": "<:titleping:1493846908907683870> Reminders",
   "BTN_REMINDER_OFFSET": "⏰ Default Offset",
   "SETTING_REMINDER_OFFSET": "Reminder Offset (Default)",
   "PH_REMINDER_OFFSET": "e.g. 15m, 1h, 1d (m=min, h=hour, d=day)",
