@@ -62,6 +62,9 @@ def parse_emoji_config(text_value: str):
 
 def resolve_placeholders(text: str) -> str:
     """Replaces all {PLACEHOLDERS} in a string with their centralized registry values."""
+    if text is None:
+        return ""
+    text = str(text)
     if not text or "{" not in text:
         return text
     
@@ -80,6 +83,10 @@ def resolve_placeholders(text: str) -> str:
 def split_emoji(label: str):
     import discord
     import re
+    if label is None:
+        return None, ""
+    label = str(label)
+    
     emoji_obj = None
     m = re.match(r'^(<a?:[a-zA-Z0-9_]+:[0-9]+>)\s*', label)
     if m:
@@ -140,6 +147,10 @@ def make_button(label: str, **kwargs):
     """
     import discord
     from utils.emoji_utils import split_emoji
+
+    if label is None:
+        label = ""
+    label = str(label)
 
     emoji_obj, clean_label = split_emoji(label)
     

@@ -58,6 +58,9 @@ def t(translation_key: str, guild_id=None, use_template_lang=False, **kwargs):
     3. Global default language (JSON)
     4. The key itself
     """
+    if translation_key is None:
+        return ""
+    
     text = None
     pref_lang = DEFAULT_LANG
     gid_str = str(guild_id) if guild_id else None
@@ -84,7 +87,7 @@ def t(translation_key: str, guild_id=None, use_template_lang=False, **kwargs):
 
     # 4. Final fallback to key
     if text is None:
-        text = translation_key
+        text = str(translation_key)
     
     # Merge global emojis with provided kwargs
     # Emojis are used for placeholders like {SUCCESS}, {ERROR}, etc.
@@ -94,8 +97,8 @@ def t(translation_key: str, guild_id=None, use_template_lang=False, **kwargs):
         return text.format(**formatting_args)
     except Exception:
         # If formatting fails (e.g. unexpected braces), return raw text
-        return text
-    return text
+        return str(text)
+
 
 # Essential Templates for the Notification Wizard
 CATEGORIES = {
