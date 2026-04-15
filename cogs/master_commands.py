@@ -107,7 +107,7 @@ class MasterCommands(commands.GroupCog, name="master"):
             await interaction.followup.send(msg)
         except Exception as e:
             log.error(f"[Master] Error resetting global sets: {e}")
-            await interaction.followup.send(f"{ERROR} {t('ERR_MASTER_FOLLOWUP', guild_id=None, e=str(e))}")
+            await interaction.followup.send(t('ERR_MASTER_FOLLOWUP', guild_id=None, e=str(e)))
 
 import uuid
 

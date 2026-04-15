@@ -100,7 +100,7 @@ class AttendanceView(ui.LayoutView):
                     except Exception as e:
                         import traceback
                         log.error(f"[Attendance] Section callback failure: {e}\n{traceback.format_exc()}")
-                        try: await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(e))}", ephemeral=True)
+                        try: await interaction.followup.send(t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(e)), ephemeral=True)
                         except: pass
                 return callback
                 
@@ -140,7 +140,7 @@ class AttendanceView(ui.LayoutView):
         import traceback
         log.error(f"[Attendance] View Error on {item}: {error}\n{traceback.format_exc()}")
         try: 
-            msg = f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(error))}"
+            msg = t('ERR_WIZARD_GENERAL', guild_id=self.guild_id).replace('{e}', str(error))
             if not interaction.response.is_done():
                 await interaction.response.send_message(msg, ephemeral=True)
             else:
@@ -220,7 +220,7 @@ class AttendanceCog(commands.Cog):
             import traceback
             log.error(f"[Attendance] Command Error: {e}\n{traceback.format_exc()}")
             try:
-                await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e))}", ephemeral=True)
+                await interaction.followup.send(t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e)), ephemeral=True)
             except:
                 pass
 

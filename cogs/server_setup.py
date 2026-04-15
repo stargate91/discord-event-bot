@@ -512,7 +512,7 @@ class SimpleConfigModal(ui.Modal):
             log.error(f"Error in modal submit for {self.key}: {e}", exc_info=True)
             if not interaction.response.is_done():
                 await interaction.response.send_message(
-                    f"{ERROR} {t('ERR_SETTING_SAVE_FAILED', guild_id=self.guild_id, e=str(e))}",
+                    t('ERR_SETTING_SAVE_FAILED', guild_id=self.guild_id, e=str(e)),
                     ephemeral=True,
                 )
 

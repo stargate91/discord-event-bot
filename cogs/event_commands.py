@@ -768,7 +768,7 @@ class ReliabilityAuditView(ui.LayoutView):
         import traceback
         log.error(f"[Audit View] Error: {error}\n{traceback.format_exc()}")
         try: 
-            msg = f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=self.guild.id).replace('{e}', str(error))}"
+            msg = t('ERR_WIZARD_GENERAL', guild_id=self.guild.id).replace('{e}', str(error))
             await interaction.followup.send(msg, ephemeral=True)
         except: pass
 
@@ -826,7 +826,7 @@ class AdminCommands(commands.GroupCog, name="admin"):
         except Exception as e:
             import traceback
             log.error(f"[Audit] Command Error: {e}\n{traceback.format_exc()}")
-            try: await interaction.followup.send(f"{emojis.ERROR} {t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e))}", ephemeral=True)
+            try: await interaction.followup.send(t('ERR_WIZARD_GENERAL', guild_id=guild_id).replace('{e}', str(e)), ephemeral=True)
             except: pass
 
     @admin_check_noshow.autocomplete("event_id")

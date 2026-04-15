@@ -1406,7 +1406,7 @@ class EventWizardView(ui.LayoutView):
             
             warning = ""
             if global_max > 0 and role_sum > 0 and global_max != role_sum:
-                warning = t("WARN_ROLE_LIMIT_MISMATCH", guild_id=self.guild_id, role_sum=role_sum, global_max=global_max, default=f"\n\n{WARNING} **Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**).")
+                warning = t("WARN_ROLE_LIMIT_MISMATCH", guild_id=self.guild_id, role_sum=role_sum, global_max=global_max, default=f"\n\n**Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**).")
                 if role_sum < global_max:
                     warning += f"\nAz esemény már **{role_sum}** főnél meg fog telni, mert a szerepkörök betelnek."
                 else:
@@ -1421,7 +1421,7 @@ class EventWizardView(ui.LayoutView):
             log.error(f"Error in handle_save_preview: {e}", exc_info=True)
             try:
                 await interaction.followup.send(
-                    f"{ERROR} {t('ERR_CRITICAL_WIZARD', guild_id=self.guild_id)}: `{e}`",
+                    f"{t('ERR_CRITICAL_WIZARD', guild_id=self.guild_id)}: `{e}`",
                     ephemeral=True,
                 )
             except Exception as send_err:
@@ -1589,6 +1589,6 @@ class EventWizardView(ui.LayoutView):
         except Exception as e:
             log.error(f"[Wizard] Publish failed: {e}", exc_info=True)
             await interaction.followup.send(
-                f"{ERROR} {t('ERR_PUBLISH_FAILED', guild_id=self.guild_id, e=str(e))}",
+                t('ERR_PUBLISH_FAILED', guild_id=self.guild_id, e=str(e)),
                 ephemeral=True,
             )

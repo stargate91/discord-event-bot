@@ -401,7 +401,7 @@
   "MASTER_STATS_ERR": "<:xfilledcircledualredwhite:1493920874011820114> Hiba a statisztikák lekérésekor: {e}",
   "MASTER_EMOJI_ERR": "<:xfilledcircledualredwhite:1493920874011820114> Hiba a Globális Emoji Varázsló megnyitásakor: {e}",
   "ERR_CRITICAL_SETUP": "<:xfilledcircledualredwhite:1493920874011820114> Kritikus hiba a beállítások megnyitásakor",
-  "ERR_MASTER_FOLLOWUP": "{e}",
+  "ERR_MASTER_FOLLOWUP": "<:xfilledcircledualredwhite:1493920874011820114> {e}",
   "_section_master_presence": "── Master ► Státusz Vezérlő ───────────────────",
   "MASTER_PRESENCE_TITLE": "<:controllercolorfulv2:1493907692388094062> Státusz Vezérlő",
   "MASTER_PRESENCE_DESC": "Bot állapotának, rotációjának és kijelzett adatainak kezelése.\nHasználható változók: `{event_count}`, `{guild_count}`, `{rsvp_count}`",
