@@ -917,17 +917,17 @@ class EventWizardView(ui.LayoutView):
         creator_btn.callback = creator_cb
 
         # Color Dropdown for Single Events
-        cur_color_raw = view.data.get("color", "0x40C4FF")
+        cur_color_raw = view.data.get("color", "0x40c4ff")
         cur_color = cur_color_raw.lower().strip().replace("#", "0x")
         if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
         
         color_opts = [
-            make_select_option(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
+            make_select_option(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40c4ff", default=(cur_color=="0x40c4ff")),
             make_select_option(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
             make_select_option(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
             make_select_option(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
             make_select_option(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
-            make_select_option(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(cur_color not in ["0x40C4FF","0x5865f2","0xffd700","0x57f287","0xeb459e"]))
+            make_select_option(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(cur_color not in ["0x40c4ff","0x5865f2","0xffd700","0x57f287","0xeb459e"]))
         ]
         color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
         async def color_cb(it):

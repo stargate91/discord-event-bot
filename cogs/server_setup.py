@@ -45,11 +45,11 @@ class ServerSetupView(ui.LayoutView):
         cur_color = cur_color_raw.lower().strip().replace("#", "0x")
         if not cur_color.startswith("0x"): cur_color = "0x" + cur_color
         
-        presets = ["0x40C4FF", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
+        presets = ["0x40c4ff", "0x5865f2", "0xffd700", "0x57f287", "0xeb459e"]
         is_preset = cur_color in presets
 
         color_opts = [
-            make_select_option(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
+            make_select_option(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40c4ff", default=(cur_color=="0x40c4ff")),
             make_select_option(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
             make_select_option(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
             make_select_option(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
