@@ -78,6 +78,39 @@ def resolve_placeholders(text: str) -> str:
     except Exception:
         return text
 
+def make_select_option(label: str, **kwargs):
+    """Create a discord.SelectOption, auto-extracting any leading custom emoji
+    from *label* into the separate ``emoji`` kwarg so Discord renders it
+    properly (SelectOption.label is plain-text only).
+
+    Usage::
+
+        make_select_option(label=t("COLOR_DEFAULT", ...), value="0x40C4FF")
+    """
+    import discord
+    import re
+
+    emoji_obj = kwargs.pop("emoji", None)
+    # Match leading Discord custom emoji: <:name:id> or <a:name:id>
+    m = re.match(r'^(<a?:[a-zA-Z0-9_]+:[0-9]+>)\s*', label)
+    if m and not emoji_obj:
+        raw = m.group(1)
+        label = label[m.end():]  # strip emoji from visible label
+        try:
+            emoji_obj = discord.PartialEmoji.from_str(raw)
+        except Exception:
+            pass
+
+    # Also handle leading standard unicode emoji (single char / multi-code-point)
+    if not emoji_obj and not m:
+        um = re.match(r'^([\U00002600-\U0001FFFF]+)\s*', label)
+        if um:
+            emoji_obj = um.group(1)
+            label = label[um.end():]
+
+    return discord.SelectOption(label=label[:100], emoji=emoji_obj, **kwargs)
+
+
 def to_emoji(emoji_str: str):
     """Converts a string to a discord.PartialEmoji if it matches custom emoji format, 
     resolves {PLACEHOLDERS} from the registry, otherwise returns original."""

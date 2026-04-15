@@ -4,7 +4,7 @@ from discord import ui
 import database
 from database import DEFAULT_TIMEZONE
 from utils.i18n import t, load_guild_translations
-from utils.emoji_utils import to_emoji
+from utils.emoji_utils import to_emoji, make_select_option
 from utils.auth import is_admin
 from utils.logger import log
 
@@ -49,12 +49,12 @@ class ServerSetupView(ui.LayoutView):
         is_preset = cur_color in presets
 
         color_opts = [
-            discord.SelectOption(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
-            discord.SelectOption(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
-            discord.SelectOption(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
-            discord.SelectOption(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
-            discord.SelectOption(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
-            discord.SelectOption(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(not is_preset))
+            make_select_option(label=t("COLOR_DEFAULT", guild_id=self.guild_id), value="0x40C4FF", default=(cur_color=="0x40C4FF")),
+            make_select_option(label=t("COLOR_BLURPLE", guild_id=self.guild_id), value="0x5865f2", default=(cur_color=="0x5865f2")),
+            make_select_option(label=t("COLOR_GOLD", guild_id=self.guild_id), value="0xffd700", default=(cur_color=="0xffd700")),
+            make_select_option(label=t("COLOR_MINT", guild_id=self.guild_id), value="0x57f287", default=(cur_color=="0x57f287")),
+            make_select_option(label=t("COLOR_FUCHSIA", guild_id=self.guild_id), value="0xeb459e", default=(cur_color=="0xeb459e")),
+            make_select_option(label=t("COLOR_CUSTOM", guild_id=self.guild_id), value="custom", default=(not is_preset))
         ]
         
         color_sel = ui.Select(placeholder=t("SEL_COLOR", guild_id=self.guild_id), options=color_opts)
