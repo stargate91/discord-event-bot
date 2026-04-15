@@ -1250,9 +1250,14 @@ class EventWizardView(ui.LayoutView):
 
     async def handle_save_preview(self, interaction: discord.Interaction):
         """Processes the Save & Preview logic and updates the V2 UI."""
-        if not self.steps_completed["step1"] or (self.wizard_type != "single" and not self.steps_completed["step2"]):
-            await interaction.response.send_message(t("ERR_FILL_STEPS", guild_id=self.guild_id), ephemeral=True)
-            return
+        if self.wizard_type in ("single", "lobby"):
+            if not self.steps_completed["step1"]:
+                await interaction.response.send_message(t("ERR_FILL_STEP1", guild_id=self.guild_id), ephemeral=True)
+                return
+        else:
+            if not self.steps_completed["step1"] or not self.steps_completed["step2"]:
+                await interaction.response.send_message(t("ERR_FILL_STEPS_1_2", guild_id=self.guild_id), ephemeral=True)
+                return
             
         if self.wizard_type == "series":
             rtype = self.data.get("recurrence_type")
