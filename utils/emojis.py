@@ -2,8 +2,8 @@
 """Centralized Emoji Registry for the Nexus Event Bot with context decoupling."""
 
 # --- Core Status Icons ---
-SUCCESS = "<:statussuccess:1493856972850856028>"
-ERROR = "<:statuserror:1493861993742860318>"
+SUCCESS = "<:checkfilledcircledualgreenwhite:1493922385613815828>"
+ERROR = "<:xfilledcircledualredwhite:1493920874011820114>"
 WARNING = "<:statuswarning:1493856974088048692>"
 INFO = "<:statusinfo:1493856969663189052>"
 PING = "<:statusping:1493861847064121344>"
