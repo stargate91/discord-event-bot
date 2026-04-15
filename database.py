@@ -1068,7 +1068,7 @@ async def get_user_event_history(guild_id, user_id, limit=20):
         LEFT JOIN rsvps r ON e.event_id = r.event_id AND r.user_id = $2
         WHERE e.guild_id = $1 
           AND e.status IN ('closed', 'ended')
-          AND (e.creator_id = $2 OR (r.user_id IS NOT NULL))
+          AND (e.creator_id = $2::text OR (r.user_id IS NOT NULL))
         ORDER BY e.start_time DESC NULLS LAST
         LIMIT $3
     """, str(guild_id), int(user_id), limit)
@@ -1096,7 +1096,7 @@ async def get_user_active_events(guild_id, user_id):
         FROM active_events e
         LEFT JOIN rsvps r ON e.event_id = r.event_id AND r.user_id = $2
         WHERE e.guild_id = $1 
-          AND (e.creator_id = $2 OR r.user_id IS NOT NULL)
+          AND (e.creator_id = $2::text OR r.user_id IS NOT NULL)
           AND e.status = 'active'
           AND (e.start_time > $3 OR e.start_time IS NULL)
         ORDER BY e.start_time ASC NULLS LAST
