@@ -34,7 +34,6 @@ class EmojiHelpView(ui.LayoutView):
 
         close_btn = make_button(
             label=t("BTN_CLOSE", guild_id=self.guild_id), 
-            emoji=emojis.CROSS, 
             style=discord.ButtonStyle.secondary
         )
         close_btn.callback = close_callback

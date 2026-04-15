@@ -9,9 +9,6 @@ INFO = "<:statusinfo:1493856969663189052>"
 PING = "<:statusping:1493861847064121344>"
 
 # --- UI / Navigation ---
-BACK = "⬅️"
-FORWARD = "➡️"
-CROSS = "❌"
 HELP = "❔"
 SYNC = "🔄"
 DROPDOWN_OPEN = "🔽"
