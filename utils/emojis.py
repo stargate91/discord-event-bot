@@ -2,11 +2,11 @@
 """Centralized Emoji Registry for the Nexus Event Bot with context decoupling."""
 
 # --- Core Status Icons ---
-SUCCESS = "<:statussuccess:1493841535559663747>"
-ERROR = "<:statuserror:1493833100382310430>"
-WARNING = "<:statuswarning:1493835074196607006>"
-INFO = "<:statusinfo:1493836039284850708>"
-PING = "<:statusping:1493844918496395264>"
+SUCCESS = "<:statussuccess:1493856972850856028>"
+ERROR = "<:statuserror:1493861993742860318>"
+WARNING = "<:statuswarning:1493856974088048692>"
+INFO = "<:statusinfo:1493856969663189052>"
+PING = "<:statusping:1493861847064121344>"
 
 # --- UI / Navigation ---
 BACK = "⬅️"
@@ -20,10 +20,9 @@ LANG_HU = "🇭🇺"
 LANG_EN = "🇺🇸"
 
 # --- Common Items ---
-GEAR = "⚙️"
-GLOBE = "🌐"
+GLOBE = "<:buttonglobe:1493863327321821205>"
 BELL = "<:titleping:1493846908907683870>"
-SHIELD = "🛡️"
+SHIELD = "<:exampleemojiwizard:1493863833973035068>"
 
 # --- Recurrence Icons ---
 REC_DAILY = "📅"
