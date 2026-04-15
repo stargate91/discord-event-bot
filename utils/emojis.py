@@ -6,7 +6,7 @@ SUCCESS = "<:statussuccess:1493841535559663747>"
 ERROR = "<:statuserror:1493833100382310430>"
 WARNING = "<:statuswarning:1493835074196607006>"
 INFO = "<:statusinfo:1493836039284850708>"
-PING = "🔔"
+PING = "<:statusping:1493844918496395264>"
 
 # --- UI / Navigation ---
 BACK = "⬅️"
@@ -22,7 +22,7 @@ LANG_EN = "🇺🇸"
 # --- Common Items ---
 GEAR = "⚙️"
 GLOBE = "🌐"
-BELL = "🔔"
+BELL = "<:titleping:1493846908907683870>"
 SHIELD = "🛡️"
 
 # --- Recurrence Icons ---
