@@ -93,7 +93,7 @@ class AttendanceView(ui.LayoutView):
                         new_att = "present" if current_att == "no_show" else "no_show"
                         await database.update_rsvp_attendance(self.event_id, u_id, new_att)
                         for part in self.participants:
-                            if part["user_id"] == u_id:
+                            if str(part["user_id"]) == str(u_id):
                                 part["attendance"] = new_att
                                 break
                         await self.refresh(interaction)

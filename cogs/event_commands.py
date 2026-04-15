@@ -7,6 +7,7 @@ import time
 import uuid
 import datetime
 import json
+import math
 # imports moved inside methods to prevent circular dependency
 from utils.i18n import t
 from dateutil import parser
