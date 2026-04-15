@@ -235,7 +235,7 @@ class EmojiWizardView(ui.LayoutView):
             await it.response.send_message(view=conf_view, ephemeral=True)
         del_btn.callback = del_cb
         
-        help_btn = make_button(label=t("BTN_HELP", guild_id=new_view.guild_id), emoji=emojis.HELP, style=discord.ButtonStyle.secondary)
+        help_btn = make_button(label=t("BTN_HELP", guild_id=new_view.guild_id), style=discord.ButtonStyle.secondary)
         async def help_cb(it): await send_emoji_help(it, new_view.guild_id)
         help_btn.callback = help_cb
         
