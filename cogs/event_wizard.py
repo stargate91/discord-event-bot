@@ -234,6 +234,7 @@ class SingleEventSupplementaryModal(ui.Modal):
             if self.wizard_view.data["max_accepted"] == 0:
                 self.wizard_view.data["use_waiting_list"] = False
 
+        self.wizard_view.data["step2_opened"] = True
         self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -327,6 +328,7 @@ class Step2Modal(ui.Modal):
                 log.debug("Step2Modal limit_date parse: %s", e)
                 self.wizard_view.data["recurrence_limit"] = 0
 
+        self.wizard_view.data["step2_opened"] = True
         self.wizard_view.steps_completed["step2"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -354,6 +356,7 @@ class Step3Modal(ui.Modal):
             self.wizard_view.data["use_waiting_list"] = False
         self.wizard_view.data["channel_id"] = str(self.channel_id_input.value)
         
+        self.wizard_view.data["step3_opened"] = True
         self.wizard_view.steps_completed["step3"] = True
         await self.wizard_view.save_to_draft()
         await self.wizard_view.refresh_message(interaction)
@@ -1232,16 +1235,18 @@ class EventWizardView(ui.LayoutView):
 
     def get_status_text(self):
         s1 = SUCCESS if self.steps_completed["step1"] else ERROR
+        
+        opt_text = f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
 
         if self.wizard_type == "lobby":
-            s2 = SUCCESS if self.steps_completed.get("step2") else f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
+            s2 = SUCCESS if self.data.get("step2_opened") else opt_text
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_LOBBY', guild_id=self.guild_id)}: {s2}"
         if self.wizard_type == "single":
-            s2 = SUCCESS if self.steps_completed.get("step2") else f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
+            s2 = SUCCESS if self.data.get("step2_opened") else opt_text
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id)}: {s2}"
         else:
             s2 = SUCCESS if self.steps_completed.get("step2") else ERROR
-            s3 = SUCCESS if self.steps_completed.get("step3") else f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
+            s3 = SUCCESS if self.data.get("step3_opened") else opt_text
             return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
 
     async def save_to_draft(self):
