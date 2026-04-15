@@ -1001,11 +1001,6 @@ class EventWizardView(ui.LayoutView):
         if view.wizard_type == "single":
             container_items.append(ui.ActionRow(step1, step2, adv_btn, rem_toggle_btn))
 
-            pub_row = [save_btn]
-            if view.can_publish:
-                pub_row.append(pub_btn)
-            container_items.append(ui.ActionRow(*pub_row))
-
             if view.show_advanced:
                 container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(wait_btn, wait_limit_btn, temp_role_btn, thread_btn))
@@ -1033,11 +1028,6 @@ class EventWizardView(ui.LayoutView):
         elif view.wizard_type == "lobby":
             container_items.append(ui.ActionRow(step1, step2, adv_btn, rem_toggle_btn))
 
-            pub_row = [save_btn]
-            if view.can_publish:
-                pub_row.append(pub_btn)
-            container_items.append(ui.ActionRow(*pub_row))
-
             if view.show_advanced:
                 container_items.append(ui.Separator())
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, role_btn, msg_btn))
@@ -1053,10 +1043,7 @@ class EventWizardView(ui.LayoutView):
             container_items.append(ui.ActionRow(sel_icon))
         else:
             container_items.append(ui.ActionRow(step1, step2, step3))
-            
-            r2 = [adv_btn, rem_toggle_btn, save_btn]
-            if view.can_publish: r2.append(pub_btn)
-            container_items.append(ui.ActionRow(*r2))
+            container_items.append(ui.ActionRow(adv_btn, rem_toggle_btn))
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
@@ -1090,6 +1077,13 @@ class EventWizardView(ui.LayoutView):
             container_items.append(ui.Separator())
             container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
+
+        # Save & Publish buttons at the very bottom
+        pub_row = [save_btn]
+        if view.can_publish:
+            pub_row.append(pub_btn)
+        container_items.append(ui.Separator())
+        container_items.append(ui.ActionRow(*pub_row))
 
         view.add_item(ui.Container(*container_items, accent_color=0x40C4FF))
         
