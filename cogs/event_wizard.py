@@ -543,7 +543,7 @@ class ReminderMessagesModal(ui.Modal):
 
 class EventWizardView(ui.LayoutView):
     """Main wizard controller using Components V2 architecture."""
-    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type=None, show_advanced=False, show_reminder=False):
+    def __init__(self, bot, creator_id, existing_data=None, is_edit=False, guild_id=None, bulk_ids=None, wizard_type=None, show_advanced=False, show_reminder=False, show_recurrence=False):
         super().__init__(timeout=600)
         self.bot = bot
         self.creator_id = creator_id
@@ -570,6 +570,7 @@ class EventWizardView(ui.LayoutView):
 
         self.show_advanced = show_advanced
         self.show_reminder = show_reminder
+        self.show_recurrence = show_recurrence
 
         self.can_publish = False
         self.chan_warning = ""
@@ -586,7 +587,12 @@ class EventWizardView(ui.LayoutView):
         }
 
     async def refresh_message(self, interaction: discord.Interaction, send_followup: bool = False):
-        view = EventWizardView(self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, show_advanced=self.show_advanced, show_reminder=self.show_reminder)
+        view = EventWizardView(
+            self.bot, self.creator_id, existing_data=self.data, is_edit=self.is_edit, 
+            guild_id=self.guild_id, bulk_ids=self.bulk_ids, wizard_type=self.wizard_type, 
+            show_advanced=self.show_advanced, show_reminder=self.show_reminder,
+            show_recurrence=self.show_recurrence
+        )
         view.can_publish = self.can_publish
         view.clear_items()
         await view.refresh_ui_data()
@@ -755,8 +761,26 @@ class EventWizardView(ui.LayoutView):
             view.show_advanced = not view.show_advanced
             if view.show_advanced:
                 view.show_reminder = False
+                view.show_recurrence = False
             await view.refresh_message(it)
         adv_btn.callback = adv_cb
+
+        # Recurrence Toggle (Series only)
+        rec_toggle_btn = None
+        if view.wizard_type == "series":
+            rec_toggle_btn = make_button(
+                label=t("BTN_RECURRENCE_TOGGLE", guild_id=self.guild_id), 
+                emoji=to_emoji(DROPDOWN_OPEN) if view.show_recurrence else to_emoji(DROPDOWN_CLOSED), 
+                style=discord.ButtonStyle.secondary
+            )
+            async def rec_toggle_cb(it):
+                await it.response.defer()
+                view.show_recurrence = not view.show_recurrence
+                if view.show_recurrence:
+                    view.show_advanced = False
+                    view.show_reminder = False
+                await view.refresh_message(it)
+            rec_toggle_btn.callback = rec_toggle_cb
 
         # Reminder Toggle
         rem_em, rem_lb = split_emoji(t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id))
@@ -767,6 +791,7 @@ class EventWizardView(ui.LayoutView):
             view.show_reminder = not view.show_reminder
             if view.show_reminder:
                 view.show_advanced = False
+                view.show_recurrence = False
             await view.refresh_message(it)
         rem_toggle_btn.callback = rem_toggle_cb
 
@@ -1034,7 +1059,7 @@ class EventWizardView(ui.LayoutView):
             container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
             container_items.append(ui.ActionRow(sel_icon))
         else:
-            container_items.append(ui.ActionRow(step1, step2, step3, adv_btn, rem_toggle_btn))
+            container_items.append(ui.ActionRow(step1, rec_toggle_btn, step3, adv_btn, rem_toggle_btn))
             
             if view.show_advanced:
                 container_items.append(ui.Separator())
@@ -1045,6 +1070,19 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(temp_role_btn, thread_btn, creator_btn, msg_btn))
                 container_items.append(ui.ActionRow(color_sel))
                 container_items.append(ui.ActionRow(promo_type_sel))
+            elif view.show_recurrence:
+                container_items.append(ui.Separator())
+                container_items.append(ui.TextDisplay(f"**{t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}**"))
+                container_items.append(ui.ActionRow(sel_rec))
+                container_items.append(ui.ActionRow(sel_trig))
+                
+                if view.data.get("recurrence_type") == "custom":
+                    container_items.append(ui.ActionRow(cust_sel))
+                elif view.data.get("recurrence_type") == "relative":
+                    container_items.append(ui.ActionRow(rel_sel))
+                
+                # The actual modal button for Step 2
+                container_items.append(ui.ActionRow(step2))
             elif view.show_reminder:
                 ro_list = view.data.get("reminder_offsets") or []
                 if not isinstance(ro_list, list):
@@ -1059,14 +1097,6 @@ class EventWizardView(ui.LayoutView):
                     )
                 )
                 container_items.append(ui.ActionRow(rem_offset_btn, rem_msg_btn))
-            
-            container_items.append(ui.ActionRow(sel_rec))
-            container_items.append(ui.ActionRow(sel_trig))
-            
-            if view.data.get("recurrence_type") == "custom":
-                container_items.append(ui.ActionRow(cust_sel))
-            elif view.data.get("recurrence_type") == "relative":
-                container_items.append(ui.ActionRow(rel_sel))
                 
             container_items.append(ui.Separator())
             container_items.append(ui.TextDisplay(t("LBL_CHOOSE_EMOJI_SET", guild_id=self.guild_id)))
