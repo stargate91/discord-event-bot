@@ -755,7 +755,12 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        adv_btn = make_button(label=t("BTN_ADVANCED", guild_id=self.guild_id), emoji=to_emoji(DROPDOWN_OPEN) if view.show_advanced else to_emoji(DROPDOWN_CLOSED), style=discord.ButtonStyle.secondary)
+        arrow_adv = DROPDOWN_OPEN if view.show_advanced else DROPDOWN_CLOSED
+        adv_btn = make_button(
+            label=f"{t('BTN_ADVANCED', guild_id=self.guild_id)} {arrow_adv}",
+            emoji=to_emoji("<:expertfilled:1494305947659538583>"),
+            style=discord.ButtonStyle.secondary
+        )
         async def adv_cb(it):
             await it.response.defer()
             view.show_advanced = not view.show_advanced
@@ -768,9 +773,9 @@ class EventWizardView(ui.LayoutView):
         # Recurrence Toggle (Series only)
         rec_toggle_btn = None
         if view.wizard_type == "series":
+            arrow_rec = DROPDOWN_OPEN if view.show_recurrence else DROPDOWN_CLOSED
             rec_toggle_btn = make_button(
-                label=t("BTN_RECURRENCE_TOGGLE", guild_id=self.guild_id), 
-                emoji=to_emoji(DROPDOWN_OPEN) if view.show_recurrence else to_emoji(DROPDOWN_CLOSED), 
+                label=f"{t('BTN_RECURRENCE_TOGGLE', guild_id=self.guild_id)} {arrow_rec}",
                 style=discord.ButtonStyle.secondary
             )
             async def rec_toggle_cb(it):
@@ -784,8 +789,12 @@ class EventWizardView(ui.LayoutView):
 
         # Reminder Toggle
         rem_em, rem_lb = split_emoji(t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id))
-        caret = " \u25BC" if view.show_reminder else " \u25C0"
-        rem_toggle_btn = make_button(label=rem_lb + caret, emoji=rem_em, style=discord.ButtonStyle.secondary)
+        arrow_rem = DROPDOWN_OPEN if view.show_reminder else DROPDOWN_CLOSED
+        rem_toggle_btn = make_button(
+            label=f"{rem_lb} {arrow_rem}",
+            emoji=rem_em,
+            style=discord.ButtonStyle.secondary
+        )
         async def rem_toggle_cb(it):
             await it.response.defer()
             view.show_reminder = not view.show_reminder
@@ -1263,20 +1272,28 @@ class EventWizardView(ui.LayoutView):
         self.recurrence_options = [make_select_option(label=t(f"SEL_REC_{k.upper()}", guild_id=self.guild_id), value=k, emoji=to_emoji(e), default=(current_rec == k)) for k, e in rec_types]
 
     def get_status_text(self):
+        gid = self.guild_id
         s1 = SUCCESS if self.steps_completed["step1"] else ERROR
-        
-        opt_text = f"{INFO} {t('LBL_OPTIONAL', guild_id=self.guild_id)}"
+        opt_text = f"{INFO} {t('LBL_OPTIONAL', guild_id=gid)}"
+
+        line1 = f"{t('STATUS_STEP1_EMOJI', guild_id=gid)} {t('STATUS_STEP1_LBL', guild_id=gid)}: {s1}"
 
         if self.wizard_type == "lobby":
             s2 = SUCCESS if self.data.get("step2_opened") else opt_text
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_LOBBY', guild_id=self.guild_id)}: {s2}"
+            line2 = f"{t('STATUS_STEP2_EMOJI', guild_id=gid)} {t('STATUS_STEP2_LBL', guild_id=gid)}: {s2}"
+            return f"{line1}\n{line2}"
+        
         if self.wizard_type == "single":
             s2 = SUCCESS if self.data.get("step2_opened") else opt_text
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SINGLE', guild_id=self.guild_id)}: {s2}"
+            line2 = f"{t('STATUS_STEP2_EMOJI', guild_id=gid)} {t('STATUS_STEP2_LBL', guild_id=gid)}: {s2}"
+            return f"{line1}\n{line2}"
         else:
+            # Series
             s2 = SUCCESS if self.steps_completed.get("step2") else ERROR
             s3 = SUCCESS if self.data.get("step3_opened") else opt_text
-            return f"- {t('BTN_STEP_1', guild_id=self.guild_id)}: {s1}\n- {t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}: {s2}\n- {t('BTN_STEP_3_SERIES', guild_id=self.guild_id)}: {s3}"
+            line2 = f"{t('STATUS_STEP2_EMOJI', guild_id=gid)} {t('STATUS_STEP2_SERIES_LBL', guild_id=gid)}: {s2}"
+            line3 = f"{t('STATUS_STEP3_EMOJI', guild_id=gid)} {t('STATUS_STEP3_LBL', guild_id=gid)}: {s3}"
+            return f"{line1}\n{line2}\n{line3}"
 
     async def save_to_draft(self):
         self.can_publish = False
