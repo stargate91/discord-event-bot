@@ -169,16 +169,11 @@ class GeneralSetupView(ui.LayoutView):
 
         # 3. Final Assembly
         main_container = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
-            ui.ActionRow(roles_btn, channels_btn),
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
+            ui.ActionRow(roles_btn, channels_btn, back_btn),
             ui.Separator(),
-            ui.TextDisplay(t('LBL_SET_BOT_LANG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(lang_sel),
-            ui.Separator(),
-            ui.TextDisplay(t('LBL_SET_TEMPLATE_LANG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(tpl_sel),
-            ui.Separator(),
-            ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
         self.add_item(main_container)
@@ -290,10 +285,7 @@ class ReminderSetupView(ui.LayoutView):
             ui.TextDisplay(f"### {t('TITLE_SETUP_REMINDERS', guild_id=self.guild_id)}"),
             ui.Separator(),
             ui.ActionRow(offset_btn),
-            ui.Separator(),
-            ui.TextDisplay(t('LBL_SET_STATUS_NOTIFY_DESC', guild_id=self.guild_id)),
             ui.ActionRow(status_sel),
-            ui.Separator(),
             ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
@@ -449,16 +441,10 @@ class EventDefaultsView(ui.LayoutView):
         # 4. Final Assembly
         main_container = ui.Container(
             ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
-            ui.ActionRow(channel_btn, max_acc_btn, wait_btn),
-            ui.ActionRow(repost_btn, temp_role_btn, archive_btn),
-            ui.Separator(),
-            ui.TextDisplay(t('LBL_SET_REPOST_TRIG_DESC', guild_id=self.guild_id)),
+            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
+            ui.ActionRow(archive_btn, back_btn),
             ui.ActionRow(trig_sel),
-            ui.Separator(),
-            ui.TextDisplay(t('LBL_SET_PROMO_NOTIFY_DESC', guild_id=self.guild_id)),
             ui.ActionRow(promo_sel),
-            ui.Separator(),
-            ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
         self.add_item(main_container)
