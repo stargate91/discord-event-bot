@@ -440,7 +440,7 @@ class EventDefaultsView(ui.LayoutView):
         promo_sel.callback = promo_cb
 
         # 4. Final Assembly
-        event_desc = f"{t('LBL_SET_REPOST_TRIG_DESC', guild_id=self.guild_id)}\n{t('LBL_SET_PROMO_NOTIFY_DESC', guild_id=self.guild_id)}"
+        event_desc = t('SETUP_EVENT_DEFAULTS_DESC', guild_id=self.guild_id)
         main_container = ui.Container(
             ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}\n{event_desc}"),
             ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),

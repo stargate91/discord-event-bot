@@ -82,6 +82,7 @@
   "_section_setup_event_defaults": "── Server Setup ► Event Defaults ──────────────",
   "BTN_EVENT_DEFAULTS": "<:calendarfilled:1494238851303215204> Events",
   "TITLE_EVENT_DEFAULTS": "<:calendarcolorful:1494235934974279823> Event Defaults",
+  "SETUP_EVENT_DEFAULTS_DESC": "Define default behavior using the buttons and dropdown menus below:",
   "LBL_SET_REPOST_TRIG_DESC": "Select the default timing for automatic recurring event reposts.",
   "BTN_DEFAULT_CHANNEL": "<:tvfilled:1494291052977197177> Default Channel",
   "BTN_DEFAULT_MAX_ACC": "<:usersfilled:1494290322006478940> Default Max Participants",
