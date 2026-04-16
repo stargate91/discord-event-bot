@@ -397,7 +397,7 @@ class DynamicEventView(discord.ui.LayoutView):
                         ts=int(float(exp)),
                     )
             elif start_ts_db is not None:
-                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F>\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
+                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F> (<t:{int(start_ts_db)}:R>)\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
                 end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
                 if end_ts:
                     import datetime
@@ -417,7 +417,7 @@ class DynamicEventView(discord.ui.LayoutView):
             start_ts = event_conf.get("start_time") or (
                 db_event["start_time"] if db_event and db_event.get("start_time") else time.time()
             )
-            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F> (<t:{int(start_ts)}:R>)"
             end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
             if end_ts:
                 import datetime
