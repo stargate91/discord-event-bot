@@ -725,16 +725,8 @@ class ReliabilityAuditView(ui.LayoutView):
                 
             name = member.display_name if member else t("LBL_USER_DEFAULT", guild_id=self.guild.id).replace("{uid}", str(uid))
             
-            # Accessory Button for stats (side-by-side feel)
             status_label = f"{ns}/{tot} ({ratio*100:.1f}%)"
-            style = discord.ButtonStyle.secondary
-            if ns > 2: style = discord.ButtonStyle.danger
-            elif ns > 0: style = discord.ButtonStyle.primary
-            
-            stat_btn = make_button(label=status_label, style=style, disabled=True)
-            
-            section = ui.Section(f"**{idx}. {name}**", accessory=stat_btn)
-            container_items.append(section)
+            container_items.append(ui.TextDisplay(f"**{idx}. {name}** - {status_label}"))
 
         # Navigation
         if total_pages > 1:
