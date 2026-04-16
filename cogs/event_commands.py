@@ -736,11 +736,9 @@ class ReliabilityAuditView(ui.LayoutView):
             section = ui.Section(f"**{idx}. {name}**", accessory=stat_btn)
             container_items.append(section)
 
-        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
-        self.add_item(main_container)
-        
         # Navigation
         if total_pages > 1:
+            container_items.append(ui.Separator())
             prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0))
             next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1))
             
@@ -757,7 +755,10 @@ class ReliabilityAuditView(ui.LayoutView):
                 
             prev_btn.callback = prev_cb
             next_btn.callback = next_cb
-            self.add_item(ui.ActionRow(prev_btn, next_btn))
+            container_items.append(ui.ActionRow(prev_btn, next_btn))
+
+        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
+        self.add_item(main_container)
 
     async def refresh(self, interaction: discord.Interaction):
         await self.build()

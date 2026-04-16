@@ -60,7 +60,8 @@ class AttendanceView(ui.LayoutView):
         
         container_items = [
             ui.TextDisplay(f"### {self.event_title}"),
-            ui.TextDisplay(f"-# {stats_text} • {page_label}")
+            ui.TextDisplay(f"-# {stats_text} • {page_label}"),
+            ui.Separator()
         ]
         
         for i, p in enumerate(page_users):
@@ -110,12 +111,9 @@ class AttendanceView(ui.LayoutView):
             section = ui.Section(f"**{idx}. {user_name}**", accessory=toggle_btn)
             container_items.append(section)
 
-        # Add the Container to the View
-        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
-        self.add_item(main_container)
-        
         # 3. Navigation Buttons (if needed)
         if total_pages > 1:
+            container_items.append(ui.Separator())
             prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.gray, disabled=(self.page == 0), custom_id=f"att_pre_{self.page}")
             next_btn = make_button(label=emojis.FORWARD, style=discord.ButtonStyle.gray, disabled=(self.page >= total_pages - 1), custom_id=f"att_nxt_{self.page}")
             
@@ -134,7 +132,11 @@ class AttendanceView(ui.LayoutView):
                 
             prev_btn.callback = prev_cb
             next_btn.callback = next_cb
-            self.add_item(ui.ActionRow(prev_btn, next_btn))
+            container_items.append(ui.ActionRow(prev_btn, next_btn))
+
+        # Add the Container to the View
+        main_container = ui.Container(*container_items, accent_color=0x40C4FF)
+        self.add_item(main_container)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: ui.Item):
         import traceback
