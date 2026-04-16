@@ -454,7 +454,7 @@ class DynamicEventView(discord.ui.LayoutView):
                 meta_parts.append(f"{t('EMBED_RECURRENCE', guild_id=guild_id)}: {rec_text}")
 
         if meta_parts:
-            time_str += f"\n-# {' • '.join(meta_parts)}"
+            time_str += f"\n{' • '.join(meta_parts)}"
 
         container_items.append(discord.ui.TextDisplay(time_str))
 
