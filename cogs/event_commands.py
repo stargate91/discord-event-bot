@@ -41,7 +41,13 @@ class MyEventsView(ui.LayoutView):
         end = start + self.per_page
         slice = self.events[start:end]
         
-        for ev in slice:
+        container_items = []
+        
+        # Header
+        container_items.append(ui.TextDisplay(f"### {t('LBL_MY_EVENTS_TITLE', guild_id=self.guild_id)}"))
+        container_items.append(ui.Separator())
+
+        for i, ev in enumerate(slice):
             title = ev["title"] or t("LBL_UNNAMED_EVENT", guild_id=self.guild_id)
             st = ev["start_time"]
             eid = ev["event_id"]
@@ -50,16 +56,9 @@ class MyEventsView(ui.LayoutView):
             creator_id = ev["creator_id"]
             status_raw = ev["user_status"]
             
-            # Container with accent color (Gold for Organizer, Blue for Participant)
-            accent = 0xFFD700 if int(creator_id) == self.user_id else 0x5865F2
-            container = ui.Container(accent_color=accent)
-            
             # Content
             time_rel = f"<t:{int(st)}:R>" if st else t("LBL_LOBBY_LIST_NO_START", guild_id=self.guild_id)
             lbl_id = t("LBL_ID", guild_id=self.guild_id)
-            container.add_item(ui.TextDisplay(
-                f"{emojis.CALENDAR} **{title}**\n{lbl_id}: `{eid}` | {time_rel}"
-            ))
             
             if int(creator_id) == self.user_id:
                 state_text = f"{emojis.CROWN} **{t('LBL_ORGANIZER', guild_id=self.guild_id)}**"
@@ -67,22 +66,24 @@ class MyEventsView(ui.LayoutView):
                 state_text = f"{emojis.SPARKLES} {str(status_raw).capitalize()}"
                 
             status_lbl = t("LBL_STATUS", guild_id=self.guild_id) or "Status"
-            container.add_item(ui.TextDisplay(
-                f"**{status_lbl}:** {state_text}"
+            container_items.append(ui.TextDisplay(
+                f"{emojis.CALENDAR} **{title}**\n{lbl_id}: `{eid}` | {time_rel}\n**{status_lbl}:** {state_text}"
             ))
-            
-            self.add_item(container)
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(ui.ActionRow(make_button(
+            container_items.append(ui.ActionRow(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
             )))
+            
+            if i < len(slice) - 1:
+                container_items.append(ui.Separator())
 
         # Pagination controls
         if len(self.events) > self.per_page:
+            container_items.append(ui.Separator())
             prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
@@ -97,7 +98,9 @@ class MyEventsView(ui.LayoutView):
                 await it.response.edit_message(view=self)
             next_btn.callback = next_cb
             
-            self.add_item(ui.ActionRow(prev_btn, next_btn))
+            container_items.append(ui.ActionRow(prev_btn, next_btn))
+
+        self.add_item(ui.Container(*container_items, accent_color=0x5865F2))
 
 class EventHistoryView(ui.LayoutView):
     def __init__(self, bot, guild_id, user_id, events):
@@ -116,7 +119,12 @@ class EventHistoryView(ui.LayoutView):
         end = start + self.per_page
         slice = self.events[start:end]
         
-        for ev in slice:
+        container_items = []
+        
+        container_items.append(ui.TextDisplay(f"### {t('LBL_HISTORY_TITLE', guild_id=self.guild_id)}"))
+        container_items.append(ui.Separator())
+
+        for i, ev in enumerate(slice):
             title = ev["title"] or t("LBL_UNNAMED_EVENT", guild_id=self.guild_id)
             st = ev["start_time"]
             eid = ev["event_id"]
@@ -126,17 +134,11 @@ class EventHistoryView(ui.LayoutView):
             status_raw = ev["user_status"]
             attendance = ev["attendance"]
             
-            # Container (Gold for Organized, Gray for Joined)
             is_creator = int(creator_id) == self.user_id
-            accent = 0xFFD700 if is_creator else 0x99AAB5
-            container = ui.Container(accent_color=accent)
             
             # Content
             time_str = f"<t:{int(st)}:d> (<t:{int(st)}:R>)" if st else t("LBL_PAST_EVENT", guild_id=self.guild_id)
             title_prefix = emojis.CROWN if is_creator else emojis.CALENDAR
-            container.add_item(ui.TextDisplay(
-                f"{title_prefix} **{title}**\n{time_str}"
-            ))
             
             if is_creator:
                 res_text = f"{emojis.CROWN} {t('LBL_ORGANIZER', guild_id=self.guild_id)}"
@@ -149,22 +151,24 @@ class EventHistoryView(ui.LayoutView):
                     res_text = f"{emojis.SPARKLES} {str(status_raw).capitalize()}"
                 
             res_lbl = t("LBL_RESULT", guild_id=self.guild_id) or "Result"
-            container.add_item(ui.TextDisplay(
-                f"**{res_lbl}:** {res_text}"
+            container_items.append(ui.TextDisplay(
+                f"{title_prefix} **{title}**\n{time_str}\n**{res_lbl}:** {res_text}"
             ))
-            
-            self.add_item(container)
             
             # Link button
             link = f"https://discord.com/channels/{self.guild_id}/{cid}/{mid}"
-            self.add_item(ui.ActionRow(make_button(
+            container_items.append(ui.ActionRow(make_button(
                 label=t("BTN_GO_TO_EVENT", guild_id=self.guild_id) or "View",
                 url=link,
                 style=discord.ButtonStyle.link
             )))
+            
+            if i < len(slice) - 1:
+                container_items.append(ui.Separator())
 
         # Pagination controls
         if len(self.events) > self.per_page:
+            container_items.append(ui.Separator())
             prev_btn = make_button(label=emojis.BACK, style=discord.ButtonStyle.secondary, disabled=(self.page == 0))
             async def prev_cb(it):
                 self.page -= 1
@@ -179,7 +183,9 @@ class EventHistoryView(ui.LayoutView):
                 await it.response.edit_message(view=self)
             next_btn.callback = next_cb
             
-            self.add_item(ui.ActionRow(prev_btn, next_btn))
+            container_items.append(ui.ActionRow(prev_btn, next_btn))
+
+        self.add_item(ui.Container(*container_items, accent_color=0x99AAB5))
 
 class EventCommands(commands.Cog):
     """Cog for general event management commands."""

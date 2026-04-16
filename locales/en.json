@@ -314,6 +314,7 @@
   "ERR_DRAFT_NOT_FOUND": "<:xfilledcircledualredwhite:1493920874011820114> Draft not found.",
   "_section_my_events": "── My Events / Personal Calendar ──────────────",
   "LBL_MY_EVENTS_TITLE": "📅 My Personal Calendar",
+  "LBL_HISTORY_TITLE": "📋 Event History",
   "MSG_NO_MY_EVENTS": "<:infofilledcircledualbluewhite:1493932987966816296> You don't have any events you are organizing or attending yet.",
   "LBL_ORGANIZER": "Organizer",
   "BTN_GO_TO_EVENT": "Go to Event",

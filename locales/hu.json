@@ -315,6 +315,7 @@
   "ERR_DRAFT_NOT_FOUND": "<:xfilledcircledualredwhite:1493920874011820114> Piszkozat nem található.",
   "_section_my_events": "── Személyes Naptár ───────────────────────────",
   "LBL_MY_EVENTS_TITLE": "📅 Személyes Naptáram",
+  "LBL_HISTORY_TITLE": "📋 Eseménytörténet",
   "MSG_NO_MY_EVENTS": "<:infofilledcircledualbluewhite:1493932987966816296> Még nincs olyan eseményed, amit te szerveznél vagy amire jelentkeztél volna.",
   "LBL_ORGANIZER": "Szervező",
   "BTN_GO_TO_EVENT": "Ugrás az eseményhez",
