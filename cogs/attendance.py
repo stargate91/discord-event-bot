@@ -75,7 +75,7 @@ class AttendanceView(ui.LayoutView):
             
             # Create Toggle Button as Accessory
             label = t("LBL_ATT_NOSHOW", guild_id=self.guild_id) if is_noshow else t("LBL_ATT_PRESENT", guild_id=self.guild_id)
-            style = discord.ButtonStyle.danger if is_noshow else discord.ButtonStyle.success
+            style = discord.ButtonStyle.secondary
             
             toggle_btn = make_button(
                 label=label, 
