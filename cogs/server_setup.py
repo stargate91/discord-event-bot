@@ -169,9 +169,10 @@ class GeneralSetupView(ui.LayoutView):
 
         # 3. Final Assembly
         main_container = ui.Container(
-            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
             ui.ActionRow(roles_btn, channels_btn, back_btn),
             ui.Separator(),
+            ui.TextDisplay(t('LBL_SET_BOT_LANG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(lang_sel),
             ui.ActionRow(tpl_sel),
             accent_color=0x40C4FF
@@ -282,11 +283,11 @@ class ReminderSetupView(ui.LayoutView):
         status_sel.callback = status_sel_cb
 
         main_container = ui.Container(
-            ui.TextDisplay(f"### {t('TITLE_SETUP_REMINDERS', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('TITLE_SETUP_REMINDERS', guild_id=self.guild_id)}\n{t('SETUP_REMINDERS_DESC', guild_id=self.guild_id)}"),
+            ui.ActionRow(offset_btn, back_btn),
             ui.Separator(),
-            ui.ActionRow(offset_btn),
+            ui.TextDisplay(t('LBL_SET_STATUS_NOTIFY_DESC', guild_id=self.guild_id)),
             ui.ActionRow(status_sel),
-            ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
         self.add_item(main_container)
@@ -439,8 +440,9 @@ class EventDefaultsView(ui.LayoutView):
         promo_sel.callback = promo_cb
 
         # 4. Final Assembly
+        event_desc = f"{t('LBL_SET_REPOST_TRIG_DESC', guild_id=self.guild_id)}\n{t('LBL_SET_PROMO_NOTIFY_DESC', guild_id=self.guild_id)}"
         main_container = ui.Container(
-            ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
+            ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}\n{event_desc}"),
             ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn, temp_role_btn),
             ui.ActionRow(archive_btn, back_btn),
             ui.ActionRow(trig_sel),
