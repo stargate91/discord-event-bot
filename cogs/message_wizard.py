@@ -67,7 +67,7 @@ class MessageWizardView(ui.LayoutView):
         row_select = ui.ActionRow(key_select)
 
         # 2. Buttons
-        edit_btn = make_button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.primary)
+        edit_btn = make_button(label=t("BTN_EDIT", guild_id=self.guild_id), style=discord.ButtonStyle.secondary)
         async def edit_cb(it: discord.Interaction):
             try:
                 if not await is_admin(it):
