@@ -151,6 +151,8 @@
   "LBL_RSVP_ALLOWED_ROLES": "Allowed Role IDs (comma separated)",
   "PH_RSVP_ALLOWED_ROLES": "e.g. 123456789012345678, 987654321098765432",
   "WARN_ROLE_LIMIT_MISMATCH": "<:statusalert:1493861884443152395> **Warning:** Role sum ({role_sum}) mismatch with global max ({global_max}).",
+  "WARN_ROLE_LIMIT_UNDER": "⚠️ The event will fill up at **{role_sum}** participants because the roles themselves are limited.",
+  "WARN_ROLE_LIMIT_OVER": "⚠️ Some role buttons may unexpectedly disable when **{global_max}** participants are reached.",
   "LBL_WIZ_TEMP_ROLE": "Temporary Role",
   "LBL_WIZ_THREADS": "Event Thread",
   "LBL_THREADS_ON": "ON",

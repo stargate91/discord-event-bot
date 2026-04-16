@@ -570,13 +570,13 @@ class DynamicEventView(discord.ui.LayoutView):
         # Build container
         status_for_color = status_cfg
         if status_for_color == "cancelled":
-            accent_hex = "0xe74c3c" # Red
+            accent_hex = "0xE03B42" # Red
         elif status_for_color == "postponed":
-            accent_hex = "0xf1c40f" # Yellow
+            accent_hex = "0xFEE75C" # Yellow
         elif status_for_color in ["deleted", "closed"]:
             accent_hex = "0x95a5a6" # Gray
         elif status_for_color == "rescheduled":
-            accent_hex = "0x2ecc71" # Green
+            accent_hex = "0x1FAD5E" # Green
         elif status_for_color == "lobby_expired":
             accent_hex = "0x95a5a6"
         else:

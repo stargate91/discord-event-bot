@@ -1419,9 +1419,9 @@ class EventWizardView(ui.LayoutView):
             if global_max > 0 and role_sum > 0 and global_max != role_sum:
                 warning = t("WARN_ROLE_LIMIT_MISMATCH", guild_id=self.guild_id, role_sum=role_sum, global_max=global_max, default=f"\n\n**Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**).")
                 if role_sum < global_max:
-                    warning += f"\nAz esemény már **{role_sum}** főnél meg fog telni, mert a szerepkörök betelnek."
+                    warning += "\n" + t("WARN_ROLE_LIMIT_UNDER", guild_id=self.guild_id, role_sum=role_sum)
                 else:
-                    warning += f"\nNéhány szerepkör gombja váratlanul kikapcsolhat **{global_max}** főnél."
+                    warning += "\n" + t("WARN_ROLE_LIMIT_OVER", guild_id=self.guild_id, global_max=global_max)
 
             preview_text = t("MSG_SAVED_PREVIEW", guild_id=self.guild_id) + warning
             if preview_text:

@@ -1,5 +1,5 @@
 import discord
-from utils.emojis import SHIELD
+from utils.emojis import SHIELD, PREVIEW, IDEA, INDICATOR
 from discord import ui
 from utils.emoji_utils import make_button, make_select_option
 import database
@@ -34,8 +34,8 @@ class MessageWizardView(ui.LayoutView):
                                  .replace("{emoji}", SHIELD)\
                                  .replace("{status}", "AKTÍV")
             
-            desc += f"\n\n**🔍 {t('LBL_PREVIEW', guild_id=self.guild_id)} ({friendly_name}):**\n> {preview}"
-            desc += f"\n\n**💡 {t('LBL_VARIABLES', guild_id=self.guild_id)}:**\n`{{title}}`, `{{user_id}}`, `{{role}}`, `{{emoji}}`, `{{status}}`"
+            desc += f"\n\n**{PREVIEW} {t('LBL_PREVIEW', guild_id=self.guild_id)} ({friendly_name}):**\n> {preview}"
+            desc += f"\n\n**{IDEA} {t('LBL_VARIABLES', guild_id=self.guild_id)}:**\n`{{title}}`, `{{user_id}}`, `{{role}}`, `{{emoji}}`, `{{status}}`"
 
         # 1. Key Select Dropdown
         keys = CATEGORIES.get(self.selected_category, [])
@@ -46,7 +46,7 @@ class MessageWizardView(ui.LayoutView):
             
             current_val = t(k, guild_id=self.guild_id)
             is_overridden = (current_val != t(k))
-            label = f"{'🔹 ' if is_overridden else ''}{friendly_name}"
+            label = f"{f'{INDICATOR} ' if is_overridden else ''}{friendly_name}"
             options.append(make_select_option(
                 label=label[:100], 
                 value=k, 

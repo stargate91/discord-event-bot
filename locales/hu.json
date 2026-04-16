@@ -151,6 +151,8 @@
   "LBL_RSVP_ALLOWED_ROLES": "Engedélyezett rang ID-k (vesszővel)",
   "PH_RSVP_ALLOWED_ROLES": "pl: 123456789012345678, 987654321098765432",
   "WARN_ROLE_LIMIT_MISMATCH": "<:statusalert:1493861884443152395> **Figyelem:** A szerepkörök összege (**{role_sum}**) nem egyezik a globális limittel (**{global_max}**).",
+  "WARN_ROLE_LIMIT_UNDER": "⚠️ Az esemény már **{role_sum}** főnél meg fog telni, mert a szerepkörök betelnek.",
+  "WARN_ROLE_LIMIT_OVER": "⚠️ Néhány szerepkör gombja váratlanul kikapcsolhat **{global_max}** főnél.",
   "LBL_WIZ_TEMP_ROLE": "Ideiglenes rang",
   "LBL_WIZ_THREADS": "Fórum szál",
   "LBL_THREADS_ON": "BE",
