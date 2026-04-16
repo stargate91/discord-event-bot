@@ -755,10 +755,9 @@ class EventWizardView(ui.LayoutView):
         sel_icon.callback = icon_cb
 
         # Single Event specific Advanced Toggles
-        arrow_adv = DROPDOWN_OPEN if view.show_advanced else DROPDOWN_CLOSED
+        arrow_adv = " \u25BC" if view.show_advanced else " \u25C0"
         adv_btn = make_button(
-            label=f"{t('BTN_ADVANCED', guild_id=self.guild_id)} {arrow_adv}",
-            emoji=to_emoji("<:expertfilled:1494305947659538583>"),
+            label=f"{t('BTN_ADVANCED', guild_id=self.guild_id)}{arrow_adv}",
             style=discord.ButtonStyle.secondary
         )
         async def adv_cb(it):
@@ -773,9 +772,9 @@ class EventWizardView(ui.LayoutView):
         # Recurrence Toggle (Series only)
         rec_toggle_btn = None
         if view.wizard_type == "series":
-            arrow_rec = DROPDOWN_OPEN if view.show_recurrence else DROPDOWN_CLOSED
+            arrow_rec = " \u25BC" if view.show_recurrence else " \u25C0"
             rec_toggle_btn = make_button(
-                label=f"{t('BTN_RECURRENCE_TOGGLE', guild_id=self.guild_id)} {arrow_rec}",
+                label=f"{t('BTN_RECURRENCE_TOGGLE', guild_id=self.guild_id)}{arrow_rec}",
                 style=discord.ButtonStyle.secondary
             )
             async def rec_toggle_cb(it):
@@ -789,9 +788,9 @@ class EventWizardView(ui.LayoutView):
 
         # Reminder Toggle
         rem_em, rem_lb = split_emoji(t("BTN_REMINDER_TOGGLE", guild_id=self.guild_id))
-        arrow_rem = DROPDOWN_OPEN if view.show_reminder else DROPDOWN_CLOSED
+        arrow_rem = " \u25BC" if view.show_reminder else " \u25C0"
         rem_toggle_btn = make_button(
-            label=f"{rem_lb} {arrow_rem}",
+            label=f"{rem_lb}{arrow_rem}",
             emoji=rem_em,
             style=discord.ButtonStyle.secondary
         )

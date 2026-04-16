@@ -133,7 +133,7 @@
   "BTN_RECURRENCE_TOGGLE": "<:arrowsclockwiseoutlined:1494217806282096811> Recurrences",
   "BTN_STEP_3_SERIES": "<:3filledsquare:1494289888202199131> Extras",
   "BTN_STEP_4_SERIES": "<:4filledsquare:1494289889645302002> Recurrence",
-  "BTN_ADVANCED": "Advanced <:gearfilled:1494223115084107896>",
+  "BTN_ADVANCED": "<:expertfilled:1494305947659538583> Advanced",
   "_section_wizard_basic": "── Event Wizard ► Step 1 (Basic Info) ─────────",
   "TITLE_BASIC_INFO": "Basic Event Details",
   "LBL_WIZ_TITLE": "Event Name / Title",
