@@ -177,6 +177,7 @@ class GeneralSetupView(ui.LayoutView):
             ui.Separator(),
             ui.TextDisplay(t('LBL_SET_TEMPLATE_LANG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(tpl_sel),
+            ui.Separator(),
             ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
@@ -288,9 +289,12 @@ class ReminderSetupView(ui.LayoutView):
         main_container = ui.Container(
             ui.TextDisplay(f"### {t('TITLE_SETUP_REMINDERS', guild_id=self.guild_id)}"),
             ui.Separator(),
+            ui.ActionRow(offset_btn),
+            ui.Separator(),
             ui.TextDisplay(t('LBL_SET_STATUS_NOTIFY_DESC', guild_id=self.guild_id)),
             ui.ActionRow(status_sel),
-            ui.ActionRow(offset_btn, back_btn),
+            ui.Separator(),
+            ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
         self.add_item(main_container)
@@ -445,14 +449,16 @@ class EventDefaultsView(ui.LayoutView):
         # 4. Final Assembly
         main_container = ui.Container(
             ui.TextDisplay(f"### {t('TITLE_EVENT_DEFAULTS', guild_id=self.guild_id)}"),
-            ui.ActionRow(channel_btn, max_acc_btn, wait_btn, repost_btn),
-            ui.ActionRow(archive_btn, temp_role_btn, back_btn),
+            ui.ActionRow(channel_btn, max_acc_btn, wait_btn),
+            ui.ActionRow(repost_btn, temp_role_btn, archive_btn),
             ui.Separator(),
             ui.TextDisplay(t('LBL_SET_REPOST_TRIG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(trig_sel),
             ui.Separator(),
             ui.TextDisplay(t('LBL_SET_PROMO_NOTIFY_DESC', guild_id=self.guild_id)),
             ui.ActionRow(promo_sel),
+            ui.Separator(),
+            ui.ActionRow(back_btn),
             accent_color=0x40C4FF
         )
         self.add_item(main_container)
