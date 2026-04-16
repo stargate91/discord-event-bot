@@ -91,7 +91,7 @@
   "LBL_SET_CHANNEL": "Event Channel (Name or ID)",
   "LBL_SET_MAX_ACC": "Max Participants (0 = infinite)",
   "LBL_SET_ARCHIVE_TIME": "Archive time (hours)",
-  "LBL_AUTO_ARCHIVE": "Auto-archive",
+  "LBL_AUTO_ARCHIVE": "<:clockfilled:1494247393103974522> Auto-archive: {val}",
   "LBL_WAITLIST_ON": "Enabled",
   "LBL_WAITLIST_OFF": "Disabled",
   "LBL_TEMP_ROLE_ON": "ON",

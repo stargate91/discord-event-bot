@@ -410,7 +410,7 @@ class EventDefaultsView(ui.LayoutView):
 
         # 3. Archive & Promotion Selection
         archive_val = await database.get_guild_setting(self.guild_id, "auto_archive_hours", default="12")
-        archive_btn = make_button(label=f"{t('LBL_AUTO_ARCHIVE', guild_id=self.guild_id)}: {archive_val}h", emoji=to_emoji("⏱️"), style=discord.ButtonStyle.gray)
+        archive_btn = make_button(label=t("LBL_AUTO_ARCHIVE", guild_id=self.guild_id, val=f"{archive_val}h"), style=discord.ButtonStyle.gray)
         async def archive_cb(it):
             modal = SimpleConfigModal(
                 self.guild_id,

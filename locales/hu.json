@@ -91,7 +91,7 @@
   "LBL_SET_CHANNEL": "Esemény csatorna (Név vagy ID)",
   "LBL_SET_MAX_ACC": "Limit (0 = végtelen)",
   "LBL_SET_ARCHIVE_TIME": "Archiválási idő (óra)",
-  "LBL_AUTO_ARCHIVE": "Auto-archiválás",
+  "LBL_AUTO_ARCHIVE": "<:clockfilled:1494247393103974522> Auto-archiválás: {val}",
   "LBL_WAITLIST_ON": "Bekapcsolva",
   "LBL_WAITLIST_OFF": "Kikapcsolva",
   "LBL_TEMP_ROLE_ON": "BE",
