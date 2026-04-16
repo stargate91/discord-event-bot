@@ -100,7 +100,7 @@ class MyEventsView(ui.LayoutView):
             
             container_items.append(ui.ActionRow(prev_btn, next_btn))
 
-        self.add_item(ui.Container(*container_items, accent_color=0x5865F2))
+        self.add_item(ui.Container(*container_items, accent_color=0x40C4FF))
 
 class EventHistoryView(ui.LayoutView):
     def __init__(self, bot, guild_id, user_id, events):
@@ -185,7 +185,7 @@ class EventHistoryView(ui.LayoutView):
             
             container_items.append(ui.ActionRow(prev_btn, next_btn))
 
-        self.add_item(ui.Container(*container_items, accent_color=0x99AAB5))
+        self.add_item(ui.Container(*container_items, accent_color=0x40C4FF))
 
 class EventCommands(commands.Cog):
     """Cog for general event management commands."""
