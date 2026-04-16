@@ -1,5 +1,5 @@
 import discord
-from utils.emojis import WARNING, PING, SYNC
+from utils.emojis import WARNING, PING, SYNC, COUNTDOWN
 from utils.emoji_utils import to_emoji, resolve_placeholders, make_button, make_select_option
 from discord.ext import commands
 import database
@@ -423,7 +423,7 @@ class DynamicEventView(discord.ui.LayoutView):
                         time_str += f"\n**{end_label}:** <t:{end_ts}:F>"
                 
                 time_str += f"\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
-                meta_parts.append(f"(<t:{start_ts}:R>)")
+                meta_parts.append(f"{COUNTDOWN} <t:{start_ts}:R>")
             else:
                 time_str = t("EMBED_LOBBY_EXPIRED_BODY", guild_id=guild_id)
         else:
@@ -446,7 +446,7 @@ class DynamicEventView(discord.ui.LayoutView):
                     time_str += f"\n**{end_label}:** <t:{end_ts}:F>"
 
             # Add countdown to meta
-            meta_parts.append(f"(<t:{start_ts}:R>)")
+            meta_parts.append(f"{COUNTDOWN} <t:{start_ts}:R>")
 
             recurrence = event_conf.get("recurrence_type", "none")
             if recurrence != "none":

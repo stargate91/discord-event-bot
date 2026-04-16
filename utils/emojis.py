@@ -23,6 +23,7 @@ CROWN = "👑"
 SPARKLES = "✨"
 GLOBE = "<:buttonglobe:1493863327321821205>"
 BELL = "<:titleping:1493846908907683870>"
+COUNTDOWN = "🕒"
 SHIELD = "<:exampleemojiwizard:1493863833973035068>"
 
 # --- Recurrence Icons ---
