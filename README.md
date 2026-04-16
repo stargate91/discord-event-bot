@@ -1,70 +1,51 @@
-# Nexus - Discord Event Bot
+# Nexus - Discord Event Management Bot
 
-Nexus is a professional-grade Discord event scheduling and management bot designed for gaming communities, e-sports organizers, and corporate servers. It features an interactive wizard-driven event creation process, robust recurring event logic, and deep integration with Discord roles.
+Nexus is a professional-grade Discord event scheduling and management bot designed for gaming communities, e-sports organizations, and corporate servers. It provides a robust, interactive experience for creating, managing, and auditing events with deep Discord role integration.
 
-## Features
+## Key Features
 
-- **Interactive Event Wizard**: Create complex events step-by-step using modern Discord Components V2.
-- **Lobby Mode**: Enable dynamic queuing for events without fixed start times. Automatically manages waitlists and fill notifications.
-- **Recurring Events**: Support for Daily, Weekly, Monthly, and custom weekday recurrences with automatic series management.
-- **Attendance Manager**: Premium administrative interface to track who actually showed up at the event.
-- **Reliability Audits**: Track member reliability with automated no-show statistics and server-wide leaderboards.
-- **Dynamic RSVP System**: Professional interaction-based layouts for accepting, declining, or marking tentative status.
-- **Advanced Slot Management**: Role-specific limits (e.g., Tank, Heal, DPS) and intelligent waiting list handling.
-- **Smart Notifications**: Multi-stage reminders via Pings or DMs and automatic temporary role assignment.
-- **Full Localization**: Complete support for Hungarian (HU) and English (EN) languages.
-- **Master Console**: Centralized visual interface for all guild-wide settings and defaults.
+### Advanced Event Lifecycle
+- Interactive Creation Wizard: A step-by-step guided process for creating single, lobby-based, or recurring series events using modern Discord UI components.
+- Lobby Mode: Dynamic queuing system for events without fixed start times, featuring automatic waitlist management and fill notifications.
+- Recurring Logic: Automated management for daily, weekly, and monthly event series, including custom weekday patterns.
 
-## Technology Stack
+### Participant Management
+- Role-Based RSVP: Support for multi-role signups (e.g., Tank, Heal, DPS) with individual slot limits and overflow handling.
+- Intelligent Waitlists: Automatically moves users from waitlists to active slots when space becomes available.
+- Attendance Tracking: Dedicated administrative interface for marking presence and managing no-shows following event completion.
 
-- **Language**: Python 3.10+
-- **Library**: discord.py (v2.5+ with Components V2 support)
-- **Database**: PostgreSQL (via asyncpg for high performance)
-- **Time Handling**: Centralized timezone management with python-dateutil.
-- **UI Architecture**: Custom LayoutView system optimized for Discord's latest UI protocol.
+### Administration and Analytics
+- Reliability Audits: Comprehensive tracking of member reliability with automated statistic generation and audit logs.
+- Message Customization: A dedicated Message Wizard for overriding default bot notifications with guild-specific templates and variables.
+- Server Console: A centralized hub for managing server-wide defaults, notification types, and permissions.
+- Icon Set Management: System to create and manage custom icon and button sets for a premium server-specific feel.
 
-## Getting Started
+### Data and Integration
+- Export Capabilities: Generate CSV files for Google Sheets import or ICS files for integration with Google Calendar, Outlook, and Apple Calendar.
+- Multi-Locale Support: Full localization for English and Hungarian languages.
+- V2 UI Architecture: Utilizes a consolidated container system with clear visual separators for enhanced readability.
 
-### 1. Requirements
-- Python 3.10 or higher
-- PostgreSQL 13+
-- Discord Bot Token with Message Content and Member Intents
+## Technical Overview
 
-### 2. Installation
-```powershell
-# Clone the repository
-git clone https://github.com/your-repo/nexus-bot.git
-cd nexus-bot
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### 3. Configuration
-Create a `.env` file in the root directory:
-```env
-BOT_TOKEN=your_discord_token_here
-DATABASE_URL=postgres://user:password@localhost:5432/nexus_db
-```
-
-### 4. Running the Bot
-```powershell
-python main.py
-```
+- Core: Python 3.10+ utilizing the discord.py library.
+- Database: High-performance PostgreSQL backend with asynchronous connection pooling.
+- Design: Component-based architecture focused on visual hierarchy and user experience.
+- Localization: Dynamic i18n system with per-guild overrides.
 
 ## Commands
 
-### General User Commands
-- /event create: Start the interactive creation wizard.
-- /event list: Show all active events in the server.
-- /event search: Find specific events by ID or title.
+### User Commands
+- /event create: Initialize the interactive event creation wizard.
+- /event list: Display all active and upcoming events.
+- /event search: Search for specific events by identifier or title.
+- /event my-events: View a personalized list of organized and joined events.
 
 ### Administrative Commands
-- /attendance manage: Track presence and no-shows for recent events.
-- /admin check: Performance reliability audits for specific events or all-time stats.
-- /event edit: Visually modify active events or series.
-- /server setup: Access the server configuration hub.
-- /emoji setup: Create and manage custom button and icon sets.
+- /server setup: Access the global configuration dashboard.
+- /attendance manage: Audit participant presence for recent events.
+- /admin check: Perform reliability audits on specific members or event series.
+- /emoji setup: Configure server-wide icon and button themes.
+- /message wizard: Customize automated bot notifications and templates.
 
 ---
-*Created by Nexus Team*
+Created by Nexus Team
