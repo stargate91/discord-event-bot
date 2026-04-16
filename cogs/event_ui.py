@@ -384,9 +384,18 @@ class DynamicEventView(discord.ui.LayoutView):
             container_items.append(discord.ui.TextDisplay(desc))
 
         # --- TIME ---
-        start_ts_db = event_conf.get("start_time")
+        start_ts_raw = event_conf.get("start_time") or (
+            db_event["start_time"] if db_event and db_event.get("start_time") else None
+        )
+        end_ts_raw = event_conf.get("end_time") or (
+            db_event["end_time"] if db_event and db_event.get("end_time") else None
+        )
+        
+        time_str = ""
+        meta_parts = []
+        
         if lobby_mode:
-            if start_ts_db is None and status_cfg == "active":
+            if start_ts_raw is None and status_cfg == "active":
                 cap_disp = int(lobby_cap) if lobby_cap else "?"
                 time_str = t("EMBED_LOBBY_FILL", guild_id=guild_id, cap=cap_disp)
                 exp = event_conf.get("lobby_expires_at")
@@ -396,53 +405,57 @@ class DynamicEventView(discord.ui.LayoutView):
                         guild_id=guild_id,
                         ts=int(float(exp)),
                     )
-            elif start_ts_db is not None:
-                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F>\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
-                countdown_str = f"\n(<t:{int(start_ts_db)}:R>)"
-                end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
-                if end_ts:
+            elif start_ts_raw is not None:
+                start_ts = int(float(start_ts_raw))
+                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{start_ts}:F>"
+                
+                if end_ts_raw and int(float(end_ts_raw)) != start_ts:
+                    end_ts = int(float(end_ts_raw))
                     import datetime
-
-                    s_date = datetime.datetime.fromtimestamp(float(start_ts_db)).date()
-                    e_date = datetime.datetime.fromtimestamp(float(end_ts)).date()
+                    s_date = datetime.datetime.fromtimestamp(start_ts).date()
+                    e_date = datetime.datetime.fromtimestamp(end_ts).date()
                     if s_date == e_date:
-                        time_str += f" - <t:{int(end_ts)}:t>"
+                        time_str += f" - <t:{end_ts}:t>"
                     else:
                         end_label = t("EMBED_END_TIME", guild_id=guild_id)
                         if end_label == "EMBED_END_TIME":
                             end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
-                        time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+                        time_str += f"\n**{end_label}:** <t:{end_ts}:F>"
                 
-                time_str += countdown_str
+                time_str += f"\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
+                meta_parts.append(f"(<t:{start_ts}:R>)")
             else:
                 time_str = t("EMBED_LOBBY_EXPIRED_BODY", guild_id=guild_id)
         else:
-            start_ts = event_conf.get("start_time") or (
-                db_event["start_time"] if db_event and db_event.get("start_time") else time.time()
-            )
-            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+            # Regular Event
+            start_ts = int(float(start_ts_raw or time.time()))
+            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{start_ts}:F>"
             
-            end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
-            if end_ts:
+            if end_ts_raw and int(float(end_ts_raw)) != start_ts:
+                end_ts = int(float(end_ts_raw))
                 import datetime
-                s_date = datetime.datetime.fromtimestamp(float(start_ts)).date()
-                e_date = datetime.datetime.fromtimestamp(float(end_ts)).date()
+                s_date = datetime.datetime.fromtimestamp(start_ts).date()
+                e_date = datetime.datetime.fromtimestamp(end_ts).date()
 
                 if s_date == e_date:
-                    time_str += f" - <t:{int(end_ts)}:t>"
+                    time_str += f" - <t:{end_ts}:t>"
                 else:
                     end_label = t("EMBED_END_TIME", guild_id=guild_id)
                     if end_label == "EMBED_END_TIME":
                         end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
-                    time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+                    time_str += f"\n**{end_label}:** <t:{end_ts}:F>"
 
-            # Add countdown on its own line
-            time_str += f"\n(<t:{int(start_ts)}:R>)"
+            # Add countdown to meta
+            meta_parts.append(f"(<t:{start_ts}:R>)")
 
             recurrence = event_conf.get("recurrence_type", "none")
             if recurrence != "none":
                 rec_text = t(f"SEL_REC_{recurrence.upper()}", guild_id=guild_id) or recurrence.capitalize()
-                time_str += f"\n**{t('EMBED_RECURRENCE', guild_id=guild_id)}:** {rec_text}"
+                meta_parts.append(f"{t('EMBED_RECURRENCE', guild_id=guild_id)}: {rec_text}")
+
+        if meta_parts:
+            time_str += f"\n-# {' • '.join(meta_parts)}"
+
         container_items.append(discord.ui.TextDisplay(time_str))
 
         # --- ROLE LISTS ---
