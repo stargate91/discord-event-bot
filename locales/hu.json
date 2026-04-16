@@ -172,6 +172,7 @@
   "LBL_ROLE_LIMITS_FORMAT": "Ikon ID: Limit (pl. ✅ 1234: 5)",
   "LBL_WAITLIST_LIMIT": "Várólista maximális mérete",
   "ERR_WAITLIST_NO_CAP": "<:warningfilledcircle:1494217458087624767> A várólistához először be kell állítanod egy kapacitáskorlátot (globálisan vagy szerepkör szintjén).",
+  "ERR_WAITLIST_DISABLED_PROMO": "<:warningfilledcircle:1494217458087624767> Az értesítési mód csak akkor állítható, ha a várólista (Waitlist) be van kapcsolva.",
   "_section_wizard_advanced": "── Esemény Varázsló ► Haladó Beállítások ───────",
   "TITLE_ADVANCED_SETTINGS": "Haladó esemény beállítások",
   "LBL_ADV_CAT_PARTICIPATION": "<:accuracyfilled:1494240653515690024> Részvétel & Kapacitás",

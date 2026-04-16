@@ -899,6 +899,11 @@ class EventWizardView(ui.LayoutView):
         ]
         promo_type_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_type_opts)
         async def promo_type_cb(it):
+            if not view.data.get("use_waiting_list", False):
+                return await it.response.send_message(
+                    t("ERR_WAITLIST_DISABLED_PROMO", guild_id=self.guild_id),
+                    ephemeral=True
+                )
             await it.response.defer()
             view.data["notify_promotion"] = promo_type_sel.values[0]
             await view.save_to_draft()

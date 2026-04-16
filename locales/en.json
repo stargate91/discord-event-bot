@@ -172,6 +172,7 @@
   "LBL_ROLE_LIMITS_FORMAT": "Icon ID: Limit (e.g. ✅ 1234: 5)",
   "LBL_WAITLIST_LIMIT": "Maximum Waiting List Size",
   "ERR_WAITLIST_NO_CAP": "<:warningfilledcircle:1494217458087624767> You must set a capacity limit (globally or per-role) before enabling the waiting list.",
+  "ERR_WAITLIST_DISABLED_PROMO": "<:warningfilledcircle:1494217458087624767> Promotion notification mode can only be configured if the waiting list (Waitlist) is enabled.",
   "_section_wizard_advanced": "── Event Wizard ► Advanced Settings ───────────",
   "TITLE_ADVANCED_SETTINGS": "Advanced Event Settings",
   "LBL_ADV_CAT_PARTICIPATION": "<:accuracyfilled:1494240653515690024> Participation & Capacity",
