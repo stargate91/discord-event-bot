@@ -148,9 +148,7 @@ class EmojiWizardView(ui.LayoutView):
             s_data = s["data"]
             sdata = json.loads(s_data) if isinstance(s_data, str) else s_data
             opts = sdata.get("options", [])
-            preview_emojis = [to_emoji(o.get("emoji")) or "?" for o in opts[:3]]
-            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
-            label = (s["name"][:50] + preview_str)[:100]
+            label = s["name"][:100]
             
             options.append(make_select_option(
                 label=label, 
@@ -276,11 +274,7 @@ class TemplateChoiceView(ui.LayoutView):
         # Localize options
         options = []
         for k, v in ICON_SET_TEMPLATES.items():
-            opts, _ = parse_emoji_config(v["text"])
-            preview_emojis = [o["emoji"] for o in opts[:3]]
-            preview_str = f" ( {' / '.join(preview_emojis)} )" if preview_emojis else ""
-            # Resolve placeholders in the final label
-            label = resolve_placeholders(t(v["label_key"], guild_id=self.wizard_view.guild_id) + preview_str)
+            label = resolve_placeholders(t(v["label_key"], guild_id=self.wizard_view.guild_id))
             options.append(make_select_option(label=label[:100], value=k, emoji=to_emoji(v["emoji"]) or None))
         
         options.append(make_select_option(label=t("LBL_EMPTY_SET", guild_id=self.wizard_view.guild_id), value="empty"))
