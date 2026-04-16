@@ -117,21 +117,17 @@ class GeneralSetupView(ui.LayoutView):
         self.clear_items()
         
         # 1. Get current language from DB
+        # 1. Language Select
         cur_lang = await database.get_guild_setting(self.guild_id, "language", default="en")
-
-        lang_hu = make_button(
-            label=t("LBL_LANG_HU", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_lang == "hu" else discord.ButtonStyle.secondary
-        )
-        async def hu_cb(it): await self._set_lang(it, "hu")
-        lang_hu.callback = hu_cb
-
-        lang_en = make_button(
-            label=t("LBL_LANG_EN", guild_id=self.guild_id), 
-            style=discord.ButtonStyle.success if cur_lang == "en" else discord.ButtonStyle.secondary
-        )
-        async def en_cb(it): await self._set_lang(it, "en")
-        lang_en.callback = en_cb
+        lang_opts = [
+            make_select_option(label=t("LBL_LANG_HU", guild_id=self.guild_id), value="hu", default=(cur_lang=="hu")),
+            make_select_option(label=t("LBL_LANG_EN", guild_id=self.guild_id), value="en", default=(cur_lang=="en")),
+        ]
+        lang_sel = ui.Select(placeholder=t("SEL_BOT_LANG", guild_id=self.guild_id), options=lang_opts)
+        async def lang_cb(it):
+            val = lang_sel.values[0]
+            await self._set_lang(it, val)
+        lang_sel.callback = lang_cb
 
         roles_btn = make_button(label=t("BTN_ADMIN_ROLES", guild_id=self.guild_id), style=discord.ButtonStyle.gray)
         async def roles_cb(it):
@@ -174,7 +170,10 @@ class GeneralSetupView(ui.LayoutView):
         # 3. Final Assembly
         main_container = ui.Container(
             ui.TextDisplay(f"### {t('SETUP_GENERAL_TITLE', guild_id=self.guild_id)}\n{t('SETUP_GENERAL_DESC', guild_id=self.guild_id)}"),
-            ui.ActionRow(lang_hu, lang_en, roles_btn, channels_btn),
+            ui.ActionRow(roles_btn, channels_btn),
+            ui.Separator(),
+            ui.TextDisplay(t('LBL_SET_BOT_LANG_DESC', guild_id=self.guild_id)),
+            ui.ActionRow(lang_sel),
             ui.Separator(),
             ui.TextDisplay(t('LBL_SET_TEMPLATE_LANG_DESC', guild_id=self.guild_id)),
             ui.ActionRow(tpl_sel),

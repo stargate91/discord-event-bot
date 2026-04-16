@@ -39,6 +39,8 @@
   "SETUP_GENERAL_DESC": "Kezeld a bot nyelvét, az admin rangokat és a korlátozott csatornákat.",
   "LBL_LANG_HU": "🇭🇺 Magyar",
   "LBL_LANG_EN": "🇺🇸 English",
+  "LBL_SET_BOT_LANG_DESC": "Válaszd ki a bot felületének és parancsainak elsődleges nyelvét.",
+  "SEL_BOT_LANG": "Bot nyelvének kiválasztása...",
   "SEL_LANG_DEFAULT": "Alapértelmezett (Szerver követése)",
   "LBL_TEMPLATE_LANG": "Emoji szettek nyelve",
   "LBL_SET_TEMPLATE_LANG_DESC": "Válaszd ki az előre összeállított ikon-készletek feliratainak nyelvét.",

@@ -39,6 +39,8 @@
   "SETUP_GENERAL_DESC": "Manage bot language, admin roles, and restricted channels.",
   "LBL_LANG_HU": "🇭🇺 Hungarian",
   "LBL_LANG_EN": "🇺🇸 English",
+  "LBL_SET_BOT_LANG_DESC": "Select the primary language for the bot's interface and commands.",
+  "SEL_BOT_LANG": "Select bot language...",
   "SEL_LANG_DEFAULT": "Default (Follow Server)",
   "LBL_TEMPLATE_LANG": "Emoji Sets Language",
   "LBL_SET_TEMPLATE_LANG_DESC": "Select which language should be used for the built-in emoji set labels.",
