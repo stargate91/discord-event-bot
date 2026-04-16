@@ -366,6 +366,15 @@ class EventDefaultsView(ui.LayoutView):
             style=discord.ButtonStyle.success if is_on else discord.ButtonStyle.secondary
         )
         async def wait_cb(it):
+            if not is_on:
+                # Guard: check max participants
+                max_participants = await database.get_guild_setting(self.guild_id, "default_max_participants", default="0")
+                if int(max_participants or 0) <= 0:
+                    return await it.response.send_message(
+                        t("ERR_WAITLIST_NO_CAP", guild_id=self.guild_id),
+                        ephemeral=True
+                    )
+
             new_val = "false" if is_on else "true"
             await database.save_guild_setting(self.guild_id, "default_use_waiting_list", new_val)
             await self.refresh_message(it)
@@ -434,6 +443,15 @@ class EventDefaultsView(ui.LayoutView):
         promo_sel = ui.Select(placeholder=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), options=promo_opts)
         async def promo_cb(it):
             val = promo_sel.values[0]
+            if val != "none":
+                # Guard: waitlist must be enabled
+                wait_val = await database.get_guild_setting(self.guild_id, "default_use_waiting_list", default="false")
+                if wait_val.lower() != "true":
+                    return await it.response.send_message(
+                        t("ERR_WAITLIST_DISABLED_PROMO", guild_id=self.guild_id),
+                        ephemeral=True
+                    )
+
             await database.save_guild_setting(self.guild_id, "default_notify_promotion", val)
             await self.refresh_message(it)
             await it.followup.send(t("MSG_SETTING_SAVED", guild_id=self.guild_id, key=t("LBL_PROMOTION_NOTIFY", guild_id=self.guild_id), val=val), ephemeral=True)

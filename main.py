@@ -139,6 +139,29 @@ class EventBot(commands.Bot):
         except Exception as e:
             log.error(f"Critical error during setup_hook: {e}", exc_info=True)
 
+        # 4. Global Command Error Handler
+        @self.tree.error
+        async def on_app_command_error(interaction: discord.Interaction, error: discord.app_commands.AppCommandError):
+            if isinstance(error, discord.app_commands.CheckFailure):
+                msg = t("ERR_ADMIN_ONLY", guild_id=interaction.guild_id)
+                if interaction.response.is_done():
+                    await interaction.followup.send(msg, ephemeral=True)
+                else:
+                    await interaction.response.send_message(msg, ephemeral=True)
+            else:
+                log.error(f"[Error Handler] Unhandled error: {error}", exc_info=True)
+                # Show a beautiful error card
+                clean_err = str(error.__cause__ or error)
+                msg = t("ERR_WIZARD_GENERAL", guild_id=interaction.guild_id, e=clean_err)
+                
+                try:
+                    if interaction.response.is_done():
+                        await interaction.followup.send(msg, ephemeral=True)
+                    else:
+                        await interaction.response.send_message(msg, ephemeral=True)
+                except:
+                    pass
+
         # Start dynamic presence task
         self.loop.create_task(self.status_task())
 
