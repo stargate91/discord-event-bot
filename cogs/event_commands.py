@@ -686,6 +686,16 @@ class EventCommands(commands.Cog):
         except Exception as e:
             await ctx.send(t("SYNC_FAILED", guild_id=ctx.guild.id).replace("{e}", str(e)))
 
+    @app_commands.command(name="help", description="Show a guide to all bot commands and features")
+    async def show_help(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        from utils.i18n import load_guild_translations
+        await load_guild_translations(interaction.guild_id)
+        
+        view = HelpView(self.bot, interaction.guild_id)
+        await view.build()
+        await interaction.followup.send(view=view, ephemeral=True)
+
 class ReliabilityAuditView(ui.LayoutView):
     def __init__(self, bot, guild, stats, title="Reliability Audit"):
         super().__init__(timeout=600)
@@ -814,26 +824,6 @@ class HelpView(ui.LayoutView):
 
         container = ui.Container(*container_items, accent_color=0x40C4FF)
         self.add_item(container)
-
-class EventCommands(commands.Cog):
-    """Cog for general event management commands."""
-    
-    event_group = app_commands.Group(name="event", description="Event management commands")
-    
-    # --- CLEANUP: Master Hub logic moved to MasterCommands Cog ---
-
-    def __init__(self, bot):
-        self.bot = bot
-
-    @app_commands.command(name="help", description="Show a guide to all bot commands and features")
-    async def show_help(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)
-        from utils.i18n import load_guild_translations
-        await load_guild_translations(interaction.guild_id)
-        
-        view = HelpView(self.bot, interaction.guild_id)
-        await view.build()
-        await interaction.followup.send(view=view, ephemeral=True)
 
 class AdminCommands(commands.GroupCog, name="admin"):
     """Cog for server administrators to manage server settings."""
