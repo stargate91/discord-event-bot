@@ -31,11 +31,11 @@ class MasterCommands(commands.GroupCog, name="master"):
 
 
             body_text = (
-                f"{t('MASTER_STATS_GUILDS', guild_id=None, val=live_guilds)}\n"
-                f"{t('MASTER_STATS_EVENTS', guild_id=None, val=db_stats['events'])}\n"
+                f"{t('MASTER_STATS_GUILDS', guild_id=None, val=live_guilds)}\n\n"
+                f"{t('MASTER_STATS_EVENTS', guild_id=None, val=db_stats['events'])}\n\n"
                 f"{t('MASTER_STATS_RSVPS', guild_id=None, val=db_stats['rsvps'])}\n\n"
-                f"{t('MASTER_STATS_VERSION', guild_id=None, val=bot_version)}\n"
-                f"{t('MASTER_STATS_PYTHON', guild_id=None, val=platform.python_version())}\n"
+                f"{t('MASTER_STATS_VERSION', guild_id=None, val=bot_version)}\n\n"
+                f"{t('MASTER_STATS_PYTHON', guild_id=None, val=platform.python_version())}\n\n"
                 f"{t('MASTER_STATS_LATENCY', guild_id=None, val=f'{round(self.bot.latency * 1000)}ms')}"
             )
 
