@@ -576,14 +576,14 @@ class EventWizardView(ui.LayoutView):
         self.chan_warning = ""
         if self.wizard_type == "lobby":
             s1 = bool(self.data.get("title"))
-        elif self.wizard_type == "single":
+        elif self.wizard_type == "single" or self.wizard_type == "series":
             s1 = bool(self.data.get("title") and self.data.get("start_str"))
         else:
             s1 = bool(self.data.get("title"))
         self.steps_completed = {
             "step1": s1,
-            "step2": bool(self.data.get("repost_offset") or self.data.get("recurrence_limit")) if self.wizard_type == "series" else True,
-            "step3": bool(self.data.get("timezone")) if self.wizard_type == "series" else True,
+            "step2": (bool(self.data.get("recurrence_type")) and self.data.get("recurrence_type") != "none") if self.wizard_type == "series" else True,
+            "step3": True, # Step 3 is optional for series and handled via step3_opened in get_status_text
         }
 
     async def refresh_message(self, interaction: discord.Interaction, send_followup: bool = False):
