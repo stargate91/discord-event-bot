@@ -1092,7 +1092,7 @@ class EventWizardView(ui.LayoutView):
                 container_items.append(ui.ActionRow(promo_type_sel))
             elif view.show_recurrence:
                 container_items.append(ui.Separator())
-                container_items.append(ui.TextDisplay(f"**{t('BTN_STEP_2_SERIES', guild_id=self.guild_id)}**"))
+                container_items.append(ui.TextDisplay(f"**{t('STATUS_STEP2_EMOJI', guild_id=self.guild_id)} {t('STATUS_STEP2_SERIES_LBL', guild_id=self.guild_id)}**"))
                 container_items.append(ui.TextDisplay(t("LBL_CHOOSE_REC_TYPE", guild_id=self.guild_id)))
                 container_items.append(ui.ActionRow(sel_rec))
                 container_items.append(ui.TextDisplay(t("LBL_CHOOSE_REPOST_TIME", guild_id=self.guild_id)))
