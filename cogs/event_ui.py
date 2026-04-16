@@ -397,7 +397,8 @@ class DynamicEventView(discord.ui.LayoutView):
                         ts=int(float(exp)),
                     )
             elif start_ts_db is not None:
-                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F> (<t:{int(start_ts_db)}:R>)\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
+                time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts_db)}:F>\n*{t('EMBED_LOBBY_STARTED', guild_id=guild_id)}*"
+                countdown_str = f"\n(<t:{int(start_ts_db)}:R>)"
                 end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
                 if end_ts:
                     import datetime
@@ -411,13 +412,16 @@ class DynamicEventView(discord.ui.LayoutView):
                         if end_label == "EMBED_END_TIME":
                             end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
                         time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+                
+                time_str += countdown_str
             else:
                 time_str = t("EMBED_LOBBY_EXPIRED_BODY", guild_id=guild_id)
         else:
             start_ts = event_conf.get("start_time") or (
                 db_event["start_time"] if db_event and db_event.get("start_time") else time.time()
             )
-            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F> (<t:{int(start_ts)}:R>)"
+            time_str = f"**{t('EMBED_START_TIME', guild_id=guild_id)}:** <t:{int(start_ts)}:F>"
+            
             end_ts = event_conf.get("end_time") or (db_event.get("end_time") if db_event else None)
             if end_ts:
                 import datetime
@@ -431,6 +435,9 @@ class DynamicEventView(discord.ui.LayoutView):
                     if end_label == "EMBED_END_TIME":
                         end_label = "End" if "Time" in t("EMBED_START_TIME", guild_id=guild_id) else "Vége"
                     time_str += f"\n**{end_label}:** <t:{int(end_ts)}:F>"
+
+            # Add countdown on its own line
+            time_str += f"\n(<t:{int(start_ts)}:R>)"
 
             recurrence = event_conf.get("recurrence_type", "none")
             if recurrence != "none":
