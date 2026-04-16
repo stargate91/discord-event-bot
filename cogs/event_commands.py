@@ -791,6 +791,12 @@ class HelpView(ui.LayoutView):
         close_btn = make_button(label=t("BTN_CLOSE", guild_id=gid), style=discord.ButtonStyle.secondary)
         close_btn.callback = close_cb
 
+        support_btn = make_button(
+            label=t("BTN_SUPPORT", guild_id=gid),
+            url="https://discord.gg/PbvX3S7pXR",
+            style=discord.ButtonStyle.link
+        )
+
         container_items = [
             ui.TextDisplay(f"### {t('HELP_TITLE', guild_id=gid)}"),
             ui.Separator(),
@@ -819,7 +825,7 @@ class HelpView(ui.LayoutView):
             
             ui.TextDisplay(t("HELP_PREMIUM_DISCLAIMER", guild_id=gid)),
             ui.Separator(),
-            ui.ActionRow(close_btn)
+            ui.ActionRow(close_btn, support_btn)
         ]
 
         container = ui.Container(*container_items, accent_color=0x40C4FF)
