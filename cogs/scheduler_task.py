@@ -202,31 +202,37 @@ class SchedulerTask(commands.Cog):
         if db_event.get("lobby_mode"):
             return
 
+        # Load event config (from config.json) but merge in DB values
+        # DB values should generally win for 'live' settings
         config_name = db_event["config_name"]
-        event_conf = get_event_conf(config_name)
-        if not event_conf:
-            return
-
-        if not event_conf.get("enabled", True):
-            await database.set_event_status(db_event["event_id"], "disabled")
-            return
-
-        rec_type = event_conf.get("recurrence_type", "once")
+        event_conf = get_event_conf(config_name) or {}
+        
+        # Ensure critical settings are present (fallback to DB columns)
+        active_conf = dict(event_conf)
+        active_conf.update(dict(db_event))
+        
+        # Special case: recurrence settings are in the DB columns
+        rec_type = active_conf.get("recurrence_type", "once")
         if rec_type == "once":
             return
 
-        start_ts = db_event["start_time"]
-        trigger = event_conf.get("repost_trigger", "after_start")
-        offset = parse_offset(event_conf.get("repost_offset", "1h"))
+        if not active_conf.get("enabled", True):
+            # Only disable if specifically set to false in config.json
+            # Otherwise, active_events table presence implies enablement
+            pass 
+
+        start_ts = active_conf["start_time"]
+        trigger = active_conf.get("repost_trigger", "after_start")
+        offset = parse_offset(active_conf.get("repost_offset", "1h"))
 
         # We calculate EXACTLY when we should make the next message
         if trigger == "before_start":
-            next_start = calc_next_start(start_ts, event_conf)
+            next_start = calc_next_start(start_ts, active_conf)
             if next_start is None:
                 return
             repost_at = next_start - offset.total_seconds()
         elif trigger == "after_end":
-            end_ts = db_event.get("end_time")
+            end_ts = active_conf.get("end_time")
             if end_ts:
                 repost_at = end_ts + offset.total_seconds()
             else:
@@ -240,12 +246,12 @@ class SchedulerTask(commands.Cog):
             return
 
         # --- Okay, it's time to repost! ---
-        old_event_id = db_event["event_id"]
-        next_start = calc_next_start(start_ts, event_conf)
+        old_event_id = active_conf["event_id"]
+        next_start = calc_next_start(start_ts, active_conf)
         if next_start is None:
             log.warning(
                 f"[Scheduler] calc_next_start returned None for recurring event {old_event_id}; disabling.",
-                guild_id=db_event.get("guild_id"),
+                guild_id=active_conf.get("guild_id"),
             )
             await database.set_event_status(old_event_id, "disabled")
             return
@@ -282,10 +288,10 @@ class SchedulerTask(commands.Cog):
 
         # Create the brand new event in the database
         new_event_id = str(uuid.uuid4())[:8]
-        channel_id = event_conf.get("channel_id") or db_event["channel_id"]
+        channel_id = active_conf.get("channel_id") or db_event["channel_id"]
 
-        event_conf["recurrence_count"] = rec_count + 1
-        event_conf["recurrence_limit"] = rec_limit
+        active_conf["recurrence_count"] = rec_count + 1
+        active_conf["recurrence_limit"] = rec_limit
 
         await database.create_active_event(
             guild_id=db_event.get("guild_id"),
@@ -293,7 +299,7 @@ class SchedulerTask(commands.Cog):
             config_name=config_name,
             channel_id=channel_id,
             start_time=next_start,
-            data=event_conf
+            data=active_conf
         )
 
         # Send the new message to the channel

@@ -467,11 +467,16 @@ async def create_active_event(guild_id, event_id, config_name, channel_id, start
     await replace_event_reminders(event_id, normalize_reminders_for_store(data))
     return event_id
 
-async def get_active_events(guild_id=None):
+async def get_active_events(guild_id=None, include_all=False):
     pool = await get_pool()
     if guild_id:
-        return await pool.fetch("SELECT * FROM active_events WHERE guild_id = $1", str(guild_id))
-    return await pool.fetch("SELECT * FROM active_events")
+        if include_all:
+            return await pool.fetch("SELECT * FROM active_events WHERE guild_id = $1", str(guild_id))
+        return await pool.fetch("SELECT * FROM active_events WHERE guild_id = $1 AND status IN ('active', 'rescheduled')", str(guild_id))
+    
+    if include_all:
+        return await pool.fetch("SELECT * FROM active_events")
+    return await pool.fetch("SELECT * FROM active_events WHERE status IN ('active', 'rescheduled')")
 
 async def get_all_active_events(guild_id=None):
     """Alias for get_active_events() used during bot startup and autocomplete."""

@@ -14,12 +14,82 @@ def calc_next_start(current_start_ts, event_conf):
         dt += datetime.timedelta(days=1)
     elif rec == "weekly":
         dt += datetime.timedelta(weeks=1)
+    elif rec == "biweekly":
+        dt += datetime.timedelta(weeks=2)
     elif rec == "weekdays":
         dt += datetime.timedelta(days=1)
         while dt.weekday() >= 5:
             dt += datetime.timedelta(days=1)
+    elif rec == "weekends":
+        # Fires on Sat and Sun
+        dt += datetime.timedelta(days=1)
+        while dt.weekday() < 5:
+            dt += datetime.timedelta(days=1)
     elif rec == "monthly":
         dt += relativedelta(months=1)
+    elif rec == "custom":
+        raw_cust = event_conf.get("custom_days") or ""
+        try:
+            # Format: "0,2,4" for Mon, Wed, Fri
+            days = sorted([int(x.strip()) for x in str(raw_cust).split(",") if x.strip().isdigit()])
+            if not days:
+                return None
+            
+            curr_wd = dt.weekday()
+            next_wd = None
+            for d in days:
+                if d > curr_wd:
+                    next_wd = d
+                    break
+            
+            if next_wd is not None:
+                diff = next_wd - curr_wd
+                dt += datetime.timedelta(days=diff)
+            else:
+                # Wrap to next week
+                diff = (7 - curr_wd) + days[0]
+                dt += datetime.timedelta(days=diff)
+        except Exception:
+            return None
+    elif rec == "relative":
+        raw_rel = event_conf.get("relative_combo") or ""
+        try:
+            # Format: "wk_first,day_monday"
+            parts = [p.strip() for p in str(raw_rel).split(",") if p.strip()]
+            wk = next((p for p in parts if p.startswith("wk_")), None)
+            day = next((p for p in parts if p.startswith("day_")), None)
+            
+            if not wk or not day:
+                return None
+                
+            day_map = {
+                "day_monday": 0, "day_tuesday": 1, "day_wednesday": 2,
+                "day_thursday": 3, "day_friday": 4, "day_saturday": 5, "day_sunday": 6
+            }
+            wd = day_map.get(day)
+            if wd is None: return None
+            
+            # Move to next month first
+            target_month = dt + relativedelta(months=1)
+            
+            from dateutil.relativedelta import MO, TU, WE, TH, FR, SA, SU
+            wd_obj_list = [MO, TU, WE, TH, FR, SA, SU]
+            wd_obj = wd_obj_list[wd]
+            
+            if wk == "wk_first":
+                dt = target_month + relativedelta(day=1, weekday=wd_obj(1))
+            elif wk == "wk_second":
+                dt = target_month + relativedelta(day=1, weekday=wd_obj(2))
+            elif wk == "wk_third":
+                dt = target_month + relativedelta(day=1, weekday=wd_obj(3))
+            elif wk == "wk_fourth":
+                dt = target_month + relativedelta(day=1, weekday=wd_obj(4))
+            elif wk == "wk_last":
+                dt = target_month + relativedelta(day=31, weekday=wd_obj(-1))
+            else:
+                return None
+        except Exception:
+            return None
     else:
         return None
     return dt.timestamp()
