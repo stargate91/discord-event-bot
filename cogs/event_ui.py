@@ -514,16 +514,18 @@ class DynamicEventView(discord.ui.LayoutView):
 
         # --- IMAGE ---
         image_url = None
-        if db_event and db_event.get("image_urls"):
-            image_url = str(db_event["image_urls"]).split(",")[0].strip()
-        elif event_conf.get("image_urls"):
-            val = event_conf["image_urls"]
-            if isinstance(val, list):
-                image_url = random.choice(val)
-            elif isinstance(val, str) and "," in val:
-                image_url = random.choice([u.strip() for u in val.split(",")])
-            else:
-                image_url = str(val)
+        db_urls = db_event.get("image_urls") if db_event else None
+        conf_urls = event_conf.get("image_urls")
+        
+        target_urls = db_urls or conf_urls
+        if target_urls:
+            if isinstance(target_urls, list):
+                image_url = random.choice(target_urls)
+            elif isinstance(target_urls, str):
+                if "," in target_urls:
+                    image_url = random.choice([u.strip() for u in target_urls.split(",")])
+                else:
+                    image_url = target_urls.strip()
 
         if image_url:
             try:

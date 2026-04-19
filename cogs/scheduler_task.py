@@ -9,7 +9,7 @@ import json
 from cogs.event_ui import DynamicEventView, get_event_conf, get_active_set
 from utils.emoji_utils import slugify
 from utils.lobby_utils import positive_status_ids
-from utils.i18n import t
+from utils.i18n import t, load_guild_translations
 from dateutil import parser as dtparser
 from dateutil import tz as dttz
 from dateutil.relativedelta import relativedelta
@@ -302,14 +302,18 @@ class SchedulerTask(commands.Cog):
             data=active_conf
         )
 
+        guild_id = db_event.get("guild_id")
+        # Optimization: Ensure guild translations are loaded for t() and view.prepare()
+        if guild_id:
+            await load_guild_translations(guild_id)
+
         # Send the new message to the channel
         channel = self.bot.get_channel(channel_id)
         if channel:
             view = DynamicEventView(self.bot, new_event_id, event_conf)
             await view.prepare()
 
-            guild_id = db_event.get("guild_id")
-            ping_role = event_conf.get("ping_role", "")
+            ping_role = active_conf.get("ping_role") or active_conf.get("ping_role_id")
             ping_prefix = ""
             if ping_role and str(ping_role).isdigit() and int(ping_role) > 0:
                 ping_prefix = f"{PING} <@&{ping_role}> "

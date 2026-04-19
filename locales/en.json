@@ -342,7 +342,7 @@
   "MSG_WAITLIST_HINT": "Hi <@{user_id}>! The position ({role}) is currently full, but you've been added to the waiting list. We'll notify you if a slot opens up!",
   "_section_scheduler": "── Scheduler & Reminders ──────────────────────",
   "LBL_REMINDER_TITLE": "<:bellcolorful:1494220079506788512> Reminder",
-  "MSG_REC_ALERT": "<:warningfilledcircle:1494217458087624767> **Recurring Event Alert!**",
+  "MSG_REC_ALERT": "<:bellfilledcircle:1494217650782474292> **Recurring Event Alert!**",
   "MSG_REM_DESC": "Reminder for event: **{title}**",
   "_section_event_list": "── Event List & Autocomplete ──────────────────",
   "LBL_ACTIVE_EVENTS_LIST": "**Active events:**\n",

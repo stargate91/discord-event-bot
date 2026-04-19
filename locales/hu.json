@@ -342,7 +342,7 @@
   "MSG_WAITLIST_HINT": "Szia <@{user_id}>! A választott pozíció ({role}) jelenleg betelt, de felkerültél a várólistára. Értesítünk, ha szabadul fel hely!",
   "_section_scheduler": "── Ütemező & Emlékeztetők ─────────────────────",
   "LBL_REMINDER_TITLE": "<:bellcolorful:1494220079506788512> Emlékeztető",
-  "MSG_REC_ALERT": "<:warningfilledcircle:1494217458087624767> **Ismétlődő esemény riasztás!**",
+  "MSG_REC_ALERT": "<:bellfilledcircle:1494217650782474292> **Ismétlődő esemény riasztás!**",
   "MSG_REM_DESC": "Emlékeztető az eseményre: **{title}**",
   "_section_event_list": "── Esemény Lista & Autocomplete ───────────────",
   "LBL_ACTIVE_EVENTS_LIST": "**Aktív események:**\n",
